@@ -24,7 +24,6 @@
       "package": "com.acebi.streaminghub"
     },
     "web": {
-      "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
