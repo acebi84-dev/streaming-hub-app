@@ -135,7 +135,7 @@ function DetailModal({ item, onClose }) {
               {item.poster_url ? <Image source={{ uri: item.poster_url }} style={styles.modalPoster} /> : <View style={styles.modalPosterPlaceholder}><Text style={{ color: '#ffffff22', fontSize: 24 }}>?</Text></View>}
               <View style={styles.modalHeaderInfo}>
                 <Text style={styles.modalTitle} numberOfLines={2}>{item.title}</Text>
-                {item.original_title && item.original_title !== item.title && <Text style={styles.modalOriginalTitle}>{item.original_title}</Text>}
+                {item.original_title && item.original_title !== item.title && item.original_language !== 'tr' && <Text style={styles.modalOriginalTitle}>{item.original_title}</Text>}
                 <Text style={styles.modalMeta}>{typeLabel}{langLabel ? ' · ' + langLabel : ''}</Text>
                 {item.year && <Text style={styles.modalMeta}>{item.year}</Text>}
                 <View style={styles.modalImdbRow}>
@@ -346,7 +346,7 @@ export default function App() {
         {item.poster_url ? <Image source={{ uri: item.poster_url }} style={styles.poster} /> : <View style={styles.posterPlaceholder}><Text style={styles.posterPlaceholderText}>?</Text></View>}
         <View style={styles.info}>
           <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
-          {item.original_title && item.original_title !== item.title && <Text style={styles.originalTitle} numberOfLines={1}>{item.original_title}</Text>}
+          {item.original_title && item.original_title !== item.title && item.original_language !== 'tr' && <Text style={styles.originalTitle} numberOfLines={1}>{item.original_title}</Text>}
           <View style={styles.row}>
             <Text style={styles.typeText}>{typeLabel}</Text>
             {genres ? <Text style={styles.dot}> · </Text> : null}
