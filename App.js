@@ -175,10 +175,24 @@ function DetailModal({ item, onClose }) {
   );
 }
 
+const POPULAR_GENRES = [
+  { en: 'Action', tr: 'Aksiyon' }, { en: 'Adventure', tr: 'Macera' },
+  { en: 'Animation', tr: 'Animasyon' }, { en: 'Comedy', tr: 'Komedi' },
+  { en: 'Crime', tr: 'Suç' }, { en: 'Documentary', tr: 'Belgesel' },
+  { en: 'Drama', tr: 'Drama' }, { en: 'Family', tr: 'Aile' },
+  { en: 'Fantasy', tr: 'Fantezi' }, { en: 'History', tr: 'Tarih' },
+  { en: 'Horror', tr: 'Korku' }, { en: 'Music', tr: 'Müzik' },
+  { en: 'Mystery', tr: 'Gizem' }, { en: 'Romance', tr: 'Romantik' },
+  { en: 'Science Fiction', tr: 'Bilim Kurgu' }, { en: 'Thriller', tr: 'Gerilim' },
+  { en: 'War', tr: 'Savaş' }, { en: 'Western', tr: 'Western' },
+];
+
 function PopularScreen({ selectedPlatforms }) {
   const [popular, setPopular] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'movie', 'series', or genre
+  const [showGenreDropdown, setShowGenreDropdown] = useState(false);
 
   useEffect(() => { fetchPopular(); }, [selectedPlatforms]);
 
@@ -199,6 +213,16 @@ function PopularScreen({ selectedPlatforms }) {
     setPopular(grouped);
     setLoading(false);
   }
+
+  function filterItems(items) {
+    if (activeFilter === 'all') return items;
+    if (activeFilter === 'movie') return items.filter(i => i.show_type === 'movie');
+    if (activeFilter === 'series') return items.filter(i => i.show_type === 'series');
+    // genre filter
+    return items.filter(i => i.genres && i.genres.includes(activeFilter));
+  }
+
+  const selectedGenreLabel = POPULAR_GENRES.find(g => g.en === activeFilter)?.tr || 'Kategoriler';
 
   async function openPopularItem(item) {
     // Base normalized item
@@ -254,16 +278,63 @@ function PopularScreen({ selectedPlatforms }) {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
-        <View style={styles.popularHeader}>
-          <Text style={styles.popularHeaderTitle}>🔥 Globalde En Popüler</Text>
-          <Text style={styles.popularHeaderSub}>Türkiye kataloğunda izlenebilir</Text>
+
+      {/* Netflix-style top filter bar */}
+      <View style={styles.popularTopBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularTopBarRow}>
+          <TouchableOpacity
+            style={[styles.popularTopBtn, activeFilter === 'all' && styles.popularTopBtnActive]}
+            onPress={() => { setActiveFilter('all'); setShowGenreDropdown(false); }}
+          >
+            <Text style={[styles.popularTopBtnText, activeFilter === 'all' && styles.popularTopBtnTextActive]}>Tümü</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.popularTopBtn, activeFilter === 'series' && styles.popularTopBtnActive]}
+            onPress={() => { setActiveFilter('series'); setShowGenreDropdown(false); }}
+          >
+            <Text style={[styles.popularTopBtnText, activeFilter === 'series' && styles.popularTopBtnTextActive]}>Diziler</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.popularTopBtn, activeFilter === 'movie' && styles.popularTopBtnActive]}
+            onPress={() => { setActiveFilter('movie'); setShowGenreDropdown(false); }}
+          >
+            <Text style={[styles.popularTopBtnText, activeFilter === 'movie' && styles.popularTopBtnTextActive]}>Filmler</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.popularTopBtn, POPULAR_GENRES.some(g => g.en === activeFilter) && styles.popularTopBtnActive]}
+            onPress={() => setShowGenreDropdown(!showGenreDropdown)}
+          >
+            <Text style={[styles.popularTopBtnText, POPULAR_GENRES.some(g => g.en === activeFilter) && styles.popularTopBtnTextActive]}>
+              {selectedGenreLabel} ▾
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+
+      {/* Genre dropdown */}
+      {showGenreDropdown && (
+        <View style={styles.genreDropdown}>
+          <ScrollView style={{ maxHeight: 240 }} showsVerticalScrollIndicator={false}>
+            {POPULAR_GENRES.map(g => (
+              <TouchableOpacity
+                key={g.en}
+                style={[styles.genreDropdownItem, activeFilter === g.en && styles.genreDropdownItemActive]}
+                onPress={() => { setActiveFilter(g.en); setShowGenreDropdown(false); }}
+              >
+                <Text style={[styles.genreDropdownText, activeFilter === g.en && styles.genreDropdownTextActive]}>{g.tr}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
+      )}
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
         {loading ? (
           <ActivityIndicator size="large" color={ACCENT} style={{ marginTop: 60 }} />
         ) : (
           platformOrder.map(p => {
-            const items = popular[p.slug];
+            const allItems = popular[p.slug] || [];
+            const items = filterItems(allItems);
             if (!items || items.length === 0) return null;
             return (
               <View key={p.slug} style={styles.popularSection}>
@@ -728,6 +799,17 @@ const styles = StyleSheet.create({
   tabIcon: { fontSize: 20 },
   tabLabel: { color: '#ffffff44', fontSize: 11 },
   tabLabelActive: { color: ACCENT, fontWeight: '600' },
+  popularTopBar: { borderBottomWidth: 1, borderBottomColor: BORDER, backgroundColor: BG },
+  popularTopBarRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, flexDirection: 'row' },
+  popularTopBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER },
+  popularTopBtnActive: { backgroundColor: '#fff', borderColor: '#fff' },
+  popularTopBtnText: { color: '#ffffff88', fontSize: 14, fontWeight: '600' },
+  popularTopBtnTextActive: { color: '#000' },
+  genreDropdown: { backgroundColor: CARD, marginHorizontal: 16, borderRadius: 14, borderWidth: 1, borderColor: BORDER, marginTop: 4, position: 'absolute', top: 52, left: 0, right: 0, zIndex: 100, marginHorizontal: 16 },
+  genreDropdownItem: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: BORDER },
+  genreDropdownItemActive: { backgroundColor: SURFACE },
+  genreDropdownText: { color: '#ffffffaa', fontSize: 14 },
+  genreDropdownTextActive: { color: '#fff', fontWeight: '600' },
   popularHeader: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: BORDER },
   popularHeaderTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
   popularHeaderSub: { color: '#ffffff44', fontSize: 12, marginTop: 2 },
