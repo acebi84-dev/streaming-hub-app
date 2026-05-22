@@ -18,11 +18,13 @@ const GENRES = [
   { en: 'Action', tr: 'Aksiyon' }, { en: 'Adventure', tr: 'Macera' },
   { en: 'Animation', tr: 'Animasyon' }, { en: 'Comedy', tr: 'Komedi' },
   { en: 'Crime', tr: 'Suç' }, { en: 'Documentary', tr: 'Belgesel' },
-  { en: 'Drama', tr: 'Drama' }, { en: 'Fantasy', tr: 'Fantezi' },
-  { en: 'History', tr: 'Tarih' }, { en: 'Horror', tr: 'Korku' },
-  { en: 'Music', tr: 'Müzik' }, { en: 'Mystery', tr: 'Gizem' },
-  { en: 'Romance', tr: 'Romantik' }, { en: 'Science Fiction', tr: 'Bilim Kurgu' },
-  { en: 'Sport', tr: 'Spor' }, { en: 'Thriller', tr: 'Gerilim' },
+  { en: 'Drama', tr: 'Drama' }, { en: 'Family', tr: 'Aile' },
+  { en: 'Fantasy', tr: 'Fantezi' }, { en: 'History', tr: 'Tarih' },
+  { en: 'Horror', tr: 'Korku' }, { en: 'Music', tr: 'Müzik' },
+  { en: 'Mystery', tr: 'Gizem' }, { en: 'News', tr: 'Haber' },
+  { en: 'Reality', tr: 'Reality' }, { en: 'Romance', tr: 'Romantik' },
+  { en: 'Science Fiction', tr: 'Bilim Kurgu' }, { en: 'Sport', tr: 'Spor' },
+  { en: 'Talk Show', tr: 'Talk Show' }, { en: 'Thriller', tr: 'Gerilim' },
   { en: 'War', tr: 'Savaş' }, { en: 'Western', tr: 'Western' },
 ];
 
@@ -134,7 +136,7 @@ function DetailModal({ item, onClose }) {
             <View style={styles.modalHeader}>
               {item.poster_url ? <Image source={{ uri: item.poster_url }} style={styles.modalPoster} /> : <View style={styles.modalPosterPlaceholder}><Text style={{ color: '#ffffff22', fontSize: 24 }}>?</Text></View>}
               <View style={styles.modalHeaderInfo}>
-                <Text style={styles.modalTitle} numberOfLines={2}>{item.title}</Text>
+                <Text style={styles.modalTitle} numberOfLines={2}>{item.original_language === 'tr' && item.title_tr ? item.title_tr : item.title}</Text>
                 {item.original_title && item.original_title !== item.title && item.original_language !== 'tr' && <Text style={styles.modalOriginalTitle}>{item.original_title}</Text>}
                 <Text style={styles.modalMeta}>{typeLabel}{langLabel ? ' · ' + langLabel : ''}</Text>
                 {item.year && <Text style={styles.modalMeta}>{item.year}</Text>}
@@ -338,14 +340,15 @@ export default function App() {
   function renderItem({ item }) {
     const typeLabel = item.type === 'movie' ? '🎬 Film' : '📺 Dizi';
     const langLabel = item.original_language ? LANGUAGE_MAP[item.original_language] : null;
-    const genres = item.genre ? item.genre.split(',').slice(0, 2).join(', ') : '';
+    const genreMap = Object.fromEntries(GENRES.map(g => [g.en, g.tr]));
+    const genres = item.genre ? item.genre.split(',').slice(0, 2).map(g => genreMap[g.trim()] || g.trim()).join(', ') : '';
     const runtime = formatRuntime(item.runtime);
     const hasDetails = item.synopsis_tr || item.director || item.cast_list || item.tagline;
     return (
       <View style={styles.card}>
         {item.poster_url ? <Image source={{ uri: item.poster_url }} style={styles.poster} /> : <View style={styles.posterPlaceholder}><Text style={styles.posterPlaceholderText}>?</Text></View>}
         <View style={styles.info}>
-          <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.title} numberOfLines={1}>{item.original_language === 'tr' && item.title_tr ? item.title_tr : item.title}</Text>
           {item.original_title && item.original_title !== item.title && item.original_language !== 'tr' && <Text style={styles.originalTitle} numberOfLines={1}>{item.original_title}</Text>}
           <View style={styles.row}>
             <Text style={styles.typeText}>{typeLabel}</Text>
