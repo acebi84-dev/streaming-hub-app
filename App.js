@@ -5,6 +5,7 @@ import {
   Animated, Modal,
 } from 'react-native';
 import { supabase } from './supabase';
+import { Compass, TrendingUp } from 'lucide-react-native';
 
 const PLATFORMS = [
   { slug: 'netflix',  name: 'Netflix',      color: '#E50914', darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
@@ -392,11 +393,11 @@ export default function App() {
           <PopularScreen selectedPlatforms={selectedPlatforms} />
           <View style={styles.tabBar}>
             <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('discover')}>
-              <Text style={styles.tabIcon}>🔍</Text>
+              <Compass size={22} color="#ffffff44" strokeWidth={1.8} />
               <Text style={styles.tabLabel}>Keşfet</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('popular')}>
-              <Text style={styles.tabIcon}>🔥</Text>
+              <TrendingUp size={22} color="#00A8E1" strokeWidth={1.8} />
               <Text style={[styles.tabLabel, styles.tabLabelActive]}>Popüler</Text>
             </TouchableOpacity>
           </View>
@@ -575,11 +576,11 @@ export default function App() {
       )}
           <View style={styles.tabBar}>
             <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('discover')}>
-              <Text style={styles.tabIcon}>🔍</Text>
+              <Compass size={22} color="#00A8E1" strokeWidth={1.8} />
               <Text style={[styles.tabLabel, styles.tabLabelActive]}>Keşfet</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('popular')}>
-              <Text style={styles.tabIcon}>🔥</Text>
+              <TrendingUp size={22} color="#ffffff44" strokeWidth={1.8} />
               <Text style={styles.tabLabel}>Popüler</Text>
             </TouchableOpacity>
           </View>
