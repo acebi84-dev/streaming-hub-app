@@ -327,6 +327,10 @@ function PopularScreen({ selectedPlatforms }) {
       )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
+        <View style={styles.popularHeader}>
+          <Text style={styles.popularHeaderTitle}>🔥 Globalde En Popüler</Text>
+          <Text style={styles.popularHeaderSub}>Türkiye kataloğunda izlenebilir</Text>
+        </View>
         {loading ? (
           <ActivityIndicator size="large" color={ACCENT} style={{ marginTop: 60 }} />
         ) : (
