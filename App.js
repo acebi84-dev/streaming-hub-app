@@ -8,7 +8,7 @@ import { supabase } from './supabase';
 
 const PLATFORMS = [
   { slug: 'netflix',  name: 'Netflix',      color: '#E50914', darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
-  { slug: 'amazon',   name: 'Prime Video',  color: '#00A8E1', darkLogo: 'https://media.movieofthenight.com/services/prime/logo-white.svg' },
+  { slug: 'prime',    name: 'Prime Video',  color: '#00A8E1', darkLogo: 'https://media.movieofthenight.com/services/prime/logo-white.svg' },
   { slug: 'disney',   name: 'Disney+',      color: '#0063E5', darkLogo: 'https://media.movieofthenight.com/services/disney/logo-white.svg' },
   { slug: 'hbo',      name: 'HBO Max',      color: '#8B4FBE', darkLogo: 'https://media.movieofthenight.com/services/hbo/logo-white.svg' },
 ];
@@ -193,19 +193,42 @@ function PopularScreen({ selectedPlatforms }) {
     setLoading(false);
   }
 
-  function normalizePopularItem(item) {
-    return {
+  async function openPopularItem(item) {
+    // Base normalized item
+    const base = {
       ...item,
       poster_url: item.poster_w480 || item.poster_w240,
       imdb_score: item.rating ? item.rating / 10 : null,
       availability: item.streaming_link ? [{ platform_slug: item.platform, platform_url: item.streaming_link }] : [],
     };
+    setSelectedItem(base);
+
+    // Enrich from hub_contents if imdb_id exists
+    if (item.imdb_id) {
+      const { data } = await supabase
+        .from('hub_contents')
+        .select('synopsis_tr, director, cast_list, trailer_url, tagline, poster_url')
+        .eq('imdb_id', item.imdb_id)
+        .limit(1)
+        .single();
+      if (data) {
+        setSelectedItem({
+          ...base,
+          synopsis_tr: data.synopsis_tr,
+          director: data.director,
+          cast_list: data.cast_list,
+          trailer_url: data.trailer_url,
+          tagline: data.tagline,
+          poster_url: data.poster_url || base.poster_url,
+        });
+      }
+    }
   }
 
   function renderPopularCard(item) {
     const p = PLATFORMS.find(x => x.slug === item.platform);
     return (
-      <TouchableOpacity key={item.id} style={styles.popularCard} onPress={() => setSelectedItem(normalizePopularItem(item))}>
+      <TouchableOpacity key={item.id} style={styles.popularCard} onPress={() => openPopularItem(item)}>
         <View style={styles.popularRankBadge}>
           <Text style={styles.popularRank}>#{item.rank}</Text>
         </View>
