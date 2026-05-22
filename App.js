@@ -455,7 +455,7 @@ export default function App() {
                 );
               })}
             </View>
-            <Text style={styles.platformBtnText}>Platformlar</Text>
+            <Text style={styles.platformBtnText}>Platform Seç</Text>
           </TouchableOpacity>
         </View>
 
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
 
   // Arama
   searchRow: { flexDirection: 'row', paddingHorizontal: 16, marginVertical: 12, gap: 8, alignItems: 'center', flexShrink: 0 },
-  searchInput: { flex: 1, minWidth: 0, backgroundColor: SURFACE, color: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, borderWidth: 1, borderColor: BORDER },
+  searchInput: { flex: 1, minWidth: 0, backgroundColor: SURFACE, color: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, borderWidth: 1, borderColor: BORDER },
   clearBtn: { backgroundColor: SURFACE, width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: BORDER },
   clearBtnText: { color: '#ffffff44', fontSize: 14 },
   searchBtn: { backgroundColor: ACCENT, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, flexShrink: 0 },
