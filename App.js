@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   platformLogoCard: { flex: 1, minWidth: '45%', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, justifyContent: 'center', alignItems: 'center' },
   platformLogoImg: { width: 80, height: 22 },
   platformLogoOff: { fontSize: 10, fontWeight: '700', marginTop: 4 },
-  platformHint: { color: '#ffffff33', fontSize: 10, marginBottom: 8, letterSpacing: 0.3 },
+  platformHint: { color: '#ffffff99', fontSize: 10, marginBottom: 8, letterSpacing: 0.3 },
   searchRow: { flexDirection: 'row', paddingHorizontal: 16, marginVertical: 10, gap: 8, alignItems: 'center', flexShrink: 0 },
   searchInput: { flex: 1, minWidth: 0, backgroundColor: SURFACE, color: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, borderWidth: 1, borderColor: BORDER },
   clearBtn: { backgroundColor: SURFACE, width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: BORDER, flexShrink: 0 },
