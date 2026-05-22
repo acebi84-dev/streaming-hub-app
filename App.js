@@ -168,7 +168,83 @@ function DetailModal({ item, onClose }) {
   );
 }
 
+function PopularScreen({ selectedPlatforms }) {
+  const [popular, setPopular] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  useEffect(() => { fetchPopular(); }, [selectedPlatforms]);
+
+  async function fetchPopular() {
+    setLoading(true);
+    const platforms = selectedPlatforms.length > 0 ? selectedPlatforms : PLATFORMS.map(p => p.slug);
+    const { data, error } = await supabase
+      .from('hub_popular')
+      .select('*')
+      .in('platform', platforms)
+      .order('rank', { ascending: true });
+    if (error) { console.error(error); setLoading(false); return; }
+    const grouped = {};
+    (data || []).forEach(item => {
+      if (!grouped[item.platform]) grouped[item.platform] = [];
+      grouped[item.platform].push(item);
+    });
+    setPopular(grouped);
+    setLoading(false);
+  }
+
+  function renderPopularCard(item) {
+    const p = PLATFORMS.find(x => x.slug === item.platform);
+    return (
+      <TouchableOpacity key={item.id} style={styles.popularCard} onPress={() => setSelectedItem(item)}>
+        <View style={styles.popularRankBadge}>
+          <Text style={styles.popularRank}>#{item.rank}</Text>
+        </View>
+        {item.poster_w240
+          ? <Image source={{ uri: item.poster_w240 }} style={styles.popularPoster} />
+          : <View style={[styles.popularPoster, { backgroundColor: SURFACE, alignItems: 'center', justifyContent: 'center' }]}><Text style={{ color: '#ffffff22', fontSize: 20 }}>?</Text></View>
+        }
+        <Text style={styles.popularTitle} numberOfLines={2}>{item.title}</Text>
+        {item.rating && <View style={styles.popularImdb}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.popularScore}>{(item.rating / 10).toFixed(1)}</Text></View>}
+      </TouchableOpacity>
+    );
+  }
+
+  const platformOrder = PLATFORMS.filter(p => selectedPlatforms.includes(p.slug));
+
+  return (
+    <View style={{ flex: 1, backgroundColor: BG }}>
+      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
+        <View style={styles.popularHeader}>
+          <Text style={styles.popularHeaderTitle}>🔥 Globalde En Popüler</Text>
+          <Text style={styles.popularHeaderSub}>Türkiye kataloğunda izlenebilir</Text>
+        </View>
+        {loading ? (
+          <ActivityIndicator size="large" color={ACCENT} style={{ marginTop: 60 }} />
+        ) : (
+          platformOrder.map(p => {
+            const items = popular[p.slug];
+            if (!items || items.length === 0) return null;
+            return (
+              <View key={p.slug} style={styles.popularSection}>
+                <View style={[styles.popularPlatformLabel, { backgroundColor: p.color + '22', borderColor: p.color + '44' }]}>
+                  <Image source={{ uri: p.darkLogo }} style={styles.popularPlatformLogo} resizeMode="contain" />
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularRow}>
+                  {items.map(item => renderPopularCard(item))}
+                </ScrollView>
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
 export default function App() {
+  const [activeTab, setActiveTab] = useState('discover');
   const [contents, setContents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
@@ -278,6 +354,23 @@ export default function App() {
       <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
       <PlatformModal visible={showPlatformModal} selected={selectedPlatforms} onSave={handlePlatformSave} onClose={() => setShowPlatformModal(false)} />
+
+      {activeTab === 'popular' ? (
+        <>
+          <PopularScreen selectedPlatforms={selectedPlatforms} />
+          <View style={styles.tabBar}>
+            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('discover')}>
+              <Text style={styles.tabIcon}>🔍</Text>
+              <Text style={styles.tabLabel}>Keşfet</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('popular')}>
+              <Text style={styles.tabIcon}>🔥</Text>
+              <Text style={[styles.tabLabel, styles.tabLabelActive]}>Popüler</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      ) : (
+        <View style={{ flex: 1 }}>
 
       {/* Header */}
       <View style={styles.header}>
@@ -448,6 +541,18 @@ export default function App() {
           }
         />
       )}
+          <View style={styles.tabBar}>
+            <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('discover')}>
+              <Text style={styles.tabIcon}>🔍</Text>
+              <Text style={[styles.tabLabel, styles.tabLabelActive]}>Keşfet</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('popular')}>
+              <Text style={styles.tabIcon}>🔥</Text>
+              <Text style={styles.tabLabel}>Popüler</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -584,5 +689,25 @@ const styles = StyleSheet.create({
   imdbLinkBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: SURFACE, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: BORDER },
   imdbLinkText: { color: '#ffffff55', fontSize: 12 },
   closeBtn: { backgroundColor: SURFACE, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: BORDER },
+  tabBar: { flexDirection: 'row', backgroundColor: CARD, borderTopWidth: 1, borderTopColor: BORDER, paddingBottom: 4 },
+  tabItem: { flex: 1, alignItems: 'center', paddingVertical: 10, gap: 2 },
+  tabItemActive: { borderTopWidth: 2, borderTopColor: ACCENT },
+  tabIcon: { fontSize: 20 },
+  tabLabel: { color: '#ffffff44', fontSize: 11 },
+  tabLabelActive: { color: ACCENT, fontWeight: '600' },
+  popularHeader: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: BORDER },
+  popularHeaderTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  popularHeaderSub: { color: '#ffffff44', fontSize: 12, marginTop: 2 },
+  popularSection: { marginTop: 20 },
+  popularPlatformLabel: { marginHorizontal: 16, marginBottom: 10, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, alignSelf: 'flex-start' },
+  popularPlatformLogo: { width: 80, height: 22 },
+  popularRow: { paddingHorizontal: 16, gap: 10 },
+  popularCard: { width: 110, position: 'relative' },
+  popularRankBadge: { position: 'absolute', top: 6, left: 6, zIndex: 1, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 },
+  popularRank: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
+  popularPoster: { width: 110, height: 160, borderRadius: 10, marginBottom: 6 },
+  popularTitle: { color: '#ffffffcc', fontSize: 11, fontWeight: '600', lineHeight: 15 },
+  popularImdb: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  popularScore: { color: '#F5C518', fontSize: 12, fontWeight: 'bold' },
   closeBtnText: { color: '#ffffff55', fontSize: 13 },
 });
