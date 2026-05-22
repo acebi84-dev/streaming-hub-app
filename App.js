@@ -103,7 +103,6 @@ function PlatformModal({ visible, selected, onSave, onClose }) {
                       <Image source={{ uri: p.darkLogo }} style={styles.platformCardLogo} resizeMode="contain" />
                     </View>
                     {isSel && <View style={[styles.platformCardCheck, { backgroundColor: p.color }]}><Text style={styles.platformCardCheckText}>✓</Text></View>}
-                    <Text style={[styles.platformCardName, isSel && { color: p.color }]}>{p.name}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -459,8 +458,8 @@ const styles = StyleSheet.create({
   platformBtnLogos: { flexDirection: 'row', gap: 4 },
   platformBtnDot: { width: 8, height: 8, borderRadius: 4 },
   platformBtnText: { color: '#ffffff66', fontSize: 11 },
-  commentBubble: { backgroundColor: SURFACE, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: BORDER, alignSelf: 'flex-start', marginBottom: 14 },
-  commentText: { color: '#ffffff44', fontSize: 12, fontStyle: 'italic' },
+  commentBubble: { backgroundColor: '#00A8E122', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#00A8E144', alignSelf: 'flex-start', marginBottom: 14 },
+  commentText: { color: '#00A8E1cc', fontSize: 13, fontStyle: 'italic', fontWeight: '500' },
   platformLogoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   platformLogoCard: { flex: 1, minWidth: '45%', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, justifyContent: 'center', alignItems: 'center' },
   platformLogoImg: { width: 80, height: 22 },
