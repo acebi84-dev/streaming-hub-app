@@ -462,7 +462,7 @@ export default function App() {
         {/* Platform logoları */}
         <View style={styles.platformLogoGrid}>
           {PLATFORMS.filter(p => selectedPlatforms.includes(p.slug)).map(p => (
-            <View key={p.slug} style={[styles.platformLogoCard, { borderColor: p.color + '55' }]}>
+            <View key={p.slug} style={[styles.platformLogoCard, { backgroundColor: p.color, borderColor: p.color }]}>
               <Image source={{ uri: p.darkLogo }} style={styles.platformLogoImg} resizeMode="contain" />
             </View>
           ))}
