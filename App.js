@@ -460,13 +460,13 @@ export default function App() {
         </View>
 
         {/* Platform logoları */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.platformLogoRow} contentContainerStyle={{ paddingRight: 16 }}>
+        <View style={styles.platformLogoGrid}>
           {PLATFORMS.filter(p => selectedPlatforms.includes(p.slug)).map(p => (
             <View key={p.slug} style={[styles.platformLogoCard, { borderColor: p.color + '55' }]}>
               <Image source={{ uri: p.darkLogo }} style={styles.platformLogoImg} resizeMode="contain" />
             </View>
           ))}
-        </ScrollView>
+        </View>
 
         <CarouselComments />
       </View>
@@ -626,20 +626,20 @@ const styles = StyleSheet.create({
   platformBtnText: { color: '#ffffff88', fontSize: 11 },
 
   // Platform logo satırı
-  platformLogoRow: { marginBottom: 14 },
-  platformLogoCard: { backgroundColor: SURFACE, borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8, marginRight: 10, justifyContent: 'center', alignItems: 'center' },
-  platformLogoImg: { width: 80, height: 24 },
+  platformLogoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  platformLogoCard: { flex: 1, minWidth: '45%', backgroundColor: SURFACE, borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8, justifyContent: 'center', alignItems: 'center' },
+  platformLogoImg: { width: 80, height: 22 },
 
   // Carousel
   commentBubble: { backgroundColor: SURFACE, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: BORDER, alignSelf: 'flex-start' },
   commentText: { color: '#ffffff55', fontSize: 12, fontStyle: 'italic' },
 
   // Arama
-  searchRow: { flexDirection: 'row', paddingHorizontal: 16, marginVertical: 12, gap: 8, alignItems: 'center' },
-  searchInput: { flex: 1, backgroundColor: SURFACE, color: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, borderWidth: 1, borderColor: BORDER },
+  searchRow: { flexDirection: 'row', paddingHorizontal: 16, marginVertical: 12, gap: 8, alignItems: 'center', flexShrink: 0 },
+  searchInput: { flex: 1, minWidth: 0, backgroundColor: SURFACE, color: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, borderWidth: 1, borderColor: BORDER },
   clearBtn: { backgroundColor: SURFACE, width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: BORDER },
   clearBtnText: { color: '#ffffff44', fontSize: 14 },
-  searchBtn: { backgroundColor: ACCENT, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
+  searchBtn: { backgroundColor: ACCENT, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, flexShrink: 0 },
   searchBtnText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
 
   // Tür
