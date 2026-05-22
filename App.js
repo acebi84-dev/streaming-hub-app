@@ -285,13 +285,8 @@ export default function App() {
           {/* Sol: Logo */}
           <Image source={require('./assets/images/logo.png')} style={styles.headerLogo} resizeMode="contain" />
 
-          {/* Sağ: Subtitle + Carousel + Platform Seç */}
+          {/* Sağ: Platform butonu üstte, subtitle + carousel altta */}
           <View style={styles.headerRight}>
-            <View style={styles.headerTagRow}>
-              <Text style={styles.headerSubtitle}>Film & Dizi Puanları</Text>
-              <View style={styles.imdbBadgeHeader}><Text style={styles.imdbBadgeHeaderText}>IMDb</Text></View>
-            </View>
-            <CarouselComments />
             <TouchableOpacity style={styles.platformBtn} onPress={() => setShowPlatformModal(true)}>
               <View style={styles.platformBtnLogos}>
                 {selectedPlatforms.slice(0, 4).map(slug => {
@@ -301,6 +296,11 @@ export default function App() {
               </View>
               <Text style={styles.platformBtnText}>Platform Seç</Text>
             </TouchableOpacity>
+            <View style={styles.headerTagRow}>
+              <Text style={styles.headerSubtitle}>Film & Dizi Puanları</Text>
+              <View style={styles.imdbBadgeHeader}><Text style={styles.imdbBadgeHeaderText}>IMDb</Text></View>
+            </View>
+            <CarouselComments />
           </View>
         </View>
 
@@ -448,14 +448,14 @@ const ACCENT = '#00A8E1';
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
   header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: BORDER },
-  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  headerLogo: { width: 80, height: 80 },
-  headerRight: { flex: 1, gap: 6 },
+  headerTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 12 },
+  headerLogo: { width: 110, height: 110 },
+  headerRight: { flex: 1, gap: 8, justifyContent: 'space-between' },
   headerTagRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerSubtitle: { color: '#ffffff55', fontSize: 13 },
   imdbBadgeHeader: { backgroundColor: '#F5C518', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   imdbBadgeHeaderText: { color: '#000', fontSize: 10, fontWeight: 'bold' },
-  platformBtn: { backgroundColor: SURFACE, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: BORDER, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
+  platformBtn: { backgroundColor: SURFACE, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: BORDER, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-end' },
   platformBtnLogos: { flexDirection: 'row', gap: 4 },
   platformBtnDot: { width: 7, height: 7, borderRadius: 4 },
   platformBtnText: { color: '#ffffff66', fontSize: 11 },
