@@ -282,20 +282,30 @@ export default function App() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          {/* Sol: Logo */}
-          <Image source={require('./assets/images/logo.png')} style={styles.headerLogo} resizeMode="contain" />
+          {/* Sol: SVG İkon */}
+          <View style={styles.appIcon}>
+            <View style={styles.appIconPlay}>
+              <View style={styles.appIconTriangle} />
+            </View>
+            <View style={styles.appIconQ}>
+              <Text style={styles.appIconQText}>?</Text>
+            </View>
+          </View>
 
-          {/* Sağ: Platform butonu üstte, subtitle + carousel altta */}
+          {/* Sağ: başlık + platform butonu + subtitle + carousel */}
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.platformBtn} onPress={() => setShowPlatformModal(true)}>
-              <View style={styles.platformBtnLogos}>
-                {selectedPlatforms.slice(0, 4).map(slug => {
-                  const p = PLATFORMS.find(x => x.slug === slug);
-                  return p ? <View key={slug} style={[styles.platformBtnDot, { backgroundColor: p.color }]} /> : null;
-                })}
-              </View>
-              <Text style={styles.platformBtnText}>Platform Seç</Text>
-            </TouchableOpacity>
+            <View style={styles.headerTitleRow}>
+              <Text style={styles.appTitle}>Ne İzlesek?</Text>
+              <TouchableOpacity style={styles.platformBtn} onPress={() => setShowPlatformModal(true)}>
+                <View style={styles.platformBtnLogos}>
+                  {selectedPlatforms.slice(0, 4).map(slug => {
+                    const p = PLATFORMS.find(x => x.slug === slug);
+                    return p ? <View key={slug} style={[styles.platformBtnDot, { backgroundColor: p.color }]} /> : null;
+                  })}
+                </View>
+                <Text style={styles.platformBtnText}>Platform Seç</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.headerTagRow}>
               <Text style={styles.headerSubtitle}>Film & Dizi Puanları</Text>
               <View style={styles.imdbBadgeHeader}><Text style={styles.imdbBadgeHeaderText}>IMDb</Text></View>
@@ -449,8 +459,14 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
   header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: BORDER },
   headerTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 12 },
-  headerLogo: { width: 110, height: 110 },
-  headerRight: { flex: 1, gap: 8, justifyContent: 'space-between' },
+  appIcon: { width: 80, height: 80, borderRadius: 20, backgroundColor: '#E50914', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  appIconPlay: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', position: 'absolute', top: 10, left: 12 },
+  appIconTriangle: { width: 0, height: 0, borderTopWidth: 8, borderBottomWidth: 8, borderLeftWidth: 14, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: '#fff', marginLeft: 3 },
+  appIconQ: { position: 'absolute', bottom: 8, right: 10 },
+  appIconQText: { color: '#fff', fontSize: 36, fontWeight: '900', lineHeight: 40 },
+  headerRight: { flex: 1, gap: 6 },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  appTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold', letterSpacing: -0.5 },
   headerTagRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerSubtitle: { color: '#ffffff55', fontSize: 13 },
   imdbBadgeHeader: { backgroundColor: '#F5C518', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
