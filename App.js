@@ -193,10 +193,19 @@ function PopularScreen({ selectedPlatforms }) {
     setLoading(false);
   }
 
+  function normalizePopularItem(item) {
+    return {
+      ...item,
+      poster_url: item.poster_w480 || item.poster_w240,
+      imdb_score: item.rating ? item.rating / 10 : null,
+      availability: item.streaming_link ? [{ platform_slug: item.platform, platform_url: item.streaming_link }] : [],
+    };
+  }
+
   function renderPopularCard(item) {
     const p = PLATFORMS.find(x => x.slug === item.platform);
     return (
-      <TouchableOpacity key={item.id} style={styles.popularCard} onPress={() => setSelectedItem(item)}>
+      <TouchableOpacity key={item.id} style={styles.popularCard} onPress={() => setSelectedItem(normalizePopularItem(item))}>
         <View style={styles.popularRankBadge}>
           <Text style={styles.popularRank}>#{item.rank}</Text>
         </View>
@@ -566,12 +575,12 @@ const ACCENT = '#00A8E1';
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
   header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: BORDER },
-  headerTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 12 },
-  appIcon: { width: 80, height: 80, borderRadius: 20, backgroundColor: '#E50914', alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  appIconPlay: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', position: 'absolute', top: 10, left: 12 },
-  appIconTriangle: { width: 0, height: 0, borderTopWidth: 8, borderBottomWidth: 8, borderLeftWidth: 14, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: '#fff', marginLeft: 3 },
-  appIconQ: { position: 'absolute', bottom: 8, right: 10 },
-  appIconQText: { color: '#fff', fontSize: 36, fontWeight: '900', lineHeight: 40 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 },
+  appIcon: { width: 90, height: 90, borderRadius: 22, backgroundColor: '#E50914', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  appIconPlay: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', position: 'absolute', top: 10, left: 13 },
+  appIconTriangle: { width: 0, height: 0, borderTopWidth: 9, borderBottomWidth: 9, borderLeftWidth: 15, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: '#fff', marginLeft: 3 },
+  appIconQ: { position: 'absolute', bottom: 6, right: 10 },
+  appIconQText: { color: '#fff', fontSize: 40, fontWeight: '900', lineHeight: 44 },
   headerRight: { flex: 1, gap: 6 },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   appTitle: { color: '#fff', fontSize: 26, fontWeight: 'bold', letterSpacing: -0.5 },
