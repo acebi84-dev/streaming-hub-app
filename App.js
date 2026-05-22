@@ -317,7 +317,7 @@ export default function App() {
   }
 
   function handlePlatformSave(slugs) { setSelectedPlatforms(slugs); saveSelectedPlatforms(slugs); }
-  function handleSearch() { setActiveSearch(searchInput); }
+  function handleSearch() { setActiveSearch(searchInput); setShowFilters(false); }
   function clearSearch() { setSearchInput(''); setActiveSearch(''); }
   function toggleSort(field) { if (sortBy === field) setSortAsc(!sortAsc); else { setSortBy(field); setSortAsc(false); } }
   function getSortIcon(field) { if (sortBy !== field) return ''; return sortAsc ? ' ↑' : ' ↓'; }
@@ -429,28 +429,17 @@ export default function App() {
           </View>
         </View>
 
-        <Text style={styles.platformHint}>Platforma dokun · ekle veya çıkar</Text>
-        {/* Platform logoları — tıklayarak ekle/çıkar */}
-        <View style={styles.platformLogoGrid}>
-          {PLATFORMS.map(p => {
-            const isSelected = selectedPlatforms.includes(p.slug);
-            return (
-              <TouchableOpacity
-                key={p.slug}
-                style={[styles.platformLogoCard, { backgroundColor: isSelected ? p.color : p.color + '33', borderWidth: isSelected ? 0 : 1, borderColor: p.color + '44' }]}
-                onPress={() => {
-                  const updated = isSelected
-                    ? selectedPlatforms.filter(s => s !== p.slug)
-                    : [...selectedPlatforms, p.slug];
-                  handlePlatformSave(updated);
-                }}
-              >
-                <Image source={{ uri: p.darkLogo }} style={[styles.platformLogoImg, { opacity: isSelected ? 1 : 0.35 }]} resizeMode="contain" />
-                {!isSelected && <Text style={[styles.platformLogoOff, { color: p.color }]}>+ Ekle</Text>}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {/* Platform Seç butonu */}
+        <TouchableOpacity style={styles.platformSelectBtn} onPress={() => setShowPlatformModal(true)}>
+          <View style={styles.platformSelectDots}>
+            {selectedPlatforms.slice(0, 4).map(slug => {
+              const p = PLATFORMS.find(x => x.slug === slug);
+              return p ? <View key={slug} style={[styles.platformSelectDot, { backgroundColor: p.color }]} /> : null;
+            })}
+          </View>
+          <Text style={styles.platformSelectText}>Platform Seç</Text>
+          <Text style={styles.platformSelectCount}>{selectedPlatforms.length} seçili</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Arama */}
@@ -622,7 +611,11 @@ const styles = StyleSheet.create({
   platformLogoCard: { flex: 1, minWidth: '45%', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, justifyContent: 'center', alignItems: 'center' },
   platformLogoImg: { width: 80, height: 22 },
   platformLogoOff: { fontSize: 10, fontWeight: '700', marginTop: 4 },
-  platformHint: { color: '#ffffff99', fontSize: 10, marginBottom: 8, letterSpacing: 0.3 },
+  platformSelectBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: SURFACE, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderColor: BORDER, marginTop: 4 },
+  platformSelectDots: { flexDirection: 'row', gap: 5 },
+  platformSelectDot: { width: 10, height: 10, borderRadius: 5 },
+  platformSelectText: { color: '#fff', fontSize: 16, fontWeight: '700', flex: 1 },
+  platformSelectCount: { color: '#ffffff55', fontSize: 13 },
   searchRow: { flexDirection: 'row', paddingHorizontal: 16, marginVertical: 10, gap: 8, alignItems: 'center', flexShrink: 0 },
   searchInput: { flex: 1, minWidth: 0, backgroundColor: SURFACE, color: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, borderWidth: 1, borderColor: BORDER },
   clearBtn: { backgroundColor: SURFACE, width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: BORDER, flexShrink: 0 },
