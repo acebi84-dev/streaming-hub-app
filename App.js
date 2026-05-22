@@ -191,7 +191,8 @@ function PopularScreen({ selectedPlatforms }) {
   const [popular, setPopular] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'movie', 'series', or genre
+  const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'movie', 'series'
+  const [genreFilter, setGenreFilter] = useState(null);
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
 
   useEffect(() => { fetchPopular(); }, [selectedPlatforms]);
@@ -215,14 +216,14 @@ function PopularScreen({ selectedPlatforms }) {
   }
 
   function filterItems(items) {
-    if (activeFilter === 'all') return items;
-    if (activeFilter === 'movie') return items.filter(i => i.show_type === 'movie');
-    if (activeFilter === 'series') return items.filter(i => i.show_type === 'series');
-    // genre filter
-    return items.filter(i => i.genres && i.genres.includes(activeFilter));
+    let result = items;
+    if (typeFilter === 'movie') result = result.filter(i => i.show_type === 'movie');
+    if (typeFilter === 'series') result = result.filter(i => i.show_type === 'series');
+    if (genreFilter) result = result.filter(i => i.genres && i.genres.includes(genreFilter));
+    return result;
   }
 
-  const selectedGenreLabel = POPULAR_GENRES.find(g => g.en === activeFilter)?.tr || 'Kategoriler';
+  const selectedGenreLabel = POPULAR_GENRES.find(g => g.en === genreFilter)?.tr || 'Kategoriler';
 
   async function openPopularItem(item) {
     // Base normalized item
@@ -282,32 +283,29 @@ function PopularScreen({ selectedPlatforms }) {
       {/* Netflix-style top filter bar */}
       <View style={styles.popularTopBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularTopBarRow}>
+          {[['all','Tümü'],['series','Diziler'],['movie','Filmler']].map(([val, label]) => (
+            <TouchableOpacity
+              key={val}
+              style={[styles.popularTopBtn, typeFilter === val && styles.popularTopBtnActive]}
+              onPress={() => { setTypeFilter(val); setShowGenreDropdown(false); }}
+            >
+              <Text style={[styles.popularTopBtnText, typeFilter === val && styles.popularTopBtnTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+          <View style={styles.popularTopSeparator} />
           <TouchableOpacity
-            style={[styles.popularTopBtn, activeFilter === 'all' && styles.popularTopBtnActive]}
-            onPress={() => { setActiveFilter('all'); setShowGenreDropdown(false); }}
-          >
-            <Text style={[styles.popularTopBtnText, activeFilter === 'all' && styles.popularTopBtnTextActive]}>Tümü</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.popularTopBtn, activeFilter === 'series' && styles.popularTopBtnActive]}
-            onPress={() => { setActiveFilter('series'); setShowGenreDropdown(false); }}
-          >
-            <Text style={[styles.popularTopBtnText, activeFilter === 'series' && styles.popularTopBtnTextActive]}>Diziler</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.popularTopBtn, activeFilter === 'movie' && styles.popularTopBtnActive]}
-            onPress={() => { setActiveFilter('movie'); setShowGenreDropdown(false); }}
-          >
-            <Text style={[styles.popularTopBtnText, activeFilter === 'movie' && styles.popularTopBtnTextActive]}>Filmler</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.popularTopBtn, POPULAR_GENRES.some(g => g.en === activeFilter) && styles.popularTopBtnActive]}
+            style={[styles.popularTopBtn, genreFilter !== null && styles.popularTopBtnGenreActive]}
             onPress={() => setShowGenreDropdown(!showGenreDropdown)}
           >
-            <Text style={[styles.popularTopBtnText, POPULAR_GENRES.some(g => g.en === activeFilter) && styles.popularTopBtnTextActive]}>
+            <Text style={[styles.popularTopBtnText, genreFilter !== null && styles.popularTopBtnTextGenreActive]}>
               {selectedGenreLabel} ▾
             </Text>
           </TouchableOpacity>
+          {genreFilter && (
+            <TouchableOpacity style={styles.popularTopBtn} onPress={() => setGenreFilter(null)}>
+              <Text style={styles.popularTopBtnText}>✕</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </View>
 
@@ -318,10 +316,10 @@ function PopularScreen({ selectedPlatforms }) {
             {POPULAR_GENRES.map(g => (
               <TouchableOpacity
                 key={g.en}
-                style={[styles.genreDropdownItem, activeFilter === g.en && styles.genreDropdownItemActive]}
-                onPress={() => { setActiveFilter(g.en); setShowGenreDropdown(false); }}
+                style={[styles.genreDropdownItem, genreFilter === g.en && styles.genreDropdownItemActive]}
+                onPress={() => { setGenreFilter(genreFilter === g.en ? null : g.en); setShowGenreDropdown(false); }}
               >
-                <Text style={[styles.genreDropdownText, activeFilter === g.en && styles.genreDropdownTextActive]}>{g.tr}</Text>
+                <Text style={[styles.genreDropdownText, genreFilter === g.en && styles.genreDropdownTextActive]}>{g.tr}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -805,6 +803,9 @@ const styles = StyleSheet.create({
   popularTopBtnActive: { backgroundColor: '#fff', borderColor: '#fff' },
   popularTopBtnText: { color: '#ffffff88', fontSize: 14, fontWeight: '600' },
   popularTopBtnTextActive: { color: '#000' },
+  popularTopBtnGenreActive: { backgroundColor: ACCENT + '33', borderColor: ACCENT },
+  popularTopBtnTextGenreActive: { color: ACCENT },
+  popularTopSeparator: { width: 1, backgroundColor: BORDER, marginHorizontal: 4 },
   genreDropdown: { backgroundColor: CARD, marginHorizontal: 16, borderRadius: 14, borderWidth: 1, borderColor: BORDER, marginTop: 4, position: 'absolute', top: 52, left: 0, right: 0, zIndex: 100, marginHorizontal: 16 },
   genreDropdownItem: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: BORDER },
   genreDropdownItemActive: { backgroundColor: SURFACE },
