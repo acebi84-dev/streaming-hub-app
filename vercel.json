@@ -1,4 +1,7 @@
 {
   "buildCommand": "npx expo export --platform web --output-dir dist",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
