@@ -294,18 +294,7 @@ export default function App() {
 
           {/* Sağ: başlık + platform butonu + subtitle + carousel */}
           <View style={styles.headerRight}>
-            <View style={styles.headerTitleRow}>
-              <Text style={styles.appTitle}>Ne İzlesek?</Text>
-              <TouchableOpacity style={styles.platformBtn} onPress={() => setShowPlatformModal(true)}>
-                <View style={styles.platformBtnLogos}>
-                  {selectedPlatforms.slice(0, 4).map(slug => {
-                    const p = PLATFORMS.find(x => x.slug === slug);
-                    return p ? <View key={slug} style={[styles.platformBtnDot, { backgroundColor: p.color }]} /> : null;
-                  })}
-                </View>
-                <Text style={styles.platformBtnText}>Platform Seç</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.appTitle}>Ne İzlesek?</Text>
             <View style={styles.headerTagRow}>
               <Text style={styles.headerSubtitle}>Film & Dizi Puanları</Text>
               <View style={styles.imdbBadgeHeader}><Text style={styles.imdbBadgeHeaderText}>IMDb</Text></View>
@@ -314,13 +303,26 @@ export default function App() {
           </View>
         </View>
 
-        {/* Platform logoları */}
+        {/* Platform logoları — tıklayarak ekle/çıkar */}
         <View style={styles.platformLogoGrid}>
-          {PLATFORMS.filter(p => selectedPlatforms.includes(p.slug)).map(p => (
-            <View key={p.slug} style={[styles.platformLogoCard, { backgroundColor: p.color }]}>
-              <Image source={{ uri: p.darkLogo }} style={styles.platformLogoImg} resizeMode="contain" />
-            </View>
-          ))}
+          {PLATFORMS.map(p => {
+            const isSelected = selectedPlatforms.includes(p.slug);
+            return (
+              <TouchableOpacity
+                key={p.slug}
+                style={[styles.platformLogoCard, { backgroundColor: isSelected ? p.color : p.color + '33', borderWidth: isSelected ? 0 : 1, borderColor: p.color + '44' }]}
+                onPress={() => {
+                  const updated = isSelected
+                    ? selectedPlatforms.filter(s => s !== p.slug)
+                    : [...selectedPlatforms, p.slug];
+                  handlePlatformSave(updated);
+                }}
+              >
+                <Image source={{ uri: p.darkLogo }} style={[styles.platformLogoImg, { opacity: isSelected ? 1 : 0.35 }]} resizeMode="contain" />
+                {!isSelected && <Text style={[styles.platformLogoOff, { color: p.color }]}>+ Ekle</Text>}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -466,9 +468,9 @@ const styles = StyleSheet.create({
   appIconQText: { color: '#fff', fontSize: 36, fontWeight: '900', lineHeight: 40 },
   headerRight: { flex: 1, gap: 6 },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  appTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold', letterSpacing: -0.5 },
+  appTitle: { color: '#fff', fontSize: 26, fontWeight: 'bold', letterSpacing: -0.5 },
   headerTagRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerSubtitle: { color: '#ffffff55', fontSize: 13 },
+  headerSubtitle: { color: '#ffffffaa', fontSize: 13, fontWeight: '500' },
   imdbBadgeHeader: { backgroundColor: '#F5C518', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   imdbBadgeHeaderText: { color: '#000', fontSize: 10, fontWeight: 'bold' },
   platformBtn: { backgroundColor: SURFACE, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: BORDER, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-end' },
@@ -480,6 +482,7 @@ const styles = StyleSheet.create({
   platformLogoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   platformLogoCard: { flex: 1, minWidth: '45%', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, justifyContent: 'center', alignItems: 'center' },
   platformLogoImg: { width: 80, height: 22 },
+  platformLogoOff: { fontSize: 10, fontWeight: '700', marginTop: 4 },
   searchRow: { flexDirection: 'row', paddingHorizontal: 16, marginVertical: 10, gap: 8, alignItems: 'center', flexShrink: 0 },
   searchInput: { flex: 1, minWidth: 0, backgroundColor: SURFACE, color: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, borderWidth: 1, borderColor: BORDER },
   clearBtn: { backgroundColor: SURFACE, width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: BORDER, flexShrink: 0 },
