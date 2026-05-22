@@ -282,26 +282,27 @@ export default function App() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.appTitle}>Ne İzlesek?</Text>
+          {/* Sol: Logo */}
+          <Image source={require('./assets/images/logo.png')} style={styles.headerLogo} resizeMode="contain" />
+
+          {/* Sağ: Subtitle + Carousel + Platform Seç */}
+          <View style={styles.headerRight}>
             <View style={styles.headerTagRow}>
               <Text style={styles.headerSubtitle}>Film & Dizi Puanları</Text>
               <View style={styles.imdbBadgeHeader}><Text style={styles.imdbBadgeHeaderText}>IMDb</Text></View>
             </View>
+            <CarouselComments />
+            <TouchableOpacity style={styles.platformBtn} onPress={() => setShowPlatformModal(true)}>
+              <View style={styles.platformBtnLogos}>
+                {selectedPlatforms.slice(0, 4).map(slug => {
+                  const p = PLATFORMS.find(x => x.slug === slug);
+                  return p ? <View key={slug} style={[styles.platformBtnDot, { backgroundColor: p.color }]} /> : null;
+                })}
+              </View>
+              <Text style={styles.platformBtnText}>Platform Seç</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.platformBtn} onPress={() => setShowPlatformModal(true)}>
-            <View style={styles.platformBtnLogos}>
-              {selectedPlatforms.slice(0, 4).map(slug => {
-                const p = PLATFORMS.find(x => x.slug === slug);
-                return p ? <View key={slug} style={[styles.platformBtnDot, { backgroundColor: p.color }]} /> : null;
-              })}
-            </View>
-            <Text style={styles.platformBtnText}>Platform Seç</Text>
-          </TouchableOpacity>
         </View>
-
-        {/* Carousel */}
-        <CarouselComments />
 
         {/* Platform logoları */}
         <View style={styles.platformLogoGrid}>
@@ -447,18 +448,18 @@ const ACCENT = '#00A8E1';
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
   header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: BORDER },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  headerLeft: { flex: 1 },
-  appTitle: { color: '#fff', fontSize: 30, fontWeight: 'bold', letterSpacing: -0.5 },
-  headerTagRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  headerLogo: { width: 80, height: 80 },
+  headerRight: { flex: 1, gap: 6 },
+  headerTagRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerSubtitle: { color: '#ffffff55', fontSize: 13 },
   imdbBadgeHeader: { backgroundColor: '#F5C518', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   imdbBadgeHeaderText: { color: '#000', fontSize: 10, fontWeight: 'bold' },
-  platformBtn: { backgroundColor: SURFACE, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: BORDER, alignItems: 'center', gap: 4 },
+  platformBtn: { backgroundColor: SURFACE, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: BORDER, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
   platformBtnLogos: { flexDirection: 'row', gap: 4 },
-  platformBtnDot: { width: 8, height: 8, borderRadius: 4 },
+  platformBtnDot: { width: 7, height: 7, borderRadius: 4 },
   platformBtnText: { color: '#ffffff66', fontSize: 11 },
-  commentBubble: { backgroundColor: '#00A8E122', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#00A8E144', alignSelf: 'flex-start', marginBottom: 14 },
+  commentBubble: { backgroundColor: '#00A8E122', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#00A8E144', alignSelf: 'flex-start' },
   commentText: { color: '#00A8E1cc', fontSize: 13, fontStyle: 'italic', fontWeight: '500' },
   platformLogoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   platformLogoCard: { flex: 1, minWidth: '45%', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, justifyContent: 'center', alignItems: 'center' },
