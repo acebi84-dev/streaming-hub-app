@@ -9,7 +9,7 @@ import { Compass, TrendingUp } from 'lucide-react-native';
 
 const PLATFORMS = [
   { slug: 'netflix',  name: 'Netflix',      color: '#E50914', darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
-  { slug: 'prime',    name: 'Prime Video',  color: '#00A8E1', darkLogo: 'https://media.movieofthenight.com/services/prime/logo-white.svg' },
+  { slug: 'amazon',   name: 'Prime Video',  color: '#00A8E1', darkLogo: 'https://media.movieofthenight.com/services/prime/logo-white.svg' },
   { slug: 'disney',   name: 'Disney+',      color: '#0063E5', darkLogo: 'https://media.movieofthenight.com/services/disney/logo-white.svg' },
   { slug: 'hbo',      name: 'HBO Max',      color: '#8B4FBE', darkLogo: 'https://media.movieofthenight.com/services/hbo/logo-white.svg' },
 ];
@@ -54,7 +54,11 @@ const COMMENTS = [
 ];
 
 function getSelectedPlatforms() {
-  try { const s = localStorage.getItem('selectedPlatforms'); if (s) return JSON.parse(s); } catch (e) {}
+  try { const s = localStorage.getItem('selectedPlatforms'); if (s) {
+    const parsed = JSON.parse(s);
+    const valid = parsed.filter(slug => PLATFORMS.some(p => p.slug === slug));
+    return valid.length > 0 ? valid : PLATFORMS.map(p => p.slug);
+  } } catch (e) {}
   return PLATFORMS.map(p => p.slug);
 }
 function saveSelectedPlatforms(slugs) {
