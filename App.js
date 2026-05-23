@@ -128,16 +128,16 @@ function PlatformModal({ visible, selected, onSave, onClose }) {
 function DetailModal({ item, onClose }) {
   if (!item) return null;
   const [itemStack, setItemStack] = React.useState([item]);
-  const currentItem = itemStack[itemStack.length - 1];
-  const typeLabel = currentItem.type === 'movie' ? '🎬 Film' : '📺 Dizi';
-  const langLabel = currentItem.original_language ? LANGUAGE_MAP[currentItem.original_language] : null;
+  const cur = itemStack[itemStack.length - 1];
+  const typeLabel = cur.type === 'movie' ? '🎬 Film' : '📺 Dizi';
+  const langLabel = cur.original_language ? LANGUAGE_MAP[cur.original_language] : null;
   const [similarItems, setSimilarItems] = React.useState([]);
 
   React.useEffect(() => {
     setSimilarItems([]);
-    if (!currentItem.imdb_id) return;
-    fetchSimilar(currentItem);
-  }, [currentItem.imdb_id]);
+    if (!cur.imdb_id) return;
+    fetchSimilar(cur);
+  }, [cur.imdb_id]);
 
   async function fetchSimilar(item) {
     try {
@@ -145,7 +145,7 @@ function DetailModal({ item, onClose }) {
       const { data: contentData } = await supabase
         .from('hub_contents')
         .select('similar_tmdb_ids')
-        .eq('imdb_id', currentItem.imdb_id)
+        .eq('imdb_id', cur.imdb_id)
         .single();
 
       const tmdbIds = contentData?.similar_tmdb_ids;
@@ -171,19 +171,19 @@ function DetailModal({ item, onClose }) {
         <View style={styles.detailModalContainer}>
           <TouchableOpacity activeOpacity={1}>
             <View style={styles.modalHeader}>
-              {currentItem.poster_url ? <Image source={{ uri: item.poster_url }} style={styles.modalPoster} /> : <View style={styles.modalPosterPlaceholder}><Text style={{ color: '#ffffff22', fontSize: 24 }}>?</Text></View>}
+              {cur.poster_url ? <Image source={{ uri: cur.poster_url }} style={styles.modalPoster} /> : <View style={styles.modalPosterPlaceholder}><Text style={{ color: '#ffffff22', fontSize: 24 }}>?</Text></View>}
               <View style={styles.modalHeaderInfo}>
-                <Text style={styles.modalTitle} numberOfLines={2}>{currentItem.original_language === 'tr' && currentItem.title_tr ? currentItem.title_tr : item.title}</Text>
-                {currentItem.original_title && item.original_title !== currentItem.title && item.original_language !== 'tr' && <Text style={styles.modalOriginalTitle}>{currentItem.original_title}</Text>}
+                <Text style={styles.modalTitle} numberOfLines={2}>{cur.original_language === 'tr' && cur.title_tr ? cur.title_tr : cur.title}</Text>
+                {cur.original_title && cur.original_title !== cur.title && cur.original_language !== 'tr' && <Text style={styles.modalOriginalTitle}>{cur.original_title}</Text>}
                 <Text style={styles.modalMeta}>{typeLabel}{langLabel ? ' · ' + langLabel : ''}</Text>
-                {currentItem.year && <Text style={styles.modalMeta}>{currentItem.year}</Text>}
+                {cur.year && <Text style={styles.modalMeta}>{cur.year}</Text>}
                 <View style={styles.modalImdbRow}>
                   <View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View>
-                  <Text style={styles.imdbScoreLarge}>{currentItem.imdb_score ? item.imdb_score.toFixed(1) : 'N/A'}</Text>
+                  <Text style={styles.imdbScoreLarge}>{cur.imdb_score ? cur.imdb_score.toFixed(1) : 'N/A'}</Text>
                 </View>
-                {currentItem.availability && item.availability.length > 0 && (
+                {cur.availability && cur.availability.length > 0 && (
                   <View style={styles.modalPlatformRow}>
-                    {currentItem.availability.map(a => {
+                    {cur.availability.map(a => {
                       const p = PLATFORMS.find(x => x.slug === a.platform_slug);
                       if (!p) return null;
                       return (
@@ -196,14 +196,14 @@ function DetailModal({ item, onClose }) {
                 )}
               </View>
             </View>
-            {currentItem.tagline ? <Text style={styles.modalTagline}>"{currentItem.tagline}"</Text> : null}
-            {currentItem.director ? <Text style={styles.modalDetail}>🎬 <Text style={styles.modalDetailLabel}>Yönetmen: </Text>{currentItem.director}</Text> : null}
-            {currentItem.cast_list ? <Text style={styles.modalDetail}>👥 <Text style={styles.modalDetailLabel}>Oyuncular: </Text>{currentItem.cast_list}</Text> : null}
-            {currentItem.synopsis_tr ? (<><Text style={styles.modalSynopsisTitle}>Konu</Text><Text style={styles.modalSynopsis}>{currentItem.synopsis_tr}</Text></>) : null}
+            {cur.tagline ? <Text style={styles.modalTagline}>"{cur.tagline}"</Text> : null}
+            {cur.director ? <Text style={styles.modalDetail}>🎬 <Text style={styles.modalDetailLabel}>Yönetmen: </Text>{cur.director}</Text> : null}
+            {cur.cast_list ? <Text style={styles.modalDetail}>👥 <Text style={styles.modalDetailLabel}>Oyuncular: </Text>{cur.cast_list}</Text> : null}
+            {cur.synopsis_tr ? (<><Text style={styles.modalSynopsisTitle}>Konu</Text><Text style={styles.modalSynopsis}>{cur.synopsis_tr}</Text></>) : null}
             <View style={styles.modalButtons}>
-              {currentItem.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={() => window.open(item.trailer_url, '_blank')}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
-              {currentItem.imdb_id && <TouchableOpacity style={styles.imdbLinkBtn} onPress={() => window.open('https://www.imdb.com/title/' + item.imdb_id + '/', '_blank')}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.imdbLinkText}>↗ imdb.com</Text></TouchableOpacity>}
-              {itemStack.length > 1 && <TouchableOpacity style={styles.closeBtn} onPress={() => setItemStack(prev => prev.slice(0, -1))}><Text style={styles.closeBtnText}>← Geri</Text></TouchableOpacity>}
+              {cur.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={() => window.open(cur.trailer_url, '_blank')}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
+              {cur.imdb_id && <TouchableOpacity style={styles.imdbLinkBtn} onPress={() => window.open('https://www.imdb.com/title/' + cur.imdb_id + '/', '_blank')}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.imdbLinkText}>↗ imdb.com</Text></TouchableOpacity>}
+              {itemStack.length > 1 && <TouchableOpacity style={styles.closeBtn} onPress={() => setItemStack(prev => prev.slice(0,-1))}><Text style={styles.closeBtnText}>← Geri</Text></TouchableOpacity>}
               <TouchableOpacity style={styles.closeBtn} onPress={onClose}><Text style={styles.closeBtnText}>✕ Kapat</Text></TouchableOpacity>
             </View>
             {similarItems.length > 0 && (
@@ -257,8 +257,6 @@ function CollectionsScreen({ selectedPlatforms }) {
   const [sortAscCol, setSortAscCol] = useState(false);
   const [minImdb, setColMinImdb] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const scrollRef = React.useRef(null);
 
   useEffect(() => { fetchCollections(); }, [sortBy, sortAscCol]);
 
@@ -339,26 +337,16 @@ function CollectionsScreen({ selectedPlatforms }) {
               </TouchableOpacity>
             ))}
           </ScrollView>
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-            <TouchableOpacity style={styles.resetBtnInline} onPress={() => { setSelectedGenre(null); setColMinImdb(0); setCollectionSort('avg_votes'); setSortAscCol(false); }}>
-              <Text style={styles.resetBtnInlineText}>Sıfırla</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.resetBtnInline, { borderColor: '#ffffff33' }]} onPress={() => setShowFilters(false)}>
-              <Text style={[styles.resetBtnInlineText, { color: '#ffffff88' }]}>Kapat</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Reset */}
+          <TouchableOpacity style={styles.resetBtnInline} onPress={() => { setSelectedGenre(null); setColMinImdb(0); setCollectionSort('avg_votes'); setSortAscCol(false); }}>
+            <Text style={styles.resetBtnInlineText}>Sıfırla</Text>
+          </TouchableOpacity>
         </View>
       )}
 
 
 
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 80 }}
-        onScroll={e => setShowScrollTop(e.nativeEvent.contentOffset.y > 400)}
-        scrollEventThrottle={16}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
         <View style={styles.popularHeader}>
           <Text style={styles.popularHeaderTitle}>🎬 Koleksiyonlar</Text>
         </View>
@@ -410,6 +398,7 @@ function CollectionsScreen({ selectedPlatforms }) {
   );
 }
 
+
 function PopularScreen({ selectedPlatforms }) {
   const [popular, setPopular] = useState({});
   const [loading, setLoading] = useState(true);
@@ -459,11 +448,11 @@ function PopularScreen({ selectedPlatforms }) {
     setSelectedItem(base);
 
     // Enrich from hub_contents if imdb_id exists
-    if (currentItem.imdb_id) {
+    if (item.imdb_id) {
       const { data } = await supabase
         .from('hub_contents')
         .select('synopsis_tr, director, cast_list, trailer_url, tagline, poster_url')
-        .eq('imdb_id', currentItem.imdb_id)
+        .eq('imdb_id', item.imdb_id)
         .limit(1)
         .single();
       if (data) {
@@ -488,7 +477,7 @@ function PopularScreen({ selectedPlatforms }) {
           ? <Image source={{ uri: item.poster_w240 }} style={styles.popularPoster} />
           : <View style={[styles.popularPoster, { backgroundColor: SURFACE, alignItems: 'center', justifyContent: 'center' }]}><Text style={{ color: '#ffffff22', fontSize: 20 }}>?</Text></View>
         }
-        <Text style={styles.popularTitle} numberOfLines={2}>{currentItem.title}</Text>
+        <Text style={styles.popularTitle} numberOfLines={2}>{item.title}</Text>
         {item.rating && <View style={styles.popularImdb}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.popularScore}>{(item.rating / 10).toFixed(1)}</Text></View>}
       </TouchableOpacity>
     );
@@ -683,17 +672,17 @@ export default function App() {
 
   function renderItem({ item }) {
     const typeLabel = item.type === 'movie' ? '🎬 Film' : '📺 Dizi';
-    const langLabel = currentItem.original_language ? LANGUAGE_MAP[item.original_language] : null;
+    const langLabel = item.original_language ? LANGUAGE_MAP[item.original_language] : null;
     const genreMap = Object.fromEntries(GENRES.map(g => [g.en, g.tr]));
     const genres = item.genre ? item.genre.split(',').slice(0, 2).map(g => genreMap[g.trim()] || g.trim()).join(', ') : '';
     const runtime = formatRuntime(item.runtime);
     const hasDetails = item.synopsis_tr || item.director || item.cast_list || item.tagline;
     return (
       <View style={styles.card}>
-        {currentItem.poster_url ? <Image source={{ uri: item.poster_url }} style={styles.poster} /> : <View style={styles.posterPlaceholder}><Text style={styles.posterPlaceholderText}>?</Text></View>}
+        {item.poster_url ? <Image source={{ uri: item.poster_url }} style={styles.poster} /> : <View style={styles.posterPlaceholder}><Text style={styles.posterPlaceholderText}>?</Text></View>}
         <View style={styles.info}>
-          <Text style={styles.title} numberOfLines={1}>{currentItem.original_language === 'tr' && currentItem.title_tr ? currentItem.title_tr : item.title}</Text>
-          {currentItem.original_title && item.original_title !== currentItem.title && item.original_language !== 'tr' && <Text style={styles.originalTitle} numberOfLines={1}>{currentItem.original_title}</Text>}
+          <Text style={styles.title} numberOfLines={1}>{item.original_language === 'tr' && item.title_tr ? item.title_tr : item.title}</Text>
+          {item.original_title && item.original_title !== item.title && item.original_language !== 'tr' && <Text style={styles.originalTitle} numberOfLines={1}>{item.original_title}</Text>}
           <View style={styles.row}>
             <Text style={styles.typeText}>{typeLabel}</Text>
             {genres ? <Text style={styles.dot}> · </Text> : null}
@@ -701,14 +690,14 @@ export default function App() {
           </View>
           <View style={styles.row}>
             {langLabel ? <Text style={styles.metaText}>{langLabel}</Text> : null}
-            {langLabel && currentItem.year ? <Text style={styles.dot}> · </Text> : null}
-            {currentItem.year ? <Text style={styles.metaText}>{currentItem.year}</Text> : null}
+            {langLabel && item.year ? <Text style={styles.dot}> · </Text> : null}
+            {item.year ? <Text style={styles.metaText}>{item.year}</Text> : null}
             {runtime ? <Text style={styles.dot}> · </Text> : null}
             {runtime ? <Text style={styles.metaText}>{runtime}</Text> : null}
           </View>
-          {currentItem.availability && item.availability.length > 0 && (
+          {item.availability && item.availability.length > 0 && (
             <View style={styles.platformRow}>
-              {currentItem.availability.map(a => {
+              {item.availability.map(a => {
                 const p = PLATFORMS.find(x => x.slug === a.platform_slug);
                 if (!p) return null;
                 return (
@@ -720,12 +709,12 @@ export default function App() {
             </View>
           )}
           <View style={styles.bottomRow}>
-            <TouchableOpacity style={styles.imdbBtn} onPress={() => currentItem.imdb_id && window.open('https://www.imdb.com/title/' + item.imdb_id + '/', '_blank')}>
+            <TouchableOpacity style={styles.imdbBtn} onPress={() => item.imdb_id && window.open('https://www.imdb.com/title/' + item.imdb_id + '/', '_blank')}>
               <View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View>
-              <Text style={styles.imdbScore}>{currentItem.imdb_score ? item.imdb_score.toFixed(1) : 'N/A'}</Text>
+              <Text style={styles.imdbScore}>{item.imdb_score ? item.imdb_score.toFixed(1) : 'N/A'}</Text>
               <Text style={styles.imdbArrow}>↗</Text>
             </TouchableOpacity>
-            {currentItem.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={() => window.open(item.trailer_url, '_blank')}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
+            {item.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={() => window.open(item.trailer_url, '_blank')}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
             {hasDetails && <TouchableOpacity style={styles.detailBtn} onPress={() => setSelectedItem(item)}><Text style={styles.detailBtnText}>Detaylar</Text></TouchableOpacity>}
           </View>
         </View>
@@ -1146,6 +1135,13 @@ const styles = StyleSheet.create({
   collectionMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   collectionScore: { color: '#fff', fontSize: 13, fontWeight: '700' },
   collectionCount: { color: '#ffffff55', fontSize: 12 },
+  collectionHeader: { paddingHorizontal: 16, paddingBottom: 6, paddingTop: 4 },
+  collectionName: { color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  collectionMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  collectionScore: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  collectionCount: { color: '#ffffff55', fontSize: 12 },
+  popularCardImg: { width: 110, height: 160, borderRadius: 8, marginBottom: 6 },
+  popularCardTitle: { color: '#ffffffcc', fontSize: 11, lineHeight: 14, marginBottom: 4 },
   popularRankBadge: { position: 'absolute', top: 6, left: 6, zIndex: 1, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 },
   popularRank: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
   popularFireBadge: { backgroundColor: '#1a1a2e', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 },
