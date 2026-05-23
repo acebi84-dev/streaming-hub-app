@@ -378,14 +378,24 @@ export default function App() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const flatListRef = React.useRef(null);
+  const isLoadingMoreRef = React.useRef(false);
+  const currentPageRef = React.useRef(0);
   const PAGE_SIZE = 30;
 
   useEffect(() => { fetchContents(); }, [activeSearch, selectedType, selectedGenre, selectedLanguage, sortBy, sortAsc, minImdb, minYear, selectedPlatforms]);
 
   async function fetchContents(loadMore = false) {
     if (selectedPlatforms.length === 0) { setContents([]); setLoading(false); return; }
-    if (loadMore) { setLoadingMore(true); } else { setLoading(true); setPage(0); }
-    const currentPage = loadMore ? page + 1 : 0;
+    if (loadMore) {
+      if (isLoadingMoreRef.current) return;
+      isLoadingMoreRef.current = true;
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+      setPage(0);
+      currentPageRef.current = 0;
+    }
+    const currentPage = loadMore ? currentPageRef.current + 1 : 0;
     const from = currentPage * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
     let query = supabase.from('hub_contents').select('*, availability:hub_availability(platform_slug, platform_url)').not('imdb_score', 'is', null).not('imdb_id', 'is', null).order(sortBy, { ascending: sortAsc }).range(from, to + 200);
@@ -403,14 +413,20 @@ export default function App() {
     const enriched = filtered.map(item => ({ ...item, availability: item.availability.filter(a => selectedPlatforms.includes(a.platform_slug)) }));
     const newItems = enriched.slice(0, PAGE_SIZE);
     if (loadMore) {
-      setContents(prev => [...prev, ...newItems]);
+      setContents(prev => {
+        const existingIds = new Set(prev.map(i => i.id));
+        const unique = newItems.filter(i => !existingIds.has(i.id));
+        return [...prev, ...unique];
+      });
       setPage(currentPage);
+      currentPageRef.current = currentPage;
     } else {
       setContents(newItems);
     }
     setHasMore(enriched.length >= PAGE_SIZE);
     setLoading(false);
     setLoadingMore(false);
+    isLoadingMoreRef.current = false;
   }
 
   function handlePlatformSave(slugs) { setSelectedPlatforms(slugs); saveSelectedPlatforms(slugs); }
