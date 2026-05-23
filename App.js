@@ -647,30 +647,32 @@ export default function App() {
       {loading ? (
         <ActivityIndicator size="large" color="#00A8E1" style={styles.loader} />
       ) : (
-        <FlatList
-          ref={flatListRef}
-          data={contents}
-          keyExtractor={item => item.id ? item.id.toString() : item.imdb_id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          onEndReached={() => { if (hasMore && !loadingMore && !loading) fetchContents(true); }}
-          onEndReachedThreshold={0.3}
-          onScroll={e => setShowScrollTop(e.nativeEvent.contentOffset.y > 400)}
-          scrollEventThrottle={16}
-          ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#00A8E1" style={{ marginVertical: 16 }} /> : null}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>🎬</Text>
-              <Text style={styles.emptyText}>İçerik bulunamadı</Text>
-              <Text style={styles.emptySubText}>Seçili platformlarda bu kriterlere uygun içerik yok</Text>
-            </View>
-          }
-        />
-        {showScrollTop && (
-          <TouchableOpacity style={styles.scrollTopBtn} onPress={() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true })}>
-            <Text style={styles.scrollTopIcon}>↑</Text>
-          </TouchableOpacity>
-        )}
+        <View style={{ flex: 1 }}>
+          <FlatList
+            ref={flatListRef}
+            data={contents}
+            keyExtractor={item => item.id ? item.id.toString() : item.imdb_id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.list}
+            onEndReached={() => { if (hasMore && !loadingMore && !loading) fetchContents(true); }}
+            onEndReachedThreshold={0.3}
+            onScroll={e => setShowScrollTop(e.nativeEvent.contentOffset.y > 400)}
+            scrollEventThrottle={16}
+            ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#00A8E1" style={{ marginVertical: 16 }} /> : null}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyEmoji}>🎬</Text>
+                <Text style={styles.emptyText}>İçerik bulunamadı</Text>
+                <Text style={styles.emptySubText}>Seçili platformlarda bu kriterlere uygun içerik yok</Text>
+              </View>
+            }
+          />
+          {showScrollTop && (
+            <TouchableOpacity style={styles.scrollTopBtn} onPress={() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true })}>
+              <Text style={styles.scrollTopIcon}>↑</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       )}
           <View style={styles.tabBar}>
             <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('discover')}>
