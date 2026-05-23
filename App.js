@@ -509,7 +509,7 @@ function PopularScreen({ selectedPlatforms }) {
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
 
       <View style={styles.popularHeader}>
-        <Text style={styles.popularHeaderTitle}>🔥 Globalde En Popüler</Text>
+        <Text style={styles.popularHeaderTitle}>Globalde En Popüler</Text>
         <Text style={styles.popularHeaderSub}>Türkiye kataloğunda izlenebilir</Text>
       </View>
       {/* Netflix-style top filter bar */}
@@ -791,6 +791,7 @@ export default function App() {
               })}
             </View>
             <Text style={styles.platformSelectText}>Platformlar</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>›</Text>
           </TouchableOpacity>
         </View>
       </View>
