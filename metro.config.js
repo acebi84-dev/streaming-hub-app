@@ -7,5 +7,8 @@ config.transformer = {
 config.resolver = {
   ...config.resolver,
   unstable_enableSymlinks: false,
+  blockList: [
+    /node_modules\/@opentelemetry\/.*/,
+  ],
 };
 module.exports = config;
