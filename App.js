@@ -257,6 +257,10 @@ function CollectionsScreen({ selectedPlatforms }) {
   const [sortAscCol, setSortAscCol] = useState(false);
   const [minImdb, setColMinImdb] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
+  const [showColScrollTop, setColShowScrollTop] = useState(false);
+  const colScrollRef = React.useRef(null);
+  const [searchInput, setColSearchInput] = useState('');
+  const [activeSearch, setColActiveSearch] = useState('');
 
   useEffect(() => { fetchCollections(); }, [sortBy, sortAscCol]);
 
@@ -285,6 +289,7 @@ function CollectionsScreen({ selectedPlatforms }) {
   const filteredCollections = collections.filter(c => {
     if (selectedGenre && !(c.genres && c.genres.includes(selectedGenre))) return false;
     if (minImdb > 0 && (c.avg_imdb_score || 0) < minImdb) return false;
+    if (activeSearch && !((c.name || '').toLowerCase().includes(activeSearch.toLowerCase()) || (c.name_tr || '').toLowerCase().includes(activeSearch.toLowerCase()))) return false;
     return true;
   });
 
@@ -821,7 +826,21 @@ export default function App() {
 
       {/* Filtreler toggle */}
       <View style={styles.filterBar}>
-        <TouchableOpacity style={[styles.filterToggle, showFilters && styles.filterToggleActive]} onPress={() => setShowFilters(!showFilters)}>
+        <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Koleksiyon ara..."
+          placeholderTextColor="#ffffff44"
+          value={searchInput}
+          onChangeText={setColSearchInput}
+          onSubmitEditing={() => setColActiveSearch(searchInput)}
+          returnKeyType="search"
+        />
+        <TouchableOpacity style={styles.searchBtn} onPress={() => setColActiveSearch(searchInput)}>
+          <Text style={styles.searchBtnText}>Ara</Text>
+        </TouchableOpacity>
+      </View>
+      <TouchableOpacity style={[styles.filterToggle, showFilters && styles.filterToggleActive]} onPress={() => setShowFilters(!showFilters)}>
           <Text style={[styles.filterToggleText, showFilters && styles.filterToggleTextActive]}>
             {showFilters ? '▲ Gizle' : '▼ Filtreler & Sıralama'}
             {hasActiveFilters && !showFilters ? ' ●' : ''}
