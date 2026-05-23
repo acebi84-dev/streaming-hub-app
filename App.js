@@ -661,7 +661,9 @@ export default function App() {
       )}
 
       {loading ? (
-        <ActivityIndicator size="large" color="#00A8E1" style={styles.loader} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#00A8E1" />
+        </View>
       ) : (
         <View style={{ flex: 1 }}>
           <FlatList
@@ -775,7 +777,7 @@ const styles = StyleSheet.create({
   sliderBtnActive: { backgroundColor: ACCENT, borderColor: ACCENT },
   sliderBtnText: { color: '#ffffff44', fontSize: 12 },
   sliderBtnTextActive: { color: '#fff', fontWeight: '600' },
-  loader: { marginTop: 60 },
+  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { paddingHorizontal: 16, paddingBottom: 20 },
   card: { flexDirection: 'row', backgroundColor: CARD, borderRadius: 14, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: BORDER },
   poster: { width: 85, height: 125 },
