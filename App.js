@@ -205,7 +205,7 @@ function PopularScreen({ selectedPlatforms }) {
       .from('hub_popular')
       .select('*')
       .in('platform', platforms)
-      .order('rank', { ascending: true });
+      .order('rating', { ascending: false });
     if (error) { console.error(error); setLoading(false); return; }
     const grouped = {};
     (data || []).forEach(item => {
@@ -262,15 +262,12 @@ function PopularScreen({ selectedPlatforms }) {
     const p = PLATFORMS.find(x => x.slug === item.platform);
     return (
       <TouchableOpacity key={item.id} style={styles.popularCard} onPress={() => openPopularItem(item)}>
-        <View style={styles.popularRankBadge}>
-          <Text style={styles.popularRank}>#{item.rank}</Text>
-        </View>
         {item.poster_w240
           ? <Image source={{ uri: item.poster_w240 }} style={styles.popularPoster} />
           : <View style={[styles.popularPoster, { backgroundColor: SURFACE, alignItems: 'center', justifyContent: 'center' }]}><Text style={{ color: '#ffffff22', fontSize: 20 }}>?</Text></View>
         }
         <Text style={styles.popularTitle} numberOfLines={2}>{item.title}</Text>
-        {item.rating && <View style={styles.popularImdb}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.popularScore}>{(item.rating / 10).toFixed(1)}</Text></View>}
+        <View style={styles.popularImdb}>{item.rating && <><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.popularScore}>{(item.rating / 10).toFixed(1)}</Text></>}{item.rating && <View style={styles.popularFireBadge}><Text style={styles.popularFireText}>🔥 {item.rating}</Text></View>}</View>
       </TouchableOpacity>
     );
   }
@@ -884,7 +881,7 @@ const styles = StyleSheet.create({
   genreDropdownTextActive: { color: '#fff', fontWeight: '600' },
   popularHeader: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: BORDER },
   popularHeaderTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  popularHeaderSub: { color: '#ffffff44', fontSize: 12, marginTop: 2 },
+  popularHeaderSub: { color: '#ffffff99', fontSize: 12, marginTop: 2 },
   popularSection: { marginTop: 20 },
   popularPlatformLabel: { marginHorizontal: 16, marginBottom: 10, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, alignSelf: 'flex-start' },
   popularPlatformLogo: { width: 80, height: 22 },
@@ -892,6 +889,8 @@ const styles = StyleSheet.create({
   popularCard: { width: 110, position: 'relative' },
   popularRankBadge: { position: 'absolute', top: 6, left: 6, zIndex: 1, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 },
   popularRank: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
+  popularFireBadge: { backgroundColor: '#1a1a2e', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 },
+  popularFireText: { color: '#ff6b35', fontSize: 11, fontWeight: '700' },
   popularPoster: { width: 110, height: 160, borderRadius: 10, marginBottom: 6 },
   popularTitle: { color: '#ffffffcc', fontSize: 11, fontWeight: '600', lineHeight: 15 },
   popularImdb: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
