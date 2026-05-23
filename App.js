@@ -492,12 +492,16 @@ function PopularScreen({ selectedPlatforms }) {
     const p = PLATFORMS.find(x => x.slug === item.platform);
     return (
       <TouchableOpacity key={item.id} style={styles.popularCard} onPress={() => openPopularItem(item)}>
-        {item.poster_w240
-          ? <Image source={{ uri: item.poster_w240 }} style={styles.popularCardImg} />
-          : <View style={[styles.popularPoster, { backgroundColor: SURFACE, alignItems: 'center', justifyContent: 'center' }]}><Text style={{ color: '#ffffff22', fontSize: 20 }}>?</Text></View>
-        }
-        <Text style={styles.popularTitle} numberOfLines={2}>{item.title}</Text>
-        {item.rating && <View style={styles.popularImdb}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.popularScore}>{(item.rating / 10).toFixed(1)}</Text></View>}
+        <View style={styles.cardPosterWrap}>
+          {item.poster_w240
+            ? <Image source={{ uri: item.poster_w240 }} style={styles.popularCardImg} resizeMode="cover" />
+            : <View style={[styles.popularCardImg, { backgroundColor: SURFACE, alignItems: 'center', justifyContent: 'center' }]}><Text style={{ color: '#ffffff22', fontSize: 20 }}>?</Text></View>}
+          {item.rating && <View style={styles.cardImdbOverlay}>
+            <View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View>
+            <Text style={styles.cardImdbScore}>{(item.rating / 10).toFixed(1)}</Text>
+          </View>}
+        </View>
+        <Text style={styles.popularCardTitle} numberOfLines={2}>{item.original_language === 'tr' && item.title_tr ? item.title_tr : item.title}</Text>
       </TouchableOpacity>
     );
   }
