@@ -250,15 +250,17 @@ function CollectionsScreen({ selectedPlatforms }) {
   const [selectedGenre, setSelectedGenre] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
+  const [sortBy, setCollectionSort] = useState('avg_votes');
+  const [minImdb, setColMinImdb] = useState(0);
 
-  useEffect(() => { fetchCollections(); }, []);
+  useEffect(() => { fetchCollections(); }, [sortBy]);
 
   async function fetchCollections() {
     setLoading(true);
     const { data, error } = await supabase
       .from('hub_collections')
       .select('*, items:hub_collection_items(content_id, imdb_score, content:hub_contents(id, title, title_tr, original_language, poster_url, imdb_score, imdb_id, availability:hub_availability(platform_slug, platform_url)))')
-      .order('avg_votes', { ascending: false });
+      .order(sortBy, { ascending: false });
     if (error) { console.error(error); setLoading(false); return; }
 
     // Filter collections where at least one movie is in selected platforms
@@ -273,9 +275,11 @@ function CollectionsScreen({ selectedPlatforms }) {
 
   const allGenres = [...new Set(collections.flatMap(c => c.genres ? c.genres.split(', ') : []))].filter(Boolean).sort();
 
-  const filteredCollections = selectedGenre
-    ? collections.filter(c => c.genres && c.genres.includes(selectedGenre))
-    : collections;
+  const filteredCollections = collections.filter(c => {
+    if (selectedGenre && !(c.genres && c.genres.includes(selectedGenre))) return false;
+    if (minImdb > 0 && (c.avg_imdb_score || 0) < minImdb) return false;
+    return true;
+  });
 
   const genreMap = Object.fromEntries(GENRES.map(g => [g.en, g.tr]));
 
@@ -283,9 +287,24 @@ function CollectionsScreen({ selectedPlatforms }) {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
 
-      {/* Genre filter */}
+      {/* Filters */}
       <View style={styles.popularTopBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularTopBarRow}>
+          {/* Sort */}
+          <TouchableOpacity
+            style={[styles.popularTopBtn, sortBy === 'avg_votes' && styles.popularTopBtnActive]}
+            onPress={() => setCollectionSort('avg_votes')}
+          >
+            <Text style={[styles.popularTopBtnText, sortBy === 'avg_votes' && styles.popularTopBtnTextActive]}>Oy</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.popularTopBtn, sortBy === 'avg_imdb_score' && styles.popularTopBtnActive]}
+            onPress={() => setCollectionSort('avg_imdb_score')}
+          >
+            <Text style={[styles.popularTopBtnText, sortBy === 'avg_imdb_score' && styles.popularTopBtnTextActive]}>IMDb</Text>
+          </TouchableOpacity>
+          <View style={styles.popularTopSeparator} />
+          {/* Genre */}
           <TouchableOpacity
             style={[styles.popularTopBtn, selectedGenre && styles.popularTopBtnGenreActive]}
             onPress={() => setShowGenreDropdown(!showGenreDropdown)}
@@ -299,6 +318,19 @@ function CollectionsScreen({ selectedPlatforms }) {
               <Text style={styles.popularTopBtnText}>✕</Text>
             </TouchableOpacity>
           )}
+          <View style={styles.popularTopSeparator} />
+          {/* Min IMDb */}
+          {[0, 6, 7, 7.5, 8].map(val => (
+            <TouchableOpacity
+              key={val}
+              style={[styles.popularTopBtn, minImdb === val && styles.popularTopBtnActive]}
+              onPress={() => setColMinImdb(val)}
+            >
+              <Text style={[styles.popularTopBtnText, minImdb === val && styles.popularTopBtnTextActive]}>
+                {val === 0 ? 'IMDb: Tümü' : `IMDb ${val}+`}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
       </View>
 
