@@ -303,7 +303,7 @@ function CollectionsScreen({ selectedPlatforms }) {
       {showFilters && <TouchableOpacity style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 5 }} activeOpacity={1} onPress={() => setShowFilters(false)} />}
 
       <View style={styles.header}>
-        <Text style={styles.appTitle}>🎬 Koleksiyonlar</Text>
+        <Text style={styles.sectionTitle}>Koleksiyonlar</Text>
       </View>
       <View style={[styles.searchContainer, { marginHorizontal: 16, marginVertical: 8 }]}>
         <TextInput maxFontSizeMultiplier={1} style={[styles.searchInput, { flex: 1 }]} placeholder="Koleksiyon ara..." placeholderTextColor="#ffffff44" value={colSearchInput} onChangeText={setColSearchInput} onSubmitEditing={() => setColActiveSearch(colSearchInput)} returnKeyType="search" />
@@ -513,7 +513,7 @@ function PopularScreen({ selectedPlatforms }) {
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
 
       <View style={styles.popularHeader}>
-        <Text style={styles.popularHeaderTitle}>Globalde En Popüler</Text>
+        <Text style={styles.sectionTitle}>Globalde En Popüler</Text>
         <Text style={styles.popularHeaderSub}>Türkiye kataloğunda izlenebilir</Text>
       </View>
       {/* Netflix-style top filter bar */}
@@ -976,6 +976,7 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10, borderBottomWidth: 0 },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   appTitle: { color: '#ffffff', fontSize: 28, fontWeight: '700', letterSpacing: -0.8 },
+  sectionTitle: { color: '#ffffff', fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
   platformSelectBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
   platformSelectDots: { flexDirection: 'row', gap: 4 },
   platformSelectDot: { width: 8, height: 8, borderRadius: 4 },
