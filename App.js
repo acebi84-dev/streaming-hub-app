@@ -611,7 +611,7 @@ export default function App() {
           <Text style={styles.filterSectionTitle}>İçerik Türü</Text>
           <View style={styles.typeRow}>
             {[['all', 'Tümü'], ['movie', 'Filmler'], ['series', 'Diziler']].map(([val, label]) => (
-              <TouchableOpacity key={val} style={[styles.typeBtn, selectedType === val && styles.typeBtnActive]} onPress={() => { setSelectedType(val); setSelectedGenre(null); }}>
+              <TouchableOpacity key={val} style={[styles.typeBtn, selectedType === val && styles.typeBtnActive]} onPress={() => setSelectedType(val)}>
                 <Text style={[styles.typeBtnText, selectedType === val && styles.typeBtnTextActive]}>{label}</Text>
               </TouchableOpacity>
             ))}
