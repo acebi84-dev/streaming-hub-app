@@ -259,8 +259,8 @@ function CollectionsScreen({ selectedPlatforms }) {
   const [showFilters, setShowFilters] = useState(false);
   const [showColScrollTop, setColShowScrollTop] = useState(false);
   const colScrollRef = React.useRef(null);
-  const [searchInput, setColSearchInput] = useState('');
-  const [activeSearch, setColActiveSearch] = useState('');
+  const [colSearchInput, setColSearchInput] = useState('');
+  const [colActiveSearch, setColActiveSearch] = useState('');
 
   useEffect(() => { fetchCollections(); }, [sortBy, sortAscCol]);
 
@@ -289,7 +289,7 @@ function CollectionsScreen({ selectedPlatforms }) {
   const filteredCollections = collections.filter(c => {
     if (selectedGenre && !(c.genres && c.genres.includes(selectedGenre))) return false;
     if (minImdb > 0 && (c.avg_imdb_score || 0) < minImdb) return false;
-    if (activeSearch && !((c.name || '').toLowerCase().includes(activeSearch.toLowerCase()) || (c.name_tr || '').toLowerCase().includes(activeSearch.toLowerCase()))) return false;
+    if (colActiveSearch && !((c.name || '').toLowerCase().includes(colActiveSearch.toLowerCase()) || (c.name_tr || '').toLowerCase().includes(colActiveSearch.toLowerCase()))) return false;
     return true;
   });
 
