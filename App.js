@@ -407,6 +407,11 @@ function CollectionsScreen({ selectedPlatforms }) {
           })
         )}
       </ScrollView>
+      {showColScrollTop && (
+        <TouchableOpacity style={styles.scrollTopBtn} onPress={() => colScrollRef.current?.scrollTo({ x: 0, y: 0, animated: true })}>
+          <Text style={styles.scrollTopIcon}>↑</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -1011,6 +1016,7 @@ const styles = StyleSheet.create({
   platformSelectText: { color: '#fff', fontSize: 16, fontWeight: '700', flex: 1 },
   platformSelectCount: { color: '#ffffff55', fontSize: 13 },
   searchRow: { flexDirection: 'row', paddingHorizontal: 16, marginVertical: 10, gap: 8, alignItems: 'center', flexShrink: 0 },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   searchInput: { flex: 1, minWidth: 0, backgroundColor: SURFACE, color: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, borderWidth: 1, borderColor: BORDER },
   clearBtn: { backgroundColor: SURFACE, width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: BORDER, flexShrink: 0 },
   clearBtnText: { color: '#ffffff44', fontSize: 14 },
