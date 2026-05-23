@@ -304,9 +304,9 @@ function CollectionsScreen({ selectedPlatforms }) {
       <View style={styles.header}>
         <Text style={styles.appTitle}>🎬 Koleksiyonlar</Text>
       </View>
-      <View style={styles.searchContainer}>
-        <TextInput style={styles.searchInput} placeholder="Koleksiyon ara..." placeholderTextColor="#ffffff44" value={colSearchInput} onChangeText={setColSearchInput} onSubmitEditing={() => setColActiveSearch(colSearchInput)} returnKeyType="search" />
-        <TouchableOpacity style={styles.searchBtn} onPress={() => setColActiveSearch(colSearchInput)}>
+      <View style={[styles.searchContainer, { marginHorizontal: 16, marginVertical: 8 }]}>
+        <TextInput style={[styles.searchInput, { flex: 1 }]} placeholder="Koleksiyon ara..." placeholderTextColor="#ffffff44" value={colSearchInput} onChangeText={setColSearchInput} onSubmitEditing={() => setColActiveSearch(colSearchInput)} returnKeyType="search" />
+        <TouchableOpacity style={[styles.searchBtn, { paddingHorizontal: 14 }]} onPress={() => setColActiveSearch(colSearchInput)}>
           <Text style={styles.searchBtnText}>Ara</Text>
         </TouchableOpacity>
       </View>
