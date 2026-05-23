@@ -980,7 +980,7 @@ const styles = StyleSheet.create({
   // ── Search ───────────────────────────────────────
   searchRow: { flexDirection: 'row', paddingHorizontal: 16, marginVertical: 10, gap: 8, alignItems: 'center' },
   searchContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  searchInput: { flex: 1, backgroundColor: 'rgba(118,118,128,0.18)', color: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15 },
+  searchInput: { flex: 1, backgroundColor: 'rgba(118,118,128,0.18)', color: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 16 },
   clearBtn: { backgroundColor: 'rgba(118,118,128,0.18)', width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   clearBtnText: { color: 'rgba(255,255,255,0.4)', fontSize: 14 },
   searchBtn: { backgroundColor: '#0a84ff', paddingHorizontal: 16, paddingVertical: 11, borderRadius: 12 },
