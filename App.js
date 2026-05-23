@@ -493,7 +493,7 @@ function PopularScreen({ selectedPlatforms }) {
     return (
       <TouchableOpacity key={item.id} style={styles.popularCard} onPress={() => openPopularItem(item)}>
         {item.poster_w240
-          ? <Image source={{ uri: item.poster_w240 }} style={styles.popularPoster} />
+          ? <Image source={{ uri: item.poster_w240 }} style={styles.popularCardImg} />
           : <View style={[styles.popularPoster, { backgroundColor: SURFACE, alignItems: 'center', justifyContent: 'center' }]}><Text style={{ color: '#ffffff22', fontSize: 20 }}>?</Text></View>
         }
         <Text style={styles.popularTitle} numberOfLines={2}>{item.title}</Text>
