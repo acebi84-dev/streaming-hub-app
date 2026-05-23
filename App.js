@@ -4,6 +4,7 @@ import {
   Image, ActivityIndicator, SafeAreaView, StatusBar, ScrollView,
   Animated, Modal,
 } from 'react-native';
+import { Linking } from 'react-native';
 import { supabase } from './supabase';
 import { Compass, TrendingUp } from 'lucide-react-native';
 
@@ -150,7 +151,7 @@ function DetailModal({ item, onClose }) {
                       const p = PLATFORMS.find(x => x.slug === a.platform_slug);
                       if (!p) return null;
                       return (
-                        <TouchableOpacity key={a.platform_slug} style={[styles.modalPlatformBtn, { backgroundColor: p.color }]} onPress={() => a.platform_url && window.open(a.platform_url, '_blank')} disabled={!a.platform_url}>
+                        <TouchableOpacity key={a.platform_slug} style={[styles.modalPlatformBtn, { backgroundColor: p.color }]} onPress={() => a.platform_url && Linking.openURL(a.platform_url)} disabled={!a.platform_url}>
                           <Image source={{ uri: p.darkLogo }} style={styles.modalPlatformLogo} resizeMode="contain" />
                         </TouchableOpacity>
                       );
@@ -441,7 +442,7 @@ export default function App() {
                 const p = PLATFORMS.find(x => x.slug === a.platform_slug);
                 if (!p) return null;
                 return (
-                  <TouchableOpacity key={a.platform_slug} style={[styles.platformPill, { backgroundColor: p.color }]} onPress={() => a.platform_url && window.open(a.platform_url, '_blank')} disabled={!a.platform_url}>
+                  <TouchableOpacity key={a.platform_slug} style={[styles.platformPill, { backgroundColor: p.color }]} onPress={() => a.platform_url && Linking.openURL(a.platform_url)} disabled={!a.platform_url}>
                     <Image source={{ uri: p.darkLogo }} style={styles.platformPillLogo} resizeMode="contain" />
                   </TouchableOpacity>
                 );
