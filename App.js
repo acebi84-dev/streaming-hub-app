@@ -398,30 +398,48 @@ export default function App() {
     const currentPage = loadMore ? currentPageRef.current + 1 : 0;
     const from = currentPage * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
-    let query = supabase.from('hub_contents').select('*, availability:hub_availability(platform_slug, platform_url)').not('imdb_score', 'is', null).not('imdb_id', 'is', null).order(sortBy, { ascending: sortAsc }).range(from, to + 200);
+
+    const platformFilter = selectedPlatforms.map(p => `platform_slug.eq.${p}`).join(',');
+    const availabilitySelect = `*, availability:hub_availability!inner(platform_slug, platform_url)`;
+
+    let query = supabase.from('hub_contents')
+      .select(availabilitySelect)
+      .not('imdb_score', 'is', null)
+      .not('imdb_id', 'is', null)
+      .or(platformFilter, { referencedTable: 'hub_availability' })
+      .order(sortBy, { ascending: sortAsc })
+      .range(from, to);
+
     if (activeSearch.length > 0) {
-      query = supabase.from('hub_contents').select('*, availability:hub_availability(platform_slug, platform_url)').not('imdb_score', 'is', null).not('imdb_id', 'is', null).or('title.ilike.%' + activeSearch + '%,original_title.ilike.%' + activeSearch + '%,cast_list.ilike.%' + activeSearch + '%,director.ilike.%' + activeSearch + '%').order(sortBy, { ascending: sortAsc }).limit(6000);
+      query = supabase.from('hub_contents')
+        .select(availabilitySelect)
+        .not('imdb_score', 'is', null)
+        .not('imdb_id', 'is', null)
+        .or(platformFilter, { referencedTable: 'hub_availability' })
+        .or('title.ilike.%' + activeSearch + '%,original_title.ilike.%' + activeSearch + '%,cast_list.ilike.%' + activeSearch + '%,director.ilike.%' + activeSearch + '%')
+        .order(sortBy, { ascending: sortAsc })
+        .limit(500);
     }
     if (selectedType !== 'all') query = query.eq('type', selectedType);
     if (selectedGenre) query = query.ilike('genre', '%' + selectedGenre + '%');
     if (selectedLanguage) query = query.eq('original_language', selectedLanguage);
     if (minImdb > 0) query = query.gte('imdb_score', minImdb);
     if (minYear > 1950) query = query.gte('year', minYear);
+
     const { data, error } = await query;
     if (error) { console.error(error); setLoading(false); setLoadingMore(false); return; }
-    const filtered = (data || []).filter(item => item.availability && item.availability.some(a => selectedPlatforms.includes(a.platform_slug)));
-    const enriched = filtered.map(item => ({ ...item, availability: item.availability.filter(a => selectedPlatforms.includes(a.platform_slug)) }));
-    const newItems = enriched.slice(0, PAGE_SIZE);
+    const enriched = (data || []).map(item => ({ ...item, availability: item.availability.filter(a => selectedPlatforms.includes(a.platform_slug)) }));
+
     if (loadMore) {
       setContents(prev => {
         const existingIds = new Set(prev.map(i => i.id));
-        const unique = newItems.filter(i => !existingIds.has(i.id));
+        const unique = enriched.filter(i => !existingIds.has(i.id));
         return [...prev, ...unique];
       });
       setPage(currentPage);
       currentPageRef.current = currentPage;
     } else {
-      setContents(newItems);
+      setContents(enriched);
     }
     setHasMore(enriched.length >= PAGE_SIZE);
     setLoading(false);
