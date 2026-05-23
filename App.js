@@ -297,7 +297,8 @@ function CollectionsScreen({ selectedPlatforms }) {
       </TouchableOpacity>
 
       {showFilters && (
-        <View style={styles.filtersPanel}>
+        <View style={[styles.filtersPanel, { maxHeight: 320 }]}>
+          <ScrollView showsVerticalScrollIndicator={false}>
           {/* Sort */}
           <Text style={styles.filterLabel}>Sıralama</Text>
           <View style={styles.filterRow}>
@@ -334,6 +335,7 @@ function CollectionsScreen({ selectedPlatforms }) {
           <TouchableOpacity style={styles.resetBtnInline} onPress={() => { setSelectedGenre(null); setColMinImdb(0); setCollectionSort('avg_votes'); }}>
             <Text style={styles.resetBtnText}>Sıfırla</Text>
           </TouchableOpacity>
+          </ScrollView>
         </View>
       )}
 
@@ -342,7 +344,6 @@ function CollectionsScreen({ selectedPlatforms }) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
         <View style={styles.popularHeader}>
           <Text style={styles.popularHeaderTitle}>🎬 Koleksiyonlar</Text>
-          <Text style={styles.popularHeaderSub}>Ortalama oy sayısına göre sıralı</Text>
         </View>
         {loading ? (
           <ActivityIndicator size="large" color={ACCENT} style={{ marginTop: 60 }} />
