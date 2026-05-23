@@ -129,6 +129,52 @@ function DetailModal({ item, onClose }) {
   if (!item) return null;
   const typeLabel = item.type === 'movie' ? '🎬 Film' : '📺 Dizi';
   const langLabel = item.original_language ? LANGUAGE_MAP[item.original_language] : null;
+  const [similarItems, setSimilarItems] = React.useState([]);
+
+  React.useEffect(() => {
+    setSimilarItems([]);
+    if (!item.imdb_id) return;
+    fetchSimilar(item);
+  }, [item.imdb_id]);
+
+  async function fetchSimilar(item) {
+    try {
+      const TMDB_KEY = 'd92c22452d03782f77e3523e6929f85a';
+      const type = item.type === 'movie' ? 'movie' : 'tv';
+
+      // Get TMDB id first
+      const findRes = await fetch(`https://api.themoviedb.org/3/find/${item.imdb_id}?external_source=imdb_id&api_key=${TMDB_KEY}`);
+      const findData = await findRes.json();
+      const tmdbItem = findData.movie_results?.[0] || findData.tv_results?.[0];
+      if (!tmdbItem) return;
+
+      // Get similar
+      const simRes = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbItem.id}/similar?api_key=${TMDB_KEY}&language=en-US&page=1`);
+      const simData = await simRes.json();
+      const simImdbIds = (simData.results || []).slice(0, 20).map(s => s.id);
+      if (simImdbIds.length === 0) return;
+
+      // Find which ones are in our DB with availability
+      const imdbPromises = simData.results.slice(0, 20).map(async s => {
+        const r = await fetch(`https://api.themoviedb.org/3/${type}/${s.id}/external_ids?api_key=${TMDB_KEY}`);
+        const d = await r.json();
+        return d.imdb_id;
+      });
+      const imdbIds = (await Promise.all(imdbPromises)).filter(Boolean);
+
+      const { data } = await supabase
+        .from('hub_contents')
+        .select('id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, availability:hub_availability(platform_slug, platform_url)')
+        .in('imdb_id', imdbIds)
+        .not('imdb_score', 'is', null);
+
+      const filtered = (data || []).filter(i => i.availability && i.availability.length > 0).slice(0, 10);
+      setSimilarItems(filtered);
+    } catch (e) {
+      console.error('Similar fetch error:', e);
+    }
+  }
+
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
@@ -164,6 +210,27 @@ function DetailModal({ item, onClose }) {
             {item.director ? <Text style={styles.modalDetail}>🎬 <Text style={styles.modalDetailLabel}>Yönetmen: </Text>{item.director}</Text> : null}
             {item.cast_list ? <Text style={styles.modalDetail}>👥 <Text style={styles.modalDetailLabel}>Oyuncular: </Text>{item.cast_list}</Text> : null}
             {item.synopsis_tr ? (<><Text style={styles.modalSynopsisTitle}>Konu</Text><Text style={styles.modalSynopsis}>{item.synopsis_tr}</Text></>) : null}
+            {similarItems.length > 0 && (
+              <View style={styles.similarSection}>
+                <Text style={styles.similarTitle}>Benzer İçerikler</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 8 }}>
+                  {similarItems.map(s => {
+                    const p = PLATFORMS.find(x => x.slug === s.availability?.[0]?.platform_slug);
+                    return (
+                      <TouchableOpacity key={s.imdb_id} style={styles.similarCard} onPress={() => { onClose(); setTimeout(() => {}, 100); }}>
+                        {s.poster_url ? <Image source={{ uri: s.poster_url }} style={styles.similarPoster} resizeMode="cover" /> : <View style={[styles.similarPoster, { backgroundColor: SURFACE }]} />}
+                        <Text style={styles.similarCardTitle} numberOfLines={2}>{s.original_language === 'tr' && s.title_tr ? s.title_tr : s.title}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View>
+                          <Text style={styles.similarScore}>{s.imdb_score?.toFixed(1)}</Text>
+                          {p && <View style={[styles.similarPlatformDot, { backgroundColor: p.color }]} />}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
             <View style={styles.modalButtons}>
               {item.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={() => window.open(item.trailer_url, '_blank')}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
               {item.imdb_id && <TouchableOpacity style={styles.imdbLinkBtn} onPress={() => window.open('https://www.imdb.com/title/' + item.imdb_id + '/', '_blank')}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.imdbLinkText}>↗ imdb.com</Text></TouchableOpacity>}
@@ -896,6 +963,13 @@ const styles = StyleSheet.create({
   popularImdb: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   popularScore: { color: '#F5C518', fontSize: 12, fontWeight: 'bold' },
   closeBtnText: { color: '#ffffff55', fontSize: 13 },
+  similarSection: { marginTop: 14, marginBottom: 4 },
+  similarTitle: { color: '#ffffff99', fontSize: 12, fontWeight: '600', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  similarCard: { width: 90 },
+  similarPoster: { width: 90, height: 130, borderRadius: 8, marginBottom: 6 },
+  similarCardTitle: { color: '#ffffffcc', fontSize: 11, marginBottom: 4, lineHeight: 14 },
+  similarScore: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  similarPlatformDot: { width: 8, height: 8, borderRadius: 4 },
   scrollTopBtn: { position: 'absolute', right: 16, bottom: 80, width: 44, height: 44, borderRadius: 22, backgroundColor: '#00A8E1', alignItems: 'center', justifyContent: 'center', elevation: 4 },
   scrollTopIcon: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
 });
