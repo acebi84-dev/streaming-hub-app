@@ -299,7 +299,14 @@ function CollectionsScreen({ selectedPlatforms }) {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      {showFilters && <TouchableOpacity style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 5 }} activeOpacity={1} onPress={() => setShowFilters(false)} />}
 
+      <View style={styles.searchContainer}>
+        <TextInput style={styles.searchInput} placeholder="Koleksiyon ara..." placeholderTextColor="#ffffff44" value={colSearchInput} onChangeText={setColSearchInput} onSubmitEditing={() => setColActiveSearch(colSearchInput)} returnKeyType="search" />
+        <TouchableOpacity style={styles.searchBtn} onPress={() => setColActiveSearch(colSearchInput)}>
+          <Text style={styles.searchBtnText}>Ara</Text>
+        </TouchableOpacity>
+      </View>
       {/* Filter button */}
       <TouchableOpacity style={[styles.filtersBtn, (selectedGenre || minImdb > 0) && styles.filtersBtnActive]} onPress={() => setShowFilters(!showFilters)}>
         <Text style={[styles.filtersBtnText, (selectedGenre || minImdb > 0) && styles.filtersBtnTextActive]}>
@@ -352,7 +359,7 @@ function CollectionsScreen({ selectedPlatforms }) {
 
 
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
+      <ScrollView ref={colScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }} onScroll={e => setColShowScrollTop(e.nativeEvent.contentOffset.y > 400)} scrollEventThrottle={16}>
         <View style={styles.popularHeader}>
           <Text style={styles.popularHeaderTitle}>🎬 Koleksiyonlar</Text>
         </View>
