@@ -289,11 +289,12 @@ function CollectionsScreen({ selectedPlatforms }) {
   const filteredCollections = collections.filter(c => {
     if (selectedGenre && !(c.genres && c.genres.includes(selectedGenre))) return false;
     if (minImdb > 0 && (c.avg_imdb_score || 0) < minImdb) return false;
-    if (colActiveSearch && !((c.name || '').toLowerCase().includes(colActiveSearch.toLowerCase()) || (c.name_tr || '').toLowerCase().includes(colActiveSearch.toLowerCase()))) return false;
+    if (colActiveSearch && !((c.name||'').toLowerCase().includes(colActiveSearch.toLowerCase()) || (c.name_tr||'').toLowerCase().includes(colActiveSearch.toLowerCase()))) return false;
     return true;
   });
 
   const genreMap = Object.fromEntries(GENRES.map(g => [g.en, g.tr]));
+  const hasColActiveFilters = selectedGenre || minImdb > 0 || sortBy !== 'avg_votes' || sortAscCol || colActiveSearch;
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -826,21 +827,7 @@ export default function App() {
 
       {/* Filtreler toggle */}
       <View style={styles.filterBar}>
-        <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Koleksiyon ara..."
-          placeholderTextColor="#ffffff44"
-          value={searchInput}
-          onChangeText={setColSearchInput}
-          onSubmitEditing={() => setColActiveSearch(searchInput)}
-          returnKeyType="search"
-        />
-        <TouchableOpacity style={styles.searchBtn} onPress={() => setColActiveSearch(searchInput)}>
-          <Text style={styles.searchBtnText}>Ara</Text>
-        </TouchableOpacity>
-      </View>
-      <TouchableOpacity style={[styles.filterToggle, showFilters && styles.filterToggleActive]} onPress={() => setShowFilters(!showFilters)}>
+        <TouchableOpacity style={[styles.filterToggle, showFilters && styles.filterToggleActive]} onPress={() => setShowFilters(!showFilters)}>
           <Text style={[styles.filterToggleText, showFilters && styles.filterToggleTextActive]}>
             {showFilters ? '▲ Gizle' : '▼ Filtreler & Sıralama'}
             {hasActiveFilters && !showFilters ? ' ●' : ''}
