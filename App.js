@@ -359,8 +359,9 @@ function CollectionsScreen({ selectedPlatforms }) {
                   <Text style={styles.collectionName}>{col.name_tr || col.name}</Text>
                   <View style={styles.collectionMeta}>
                     <View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View>
-                    <Text style={styles.collectionScore}>{col.avg_imdb_score?.toFixed(1)}</Text>
-                    <Text style={styles.collectionCount}>{items.length} film</Text>
+                    <Text style={styles.collectionScore}>Ort. {col.avg_imdb_score?.toFixed(1)}</Text>
+                    <Text style={styles.collectionCount}>· {items.length} film</Text>
+                    {col.avg_votes && <Text style={styles.collectionCount}>· {(col.avg_votes / 1000).toFixed(0)}K oy</Text>}
                   </View>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularRow}>
@@ -374,7 +375,10 @@ function CollectionsScreen({ selectedPlatforms }) {
                           ? <Image source={{ uri: c.poster_url }} style={styles.popularCardImg} resizeMode="cover" />
                           : <View style={[styles.popularCardImg, { backgroundColor: SURFACE }]} />}
                         <Text style={styles.popularCardTitle} numberOfLines={2}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
-                        {c.imdb_score && <View style={styles.popularImdb}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.popularScore}>{c.imdb_score.toFixed(1)}</Text></View>}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                          {c.imdb_score && <><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.popularScore}>{c.imdb_score.toFixed(1)}</Text></>}
+                          {platforms.map(a => { const p = PLATFORMS.find(x => x.slug === a.platform_slug); return p ? <View key={p.slug} style={[styles.similarPlatformDot, { backgroundColor: p.color }]} /> : null; })}
+                        </View>
                       </TouchableOpacity>
                     );
                   })}
@@ -1115,6 +1119,10 @@ const styles = StyleSheet.create({
   popularCard: { width: 110, position: 'relative' },
   popularCardImg: { width: 110, height: 160, borderRadius: 8, marginBottom: 6 },
   popularCardTitle: { color: '#ffffffcc', fontSize: 11, lineHeight: 14 },
+  filtersBtn: { marginHorizontal: 16, marginVertical: 8, backgroundColor: SURFACE, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: BORDER },
+  filtersBtnActive: { borderColor: ACCENT },
+  filtersBtnText: { color: '#ffffffaa', fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  filtersBtnTextActive: { color: ACCENT },
   collectionHeader: { paddingHorizontal: 16, paddingBottom: 6, paddingTop: 4 },
   collectionName: { color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 4 },
   collectionMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
