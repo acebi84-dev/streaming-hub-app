@@ -273,7 +273,7 @@ function CollectionsScreen({ selectedPlatforms }) {
     const { data, error } = await supabase
       .from('hub_collections')
       .select('*, items:hub_collection_items(content_id, imdb_score, content:hub_contents(id, title, title_tr, original_language, poster_url, imdb_score, imdb_id, availability:hub_availability(platform_slug, platform_url)))')
-      .order('avg_imdb_score', { ascending: false });
+      .order('avg_votes', { ascending: false });
     if (error) { console.error(error); setLoading(false); return; }
 
     // Filter collections where at least one movie is in selected platforms
@@ -301,12 +301,6 @@ function CollectionsScreen({ selectedPlatforms }) {
       {/* Genre filter */}
       <View style={styles.popularTopBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularTopBarRow}>
-          <TouchableOpacity
-            style={[styles.popularTopBtn, !selectedGenre && styles.popularTopBtnActive]}
-            onPress={() => { setSelectedGenre(null); setShowGenreDropdown(false); }}
-          >
-            <Text style={[styles.popularTopBtnText, !selectedGenre && styles.popularTopBtnTextActive]}>Tümü</Text>
-          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.popularTopBtn, selectedGenre && styles.popularTopBtnGenreActive]}
             onPress={() => setShowGenreDropdown(!showGenreDropdown)}
