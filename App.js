@@ -306,7 +306,7 @@ function CollectionsScreen({ selectedPlatforms }) {
         <Text style={styles.appTitle}>🎬 Koleksiyonlar</Text>
       </View>
       <View style={[styles.searchContainer, { marginHorizontal: 16, marginVertical: 8 }]}>
-        <TextInput style={[styles.searchInput, { flex: 1 }]} placeholder="Koleksiyon ara..." placeholderTextColor="#ffffff44" value={colSearchInput} onChangeText={setColSearchInput} onSubmitEditing={() => setColActiveSearch(colSearchInput)} returnKeyType="search" />
+        <TextInput maxFontSizeMultiplier={1} style={[styles.searchInput, { flex: 1 }]} placeholder="Koleksiyon ara..." placeholderTextColor="#ffffff44" value={colSearchInput} onChangeText={setColSearchInput} onSubmitEditing={() => setColActiveSearch(colSearchInput)} returnKeyType="search" />
         <TouchableOpacity style={[styles.searchBtn, { paddingHorizontal: 14 }]} onPress={() => setColActiveSearch(colSearchInput)}>
           <Text style={styles.searchBtnText}>Ara</Text>
         </TouchableOpacity>
@@ -797,7 +797,7 @@ export default function App() {
 
       {/* Arama */}
       <View style={styles.searchRow}>
-        <TextInput
+        <TextInput maxFontSizeMultiplier={1}
           style={styles.searchInput}
           placeholder="Film, dizi, oyuncu veya yönetmen ara..."
           placeholderTextColor="#3a3a4a"
