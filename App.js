@@ -252,6 +252,7 @@ function CollectionsScreen({ selectedPlatforms }) {
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
   const [sortBy, setCollectionSort] = useState('avg_votes');
   const [minImdb, setColMinImdb] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => { fetchCollections(); }, [sortBy]);
 
@@ -287,68 +288,56 @@ function CollectionsScreen({ selectedPlatforms }) {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
 
-      {/* Filters */}
-      <View style={styles.popularTopBar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularTopBarRow}>
-          {/* Sort */}
-          <TouchableOpacity
-            style={[styles.popularTopBtn, sortBy === 'avg_votes' && styles.popularTopBtnActive]}
-            onPress={() => setCollectionSort('avg_votes')}
-          >
-            <Text style={[styles.popularTopBtnText, sortBy === 'avg_votes' && styles.popularTopBtnTextActive]}>Oy</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.popularTopBtn, sortBy === 'avg_imdb_score' && styles.popularTopBtnActive]}
-            onPress={() => setCollectionSort('avg_imdb_score')}
-          >
-            <Text style={[styles.popularTopBtnText, sortBy === 'avg_imdb_score' && styles.popularTopBtnTextActive]}>IMDb</Text>
-          </TouchableOpacity>
-          <View style={styles.popularTopSeparator} />
-          {/* Genre */}
-          <TouchableOpacity
-            style={[styles.popularTopBtn, selectedGenre && styles.popularTopBtnGenreActive]}
-            onPress={() => setShowGenreDropdown(!showGenreDropdown)}
-          >
-            <Text style={[styles.popularTopBtnText, selectedGenre && styles.popularTopBtnTextGenreActive]}>
-              {selectedGenre ? (genreMap[selectedGenre] || selectedGenre) : 'Tür'} ▾
-            </Text>
-          </TouchableOpacity>
-          {selectedGenre && (
-            <TouchableOpacity style={styles.popularTopBtn} onPress={() => setSelectedGenre(null)}>
-              <Text style={styles.popularTopBtnText}>✕</Text>
-            </TouchableOpacity>
-          )}
-          <View style={styles.popularTopSeparator} />
-          {/* Min IMDb */}
-          {[0, 6, 7, 7.5, 8].map(val => (
-            <TouchableOpacity
-              key={val}
-              style={[styles.popularTopBtn, minImdb === val && styles.popularTopBtnActive]}
-              onPress={() => setColMinImdb(val)}
-            >
-              <Text style={[styles.popularTopBtnText, minImdb === val && styles.popularTopBtnTextActive]}>
-                {val === 0 ? 'IMDb: Tümü' : `IMDb ${val}+`}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      {/* Filter button */}
+      <TouchableOpacity style={[styles.filtersBtn, (selectedGenre || minImdb > 0) && styles.filtersBtnActive]} onPress={() => setShowFilters(!showFilters)}>
+        <Text style={[styles.filtersBtnText, (selectedGenre || minImdb > 0) && styles.filtersBtnTextActive]}>
+          {showFilters ? '▲' : '▼'} Filtreler & Sıralama
+          {(selectedGenre || minImdb > 0) ? ' ●' : ''}
+        </Text>
+      </TouchableOpacity>
 
-      {showGenreDropdown && (
-        <View style={[styles.genreDropdown, { top: 52 }]}>
-          <ScrollView style={{ maxHeight: 240 }} showsVerticalScrollIndicator={false}>
-            {allGenres.map(g => (
-              <TouchableOpacity
-                key={g}
-                style={[styles.genreDropdownItem, selectedGenre === g && styles.genreDropdownItemActive]}
-                onPress={() => { setSelectedGenre(g); setShowGenreDropdown(false); }}
-              >
-                <Text style={[styles.genreDropdownText, selectedGenre === g && styles.genreDropdownTextActive]}>{genreMap[g] || g}</Text>
+      {showFilters && (
+        <View style={styles.filtersPanel}>
+          {/* Sort */}
+          <Text style={styles.filterLabel}>Sıralama</Text>
+          <View style={styles.filterRow}>
+            {[['avg_votes', 'Ortalama Oy'], ['avg_imdb_score', 'IMDb Puanı']].map(([val, label]) => (
+              <TouchableOpacity key={val} style={[styles.sliderBtn, sortBy === val && styles.sliderBtnActive]} onPress={() => setCollectionSort(val)}>
+                <Text style={[styles.sliderBtnText, sortBy === val && styles.sliderBtnTextActive]}>{label}</Text>
               </TouchableOpacity>
             ))}
+          </View>
+          {/* Genre */}
+          <Text style={styles.filterLabel}>Tür: <Text style={styles.filterValue}>{selectedGenre ? (genreMap[selectedGenre] || selectedGenre) : 'Tümü'}</Text></Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+            <View style={styles.filterRow}>
+              <TouchableOpacity style={[styles.sliderBtn, !selectedGenre && styles.sliderBtnActive]} onPress={() => setSelectedGenre(null)}>
+                <Text style={[styles.sliderBtnText, !selectedGenre && styles.sliderBtnTextActive]}>Tümü</Text>
+              </TouchableOpacity>
+              {allGenres.map(g => (
+                <TouchableOpacity key={g} style={[styles.sliderBtn, selectedGenre === g && styles.sliderBtnActive]} onPress={() => setSelectedGenre(selectedGenre === g ? null : g)}>
+                  <Text style={[styles.sliderBtnText, selectedGenre === g && styles.sliderBtnTextActive]}>{genreMap[g] || g}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </ScrollView>
+          {/* Min IMDb */}
+          <Text style={styles.filterLabel}>Min IMDb: <Text style={styles.filterValue}>{minImdb > 0 ? `${minImdb}+` : 'Tümü'}</Text></Text>
+          <View style={styles.filterRow}>
+            {[0, 6, 7, 7.5, 8].map(val => (
+              <TouchableOpacity key={val} style={[styles.sliderBtn, minImdb === val && styles.sliderBtnActive]} onPress={() => setColMinImdb(val)}>
+                <Text style={[styles.sliderBtnText, minImdb === val && styles.sliderBtnTextActive]}>{val === 0 ? 'Tümü' : `${val}+`}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {/* Reset */}
+          <TouchableOpacity style={styles.resetBtnInline} onPress={() => { setSelectedGenre(null); setColMinImdb(0); setCollectionSort('avg_votes'); }}>
+            <Text style={styles.resetBtnText}>Sıfırla</Text>
+          </TouchableOpacity>
         </View>
       )}
+
+
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
         <View style={styles.popularHeader}>
@@ -1124,6 +1113,8 @@ const styles = StyleSheet.create({
   popularPlatformLogo: { width: 80, height: 22 },
   popularRow: { paddingHorizontal: 16, gap: 10 },
   popularCard: { width: 110, position: 'relative' },
+  popularCardImg: { width: 110, height: 160, borderRadius: 8, marginBottom: 6 },
+  popularCardTitle: { color: '#ffffffcc', fontSize: 11, lineHeight: 14 },
   collectionHeader: { paddingHorizontal: 16, paddingBottom: 6, paddingTop: 4 },
   collectionName: { color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 4 },
   collectionMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
