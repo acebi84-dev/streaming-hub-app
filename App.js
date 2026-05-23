@@ -454,7 +454,7 @@ function PopularScreen({ selectedPlatforms }) {
     return result;
   }
 
-  const selectedGenreLabel = POPULAR_GENRES.find(g => g.en === genreFilter)?.tr || 'Kategoriler';
+  const selectedGenreLabel = POPULAR_GENRES.find(g => g.en === genreFilter)?.tr || 'Tür';
 
   async function openPopularItem(item) {
     // Base normalized item
@@ -975,8 +975,8 @@ const styles = StyleSheet.create({
   // ── Header ───────────────────────────────────────
   header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10, borderBottomWidth: 0 },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  appTitle: { color: '#ffffff', fontSize: 28, fontWeight: '700', letterSpacing: -0.8 },
-  sectionTitle: { color: '#ffffff', fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
+  appTitle: { color: '#ffffff', fontSize: 34, fontWeight: '700', letterSpacing: -1 },
+  sectionTitle: { color: '#ffffff', fontSize: 26, fontWeight: '700', letterSpacing: -0.6 },
   platformSelectBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
   platformSelectDots: { flexDirection: 'row', gap: 4 },
   platformSelectDot: { width: 8, height: 8, borderRadius: 4 },
@@ -1117,6 +1117,11 @@ const styles = StyleSheet.create({
   popularTopBtnTextActive: { color: '#fff', fontWeight: '600' },
   popularTopBtnTextGenreActive: { color: '#0a84ff', fontWeight: '600' },
   popularTopSeparator: { width: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 2 },
+  genreDropdown: { marginHorizontal: 16, marginBottom: 8, backgroundColor: 'rgba(44,44,46,0.98)', borderRadius: 14, padding: 8, maxHeight: 280 },
+  genreDropdownItem: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
+  genreDropdownItemActive: { backgroundColor: 'rgba(10,132,255,0.2)' },
+  genreDropdownText: { color: 'rgba(255,255,255,0.7)', fontSize: 14 },
+  genreDropdownTextActive: { color: '#0a84ff', fontWeight: '600' },
   popularSection: { marginBottom: 24 },
   popularPlatformLabel: { marginHorizontal: 16, marginBottom: 10, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, alignSelf: 'flex-start', borderWidth: 1 },
   popularPlatformLogo: { width: 80, height: 20 },
