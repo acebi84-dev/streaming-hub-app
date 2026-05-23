@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { Linking } from 'react-native';
 import { supabase } from './supabase';
-import { Compass, TrendingUp } from 'lucide-react-native';
+import { Compass, TrendingUp, Film } from 'lucide-react-native';
 
 const PLATFORMS = [
   { slug: 'netflix',  name: 'Netflix',      color: '#E50914', darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
@@ -257,6 +257,136 @@ const POPULAR_GENRES = [
   { en: 'Science Fiction', tr: 'Bilim Kurgu' }, { en: 'Thriller', tr: 'Gerilim' },
   { en: 'War', tr: 'Savaş' }, { en: 'Western', tr: 'Western' },
 ];
+
+
+function CollectionsScreen({ selectedPlatforms }) {
+  const [collections, setCollections] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedGenre, setSelectedGenre] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [showGenreDropdown, setShowGenreDropdown] = useState(false);
+
+  useEffect(() => { fetchCollections(); }, []);
+
+  async function fetchCollections() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('hub_collections')
+      .select('*, items:hub_collection_items(content_id, imdb_score, content:hub_contents(id, title, title_tr, original_language, poster_url, imdb_score, imdb_id, availability:hub_availability(platform_slug, platform_url)))')
+      .order('avg_imdb_score', { ascending: false });
+    if (error) { console.error(error); setLoading(false); return; }
+
+    // Filter collections where at least one movie is in selected platforms
+    const filtered = (data || []).filter(col =>
+      col.items.some(item =>
+        item.content?.availability?.some(a => selectedPlatforms.includes(a.platform_slug))
+      )
+    );
+    setCollections(filtered);
+    setLoading(false);
+  }
+
+  const allGenres = [...new Set(collections.flatMap(c => c.genres ? c.genres.split(', ') : []))].filter(Boolean).sort();
+
+  const filteredCollections = selectedGenre
+    ? collections.filter(c => c.genres && c.genres.includes(selectedGenre))
+    : collections;
+
+  const genreMap = Object.fromEntries(GENRES.map(g => [g.en, g.tr]));
+
+  return (
+    <View style={{ flex: 1, backgroundColor: BG }}>
+      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+
+      {/* Genre filter */}
+      <View style={styles.popularTopBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularTopBarRow}>
+          <TouchableOpacity
+            style={[styles.popularTopBtn, !selectedGenre && styles.popularTopBtnActive]}
+            onPress={() => { setSelectedGenre(null); setShowGenreDropdown(false); }}
+          >
+            <Text style={[styles.popularTopBtnText, !selectedGenre && styles.popularTopBtnTextActive]}>Tümü</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.popularTopBtn, selectedGenre && styles.popularTopBtnGenreActive]}
+            onPress={() => setShowGenreDropdown(!showGenreDropdown)}
+          >
+            <Text style={[styles.popularTopBtnText, selectedGenre && styles.popularTopBtnTextGenreActive]}>
+              {selectedGenre ? (genreMap[selectedGenre] || selectedGenre) : 'Tür'} ▾
+            </Text>
+          </TouchableOpacity>
+          {selectedGenre && (
+            <TouchableOpacity style={styles.popularTopBtn} onPress={() => setSelectedGenre(null)}>
+              <Text style={styles.popularTopBtnText}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </View>
+
+      {showGenreDropdown && (
+        <View style={[styles.genreDropdown, { top: 52 }]}>
+          <ScrollView style={{ maxHeight: 240 }} showsVerticalScrollIndicator={false}>
+            {allGenres.map(g => (
+              <TouchableOpacity
+                key={g}
+                style={[styles.genreDropdownItem, selectedGenre === g && styles.genreDropdownItemActive]}
+                onPress={() => { setSelectedGenre(g); setShowGenreDropdown(false); }}
+              >
+                <Text style={[styles.genreDropdownText, selectedGenre === g && styles.genreDropdownTextActive]}>{genreMap[g] || g}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
+        <View style={styles.popularHeader}>
+          <Text style={styles.popularHeaderTitle}>🎬 Koleksiyonlar</Text>
+          <Text style={styles.popularHeaderSub}>IMDB puanına göre sıralı</Text>
+        </View>
+        {loading ? (
+          <ActivityIndicator size="large" color={ACCENT} style={{ marginTop: 60 }} />
+        ) : (
+          filteredCollections.map(col => {
+            const items = col.items
+              .filter(i => i.content?.availability?.some(a => selectedPlatforms.includes(a.platform_slug)))
+              .sort((a, b) => (b.imdb_score || 0) - (a.imdb_score || 0));
+            if (items.length === 0) return null;
+
+            return (
+              <View key={col.id} style={styles.popularSection}>
+                <View style={styles.collectionHeader}>
+                  <Text style={styles.collectionName}>{col.name_tr || col.name}</Text>
+                  <View style={styles.collectionMeta}>
+                    <View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View>
+                    <Text style={styles.collectionScore}>{col.avg_imdb_score?.toFixed(1)}</Text>
+                    <Text style={styles.collectionCount}>{items.length} film</Text>
+                  </View>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularRow}>
+                  {items.map(item => {
+                    const c = item.content;
+                    if (!c) return null;
+                    const platforms = c.availability?.filter(a => selectedPlatforms.includes(a.platform_slug)) || [];
+                    return (
+                      <TouchableOpacity key={c.id} style={styles.popularCard} onPress={() => setSelectedItem({ ...c, availability: platforms })}>
+                        {c.poster_url
+                          ? <Image source={{ uri: c.poster_url }} style={styles.popularCardImg} resizeMode="cover" />
+                          : <View style={[styles.popularCardImg, { backgroundColor: SURFACE }]} />}
+                        <Text style={styles.popularCardTitle} numberOfLines={2}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
+                        {c.imdb_score && <View style={styles.popularImdb}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.popularScore}>{c.imdb_score.toFixed(1)}</Text></View>}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
+    </View>
+  );
+}
 
 function PopularScreen({ selectedPlatforms }) {
   const [popular, setPopular] = useState({});
@@ -599,6 +729,28 @@ export default function App() {
               <TrendingUp size={22} color="#00A8E1" strokeWidth={1.8} />
               <Text style={[styles.tabLabel, styles.tabLabelActive]}>Popüler</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('collections')}>
+              <Film size={22} color="#ffffff44" strokeWidth={1.8} />
+              <Text style={styles.tabLabel}>Koleksiyon</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      ) : activeTab === 'collections' ? (
+        <>
+          <CollectionsScreen selectedPlatforms={selectedPlatforms} />
+          <View style={styles.tabBar}>
+            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('discover')}>
+              <Compass size={22} color="#ffffff44" strokeWidth={1.8} />
+              <Text style={styles.tabLabel}>Keşfet</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('popular')}>
+              <TrendingUp size={22} color="#ffffff44" strokeWidth={1.8} />
+              <Text style={styles.tabLabel}>Popüler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('collections')}>
+              <Film size={22} color="#00A8E1" strokeWidth={1.8} />
+              <Text style={[styles.tabLabel, styles.tabLabelActive]}>Koleksiyon</Text>
+            </TouchableOpacity>
           </View>
         </>
       ) : (
@@ -786,6 +938,10 @@ export default function App() {
               <TrendingUp size={22} color="#ffffff44" strokeWidth={1.8} />
               <Text style={styles.tabLabel}>Popüler</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('collections')}>
+              <Film size={22} color="#ffffff44" strokeWidth={1.8} />
+              <Text style={styles.tabLabel}>Koleksiyon</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -957,6 +1113,11 @@ const styles = StyleSheet.create({
   popularPlatformLogo: { width: 80, height: 22 },
   popularRow: { paddingHorizontal: 16, gap: 10 },
   popularCard: { width: 110, position: 'relative' },
+  collectionHeader: { paddingHorizontal: 16, paddingBottom: 6, paddingTop: 4 },
+  collectionName: { color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  collectionMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  collectionScore: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  collectionCount: { color: '#ffffff55', fontSize: 12 },
   popularRankBadge: { position: 'absolute', top: 6, left: 6, zIndex: 1, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 },
   popularRank: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
   popularFireBadge: { backgroundColor: '#1a1a2e', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 },
