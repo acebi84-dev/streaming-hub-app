@@ -251,17 +251,18 @@ function CollectionsScreen({ selectedPlatforms }) {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
   const [sortBy, setCollectionSort] = useState('avg_votes');
+  const [sortAscCol, setSortAscCol] = useState(false);
   const [minImdb, setColMinImdb] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => { fetchCollections(); }, [sortBy]);
+  useEffect(() => { fetchCollections(); }, [sortBy, sortAscCol]);
 
   async function fetchCollections() {
     setLoading(true);
     const { data, error } = await supabase
       .from('hub_collections')
       .select('*, items:hub_collection_items(content_id, imdb_score, content:hub_contents(id, title, title_tr, original_language, poster_url, imdb_score, imdb_id, availability:hub_availability(platform_slug, platform_url)))')
-      .order(sortBy, { ascending: false });
+      .order(sortBy, { ascending: sortAscCol });
     if (error) { console.error(error); setLoading(false); return; }
 
     // Filter collections where at least one movie is in selected platforms
@@ -275,6 +276,8 @@ function CollectionsScreen({ selectedPlatforms }) {
   }
 
   const allGenres = [...new Set(collections.flatMap(c => c.genres ? c.genres.split(', ') : []))].filter(Boolean).sort();
+  function toggleColSort(field) { if (sortBy === field) setSortAscCol(!sortAscCol); else { setCollectionSort(field); setSortAscCol(false); } }
+  function getColSortIcon(field) { if (sortBy !== field) return ''; return sortAscCol ? ' ↑' : ' ↓'; }
 
   const filteredCollections = collections.filter(c => {
     if (selectedGenre && !(c.genres && c.genres.includes(selectedGenre))) return false;
@@ -297,45 +300,44 @@ function CollectionsScreen({ selectedPlatforms }) {
       </TouchableOpacity>
 
       {showFilters && (
-        <View style={[styles.filtersPanel, { maxHeight: 320 }]}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Sort */}
-          <Text style={styles.filterLabel}>Sıralama</Text>
-          <View style={styles.filterRow}>
+        <View style={styles.filtersBox}>
+          {/* Sıralama */}
+          <Text style={styles.filterSectionTitle}>Sıralama</Text>
+          <View style={styles.sortRow}>
             {[['avg_votes', 'Ortalama Oy'], ['avg_imdb_score', 'IMDb Puanı']].map(([val, label]) => (
-              <TouchableOpacity key={val} style={[styles.sliderBtn, sortBy === val && styles.sliderBtnActive]} onPress={() => setCollectionSort(val)}>
-                <Text style={[styles.sliderBtnText, sortBy === val && styles.sliderBtnTextActive]}>{label}</Text>
+              <TouchableOpacity key={val} style={[styles.sortBtn, sortBy === val && styles.sortBtnActive]} onPress={() => toggleColSort(val)}>
+                <Text style={[styles.sortBtnText, sortBy === val && styles.sortBtnTextActive]}>{label}{getColSortIcon(val)}</Text>
               </TouchableOpacity>
             ))}
+            <TouchableOpacity style={[styles.sortBtn, styles.sortDirBtn]} onPress={() => setSortAscCol(!sortAscCol)}>
+              <Text style={styles.sortBtnText}>{sortAscCol ? '↑ Artan' : '↓ Azalan'}</Text>
+            </TouchableOpacity>
           </View>
-          {/* Genre */}
+          {/* Tür */}
           <Text style={styles.filterLabel}>Tür: <Text style={styles.filterValue}>{selectedGenre ? (genreMap[selectedGenre] || selectedGenre) : 'Tümü'}</Text></Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-            <View style={styles.filterRow}>
-              <TouchableOpacity style={[styles.sliderBtn, !selectedGenre && styles.sliderBtnActive]} onPress={() => setSelectedGenre(null)}>
-                <Text style={[styles.sliderBtnText, !selectedGenre && styles.sliderBtnTextActive]}>Tümü</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+            <TouchableOpacity style={[styles.sliderBtn, !selectedGenre && styles.sliderBtnActive]} onPress={() => setSelectedGenre(null)}>
+              <Text style={[styles.sliderBtnText, !selectedGenre && styles.sliderBtnTextActive]}>Tümü</Text>
+            </TouchableOpacity>
+            {allGenres.map(g => (
+              <TouchableOpacity key={g} style={[styles.sliderBtn, selectedGenre === g && styles.sliderBtnActive]} onPress={() => setSelectedGenre(selectedGenre === g ? null : g)}>
+                <Text style={[styles.sliderBtnText, selectedGenre === g && styles.sliderBtnTextActive]}>{genreMap[g] || g}</Text>
               </TouchableOpacity>
-              {allGenres.map(g => (
-                <TouchableOpacity key={g} style={[styles.sliderBtn, selectedGenre === g && styles.sliderBtnActive]} onPress={() => setSelectedGenre(selectedGenre === g ? null : g)}>
-                  <Text style={[styles.sliderBtnText, selectedGenre === g && styles.sliderBtnTextActive]}>{genreMap[g] || g}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            ))}
           </ScrollView>
           {/* Min IMDb */}
-          <Text style={styles.filterLabel}>Min IMDb: <Text style={styles.filterValue}>{minImdb > 0 ? `${minImdb}+` : 'Tümü'}</Text></Text>
-          <View style={styles.filterRow}>
+          <Text style={styles.filterLabel}>IMDb Puanı: <Text style={styles.filterValue}>{minImdb > 0 ? `${minImdb}+` : 'Tümü'}</Text></Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
             {[0, 6, 7, 7.5, 8].map(val => (
               <TouchableOpacity key={val} style={[styles.sliderBtn, minImdb === val && styles.sliderBtnActive]} onPress={() => setColMinImdb(val)}>
                 <Text style={[styles.sliderBtnText, minImdb === val && styles.sliderBtnTextActive]}>{val === 0 ? 'Tümü' : `${val}+`}</Text>
               </TouchableOpacity>
             ))}
-          </View>
-          {/* Reset */}
-          <TouchableOpacity style={styles.resetBtnInline} onPress={() => { setSelectedGenre(null); setColMinImdb(0); setCollectionSort('avg_votes'); }}>
-            <Text style={styles.resetBtnText}>Sıfırla</Text>
-          </TouchableOpacity>
           </ScrollView>
+          {/* Reset */}
+          <TouchableOpacity style={styles.resetBtnInline} onPress={() => { setSelectedGenre(null); setColMinImdb(0); setCollectionSort('avg_votes'); setSortAscCol(false); }}>
+            <Text style={styles.resetBtnInlineText}>Sıfırla</Text>
+          </TouchableOpacity>
         </View>
       )}
 
