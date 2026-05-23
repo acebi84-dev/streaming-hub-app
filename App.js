@@ -697,30 +697,26 @@ export default function App() {
     const runtime = formatRuntime(item.runtime);
     const hasDetails = item.synopsis_tr || item.director || item.cast_list || item.tagline;
     return (
-      <View style={styles.card}>
-        {item.poster_url ? <Image source={{ uri: item.poster_url }} style={styles.poster} /> : <View style={styles.posterPlaceholder}><Text style={styles.posterPlaceholderText}>?</Text></View>}
+      <TouchableOpacity style={styles.card} onPress={() => setSelectedItem(item)} activeOpacity={0.85}>
+        <View style={styles.cardPosterWrap}>
+          {item.poster_url ? <Image source={{ uri: item.poster_url }} style={styles.poster} /> : <View style={styles.posterPlaceholder}><Text style={styles.posterPlaceholderText}>?</Text></View>}
+          <View style={styles.cardImdbOverlay}>
+            <View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View>
+            <Text style={styles.cardImdbScore}>{item.imdb_score ? item.imdb_score.toFixed(1) : '—'}</Text>
+          </View>
+        </View>
         <View style={styles.info}>
-          <Text style={styles.title} numberOfLines={1}>{item.original_language === 'tr' && item.title_tr ? item.title_tr : item.title}</Text>
-          {item.original_title && item.original_title !== item.title && item.original_language !== 'tr' && <Text style={styles.originalTitle} numberOfLines={1}>{item.original_title}</Text>}
-          <View style={styles.row}>
-            <Text style={styles.typeText}>{typeLabel}</Text>
-            {genres ? <Text style={styles.dot}> · </Text> : null}
-            {genres ? <Text style={styles.genreText}>{genres}</Text> : null}
-          </View>
-          <View style={styles.row}>
-            {langLabel ? <Text style={styles.metaText}>{langLabel}</Text> : null}
-            {langLabel && item.year ? <Text style={styles.dot}> · </Text> : null}
-            {item.year ? <Text style={styles.metaText}>{item.year}</Text> : null}
-            {runtime ? <Text style={styles.dot}> · </Text> : null}
-            {runtime ? <Text style={styles.metaText}>{runtime}</Text> : null}
-          </View>
+          <Text style={styles.title} numberOfLines={2}>{item.original_language === 'tr' && item.title_tr ? item.title_tr : item.title}</Text>
+          <Text style={styles.cardMeta} numberOfLines={1}>
+            {[typeLabel, genres, item.year].filter(Boolean).join(' · ')}
+          </Text>
           {item.availability && item.availability.length > 0 && (
             <View style={styles.platformRow}>
               {item.availability.map(a => {
                 const p = PLATFORMS.find(x => x.slug === a.platform_slug);
                 if (!p) return null;
                 return (
-                  <TouchableOpacity key={a.platform_slug} style={[styles.platformPill, { backgroundColor: p.color }]} onPress={() => a.platform_url && Linking.openURL(a.platform_url)} disabled={!a.platform_url}>
+                  <TouchableOpacity key={a.platform_slug} style={[styles.platformPill, { backgroundColor: p.color }]} onPress={(e) => { e.stopPropagation?.(); a.platform_url && Linking.openURL(a.platform_url); }} disabled={!a.platform_url}>
                     <Image source={{ uri: p.darkLogo }} style={styles.platformPillLogo} resizeMode="contain" />
                   </TouchableOpacity>
                 );
@@ -728,22 +724,19 @@ export default function App() {
             </View>
           )}
           <View style={styles.bottomRow}>
-            <TouchableOpacity style={styles.imdbBtn} onPress={() => item.imdb_id && window.open('https://www.imdb.com/title/' + item.imdb_id + '/', '_blank')}>
-              <View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View>
-              <Text style={styles.imdbScore}>{item.imdb_score ? item.imdb_score.toFixed(1) : 'N/A'}</Text>
-              <Text style={styles.imdbArrow}>↗</Text>
+            {item.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={(e) => { e.stopPropagation?.(); window.open(item.trailer_url, '_blank'); }}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
+            <TouchableOpacity style={styles.imdbBtn} onPress={(e) => { e.stopPropagation?.(); item.imdb_id && window.open('https://www.imdb.com/title/' + item.imdb_id + '/', '_blank'); }}>
+              <Text style={styles.imdbArrow}>IMDb ↗</Text>
             </TouchableOpacity>
-            {item.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={() => window.open(item.trailer_url, '_blank')}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
-            {hasDetails && <TouchableOpacity style={styles.detailBtn} onPress={() => setSelectedItem(item)}><Text style={styles.detailBtnText}>Detaylar</Text></TouchableOpacity>}
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0a0a0f" />
+      <StatusBar barStyle="light-content" backgroundColor="#000000" />
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
       <PlatformModal visible={showPlatformModal} selected={selectedPlatforms} onSave={handlePlatformSave} onClose={() => setShowPlatformModal(false)} />
 
@@ -756,7 +749,7 @@ export default function App() {
               <Text style={styles.tabLabel}>Keşfet</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('popular')}>
-              <TrendingUp size={22} color="#00A8E1" strokeWidth={1.8} />
+              <TrendingUp size={22} color="#0a84ff" strokeWidth={1.8} />
               <Text style={[styles.tabLabel, styles.tabLabelActive]}>Popüler</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('collections')}>
@@ -778,7 +771,7 @@ export default function App() {
               <Text style={styles.tabLabel}>Popüler</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('collections')}>
-              <Film size={22} color="#00A8E1" strokeWidth={1.8} />
+              <Film size={22} color="#0a84ff" strokeWidth={1.8} />
               <Text style={[styles.tabLabel, styles.tabLabelActive]}>Koleksiyon</Text>
             </TouchableOpacity>
           </View>
@@ -786,41 +779,20 @@ export default function App() {
       ) : (
         <View style={{ flex: 1 }}>
 
-      {/* Header */}
+      {/* Header - Apple TV minimal */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          {/* Sol: SVG İkon */}
-          <View style={styles.appIcon}>
-            <View style={styles.appIconPlay}>
-              <View style={styles.appIconTriangle} />
+          <Text style={styles.appTitle}>Ne İzlesek?</Text>
+          <TouchableOpacity style={styles.platformSelectBtn} onPress={() => setShowPlatformModal(true)}>
+            <View style={styles.platformSelectDots}>
+              {selectedPlatforms.slice(0, 4).map(slug => {
+                const p = PLATFORMS.find(x => x.slug === slug);
+                return p ? <View key={slug} style={[styles.platformSelectDot, { backgroundColor: p.color }]} /> : null;
+              })}
             </View>
-            <View style={styles.appIconQ}>
-              <Text style={styles.appIconQText}>?</Text>
-            </View>
-          </View>
-
-          {/* Sağ: başlık + platform butonu + subtitle + carousel */}
-          <View style={styles.headerRight}>
-            <Text style={styles.appTitle}>Ne İzlesek?</Text>
-            <View style={styles.headerTagRow}>
-              <Text style={styles.headerSubtitle}>Film & Dizi Puanları</Text>
-              <View style={styles.imdbBadgeHeader}><Text style={styles.imdbBadgeHeaderText}>IMDb</Text></View>
-            </View>
-            <CarouselComments />
-          </View>
+            <Text style={styles.platformSelectText}>Platformlar</Text>
+          </TouchableOpacity>
         </View>
-
-        {/* Platform Seç butonu */}
-        <TouchableOpacity style={styles.platformSelectBtn} onPress={() => setShowPlatformModal(true)}>
-          <View style={styles.platformSelectDots}>
-            {selectedPlatforms.slice(0, 4).map(slug => {
-              const p = PLATFORMS.find(x => x.slug === slug);
-              return p ? <View key={slug} style={[styles.platformSelectDot, { backgroundColor: p.color }]} /> : null;
-            })}
-          </View>
-          <Text style={styles.platformSelectText}>Platform Seç</Text>
-          <Text style={styles.platformSelectCount}>{selectedPlatforms.length} seçili</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Arama */}
@@ -929,7 +901,7 @@ export default function App() {
 
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#00A8E1" />
+          <ActivityIndicator size="large" color="#0a84ff" />
         </View>
       ) : (
         <View style={{ flex: 1 }}>
@@ -943,7 +915,7 @@ export default function App() {
             onEndReachedThreshold={0.3}
             onScroll={e => setShowScrollTop(e.nativeEvent.contentOffset.y > 400)}
             scrollEventThrottle={16}
-            ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#00A8E1" style={{ marginVertical: 16 }} /> : null}
+            ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#0a84ff" style={{ marginVertical: 16 }} /> : null}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyEmoji}>🎬</Text>
@@ -961,7 +933,7 @@ export default function App() {
       )}
           <View style={styles.tabBar}>
             <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('discover')}>
-              <Compass size={22} color="#00A8E1" strokeWidth={1.8} />
+              <Compass size={22} color="#0a84ff" strokeWidth={1.8} />
               <Text style={[styles.tabLabel, styles.tabLabelActive]}>Keşfet</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('popular')}>
@@ -987,197 +959,198 @@ const ACCENT = '#00A8E1';
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
-  header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14, borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.08)' },
-  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 },
-  appIcon: { width: 90, height: 90, borderRadius: 22, backgroundColor: '#E50914', alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  appIconPlay: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', position: 'absolute', top: 10, left: 13 },
-  appIconTriangle: { width: 0, height: 0, borderTopWidth: 9, borderBottomWidth: 9, borderLeftWidth: 15, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: '#fff', marginLeft: 3 },
-  appIconQ: { position: 'absolute', bottom: 6, right: 10 },
-  appIconQText: { color: '#fff', fontSize: 40, fontWeight: '900', lineHeight: 44 },
-  headerRight: { flex: 1, gap: 6 },
-  headerTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  appTitle: { color: '#ffffff', fontSize: 26, fontWeight: '700', letterSpacing: -0.8 },
-  headerTagRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerSubtitle: { color: '#ffffffaa', fontSize: 13, fontWeight: '500' },
+
+  // ── Tab Bar ──────────────────────────────────────
+  tabBar: { flexDirection: 'row', backgroundColor: 'rgba(18,18,18,0.97)', borderTopWidth: 0.5, borderTopColor: 'rgba(255,255,255,0.08)', paddingBottom: 6, paddingTop: 4 },
+  tabItem: { flex: 1, alignItems: 'center', paddingVertical: 6, gap: 3 },
+  tabItemActive: {},
+  tabLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 10, fontWeight: '500', letterSpacing: 0.3 },
+  tabLabelActive: { color: '#0a84ff', fontWeight: '600' },
+
+  // ── Header ───────────────────────────────────────
+  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10, borderBottomWidth: 0 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  appTitle: { color: '#ffffff', fontSize: 28, fontWeight: '700', letterSpacing: -0.8 },
+  platformSelectBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
+  platformSelectDots: { flexDirection: 'row', gap: 4 },
+  platformSelectDot: { width: 8, height: 8, borderRadius: 4 },
+  platformSelectText: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '500' },
+  platformSelectCount: { color: 'rgba(255,255,255,0.4)', fontSize: 12 },
+
+  // ── Search ───────────────────────────────────────
+  searchRow: { flexDirection: 'row', paddingHorizontal: 16, marginVertical: 10, gap: 8, alignItems: 'center' },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  searchInput: { flex: 1, backgroundColor: 'rgba(118,118,128,0.18)', color: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15 },
+  clearBtn: { backgroundColor: 'rgba(118,118,128,0.18)', width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  clearBtnText: { color: 'rgba(255,255,255,0.4)', fontSize: 14 },
+  searchBtn: { backgroundColor: '#0a84ff', paddingHorizontal: 16, paddingVertical: 11, borderRadius: 12 },
+  searchBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+
+  // ── Filters ──────────────────────────────────────
+  filterBar: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, alignItems: 'center', gap: 8 },
+  filterToggle: { flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(118,118,128,0.18)', alignItems: 'center' },
+  filterToggleActive: { backgroundColor: 'rgba(10,132,255,0.15)' },
+  filterToggleText: { color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: '600' },
+  filterToggleTextActive: { color: '#0a84ff' },
+  resetBtnInline: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(255,59,48,0.12)' },
+  resetBtnInlineText: { color: '#ff453a', fontSize: 13, fontWeight: '600' },
+  filtersBox: { marginHorizontal: 16, marginBottom: 10, backgroundColor: 'rgba(44,44,46,0.96)', borderRadius: 16, padding: 16 },
+  filterSectionTitle: { color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 },
+  typeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  typeBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(118,118,128,0.18)', alignItems: 'center' },
+  typeBtnActive: { backgroundColor: '#0a84ff' },
+  typeBtnText: { color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: '600' },
+  typeBtnTextActive: { color: '#fff' },
+  sortRow: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
+  sortBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(118,118,128,0.18)' },
+  sortBtnActive: { backgroundColor: 'rgba(10,132,255,0.25)' },
+  sortDirBtn: { marginLeft: 'auto' },
+  sortBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 13 },
+  sortBtnTextActive: { color: '#0a84ff', fontWeight: '600' },
+  filterLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 12, marginBottom: 6 },
+  filterValue: { color: '#0a84ff', fontWeight: '600' },
+  sliderBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(118,118,128,0.18)', marginRight: 6 },
+  sliderBtnActive: { backgroundColor: '#0a84ff' },
+  sliderBtnText: { color: 'rgba(255,255,255,0.45)', fontSize: 12 },
+  sliderBtnTextActive: { color: '#fff', fontWeight: '600' },
+
+  // ── Content Cards ─────────────────────────────────
+  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  list: { paddingHorizontal: 14, paddingBottom: 20 },
+  card: { flexDirection: 'row', backgroundColor: 'rgba(28,28,30,0.8)', borderRadius: 16, marginBottom: 10, overflow: 'hidden' },
+  cardPosterWrap: { position: 'relative' },
+  poster: { width: 90, height: 132 },
+  posterPlaceholder: { width: 90, height: 132, backgroundColor: 'rgba(44,44,46,0.8)', alignItems: 'center', justifyContent: 'center' },
+  posterPlaceholderText: { color: 'rgba(255,255,255,0.12)', fontSize: 24 },
+  cardImdbOverlay: { position: 'absolute', bottom: 6, left: 4, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 6, paddingHorizontal: 4, paddingVertical: 2 },
+  cardImdbScore: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  info: { flex: 1, padding: 12, justifyContent: 'space-between' },
+  row: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 2, flexWrap: 'wrap' },
+  title: { color: '#ffffff', fontSize: 15, fontWeight: '600', marginBottom: 4, letterSpacing: -0.3, lineHeight: 20 },
+  originalTitle: { color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 4 },
+  cardMeta: { color: 'rgba(255,255,255,0.45)', fontSize: 12, marginBottom: 8 },
+  typeText: { color: 'rgba(255,255,255,0.5)', fontSize: 12 },
+  genreText: { color: 'rgba(255,255,255,0.5)', fontSize: 12 },
+  metaText: { color: 'rgba(255,255,255,0.4)', fontSize: 11 },
+  dot: { color: 'rgba(255,255,255,0.25)', fontSize: 11 },
+  platformRow: { flexDirection: 'row', gap: 6, marginBottom: 8, flexWrap: 'wrap' },
+  platformPill: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
+  platformPillLogo: { width: 42, height: 12 },
+  bottomRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 'auto' },
+  imdbBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  imdbBadge: { backgroundColor: '#F5C518', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5 },
+  imdbBadgeText: { color: '#000', fontSize: 9, fontWeight: '900' },
+  imdbScore: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  imdbArrow: { color: 'rgba(255,255,255,0.35)', fontSize: 11 },
+  trailerBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: '#0a84ff' },
+  trailerBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  detailBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: 'rgba(118,118,128,0.2)' },
+  detailBtnText: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
+  scrollTopBtn: { position: 'absolute', right: 16, bottom: 80, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(10,132,255,0.92)', alignItems: 'center', justifyContent: 'center', shadowColor: '#0a84ff', shadowOffset: {width:0,height:2}, shadowOpacity: 0.4, shadowRadius: 8 },
+  scrollTopIcon: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+
+  // ── Modal ────────────────────────────────────────
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
+  detailModalContainer: { backgroundColor: '#1c1c1e', borderRadius: 20, margin: 16, marginTop: 'auto', maxHeight: '90%', overflow: 'hidden' },
+  modalScrollContent: { padding: 20 },
+  modalHeader: { flexDirection: 'row', gap: 14, marginBottom: 14 },
+  modalPoster: { width: 90, height: 130, borderRadius: 12 },
+  modalPosterPlaceholder: { width: 90, height: 130, backgroundColor: 'rgba(44,44,46,0.8)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  modalHeaderInfo: { flex: 1, justifyContent: 'flex-start', gap: 4 },
+  modalTitle: { color: '#fff', fontSize: 17, fontWeight: '700', letterSpacing: -0.3 },
+  modalOriginalTitle: { color: 'rgba(255,255,255,0.4)', fontSize: 12 },
+  modalMeta: { color: 'rgba(255,255,255,0.5)', fontSize: 12 },
+  modalImdbRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  imdbScoreLarge: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  modalPlatformRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 6 },
+  modalPlatformBtn: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+  modalPlatformLogo: { width: 48, height: 14 },
+  modalTagline: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontStyle: 'italic', marginBottom: 12, paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: '#0a84ff' },
+  modalDetail: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginBottom: 6, lineHeight: 18 },
+  modalDetailLabel: { color: 'rgba(255,255,255,0.45)', fontWeight: '600' },
+  modalSynopsisTitle: { color: '#0a84ff', fontSize: 13, fontWeight: '700', marginTop: 8, marginBottom: 4, letterSpacing: 0.5 },
+  modalSynopsis: { color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 20 },
+  modalButtons: { flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap' },
+  closeBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(118,118,128,0.2)' },
+  closeBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 13 },
+  imdbLinkBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(245,197,24,0.12)' },
+  imdbLinkText: { color: '#F5C518', fontSize: 13, fontWeight: '600' },
+  similarSection: { marginTop: 16 },
+  similarTitle: { color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: '700', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 },
+  similarCard: { width: 90 },
+  similarPoster: { width: 90, height: 130, borderRadius: 10, marginBottom: 6 },
+  similarCardTitle: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginBottom: 4, lineHeight: 14 },
+  similarScore: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  similarPlatformDot: { width: 7, height: 7, borderRadius: 4 },
+
+  // ── Platform Modal ───────────────────────────────
+  platformModalContainer: { backgroundColor: '#1c1c1e', borderRadius: 20, margin: 16, padding: 20 },
+  platformModalHandle: { width: 36, height: 4, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  platformModalTitle: { color: '#fff', fontSize: 20, fontWeight: '700', marginBottom: 4, letterSpacing: -0.4 },
+  platformModalSubtitle: { color: 'rgba(255,255,255,0.45)', fontSize: 13, marginBottom: 20 },
+  platformGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 20 },
+  platformCard: { width: '47%', borderRadius: 14, overflow: 'hidden', borderWidth: 2, borderColor: 'transparent' },
+  platformCardBg: { padding: 20, alignItems: 'center', justifyContent: 'center', minHeight: 70 },
+  platformCardLogo: { width: 100, height: 28 },
+  platformCardCheck: { position: 'absolute', top: 8, right: 8, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  platformCardCheckText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  platformModalCard: { borderRadius: 16, padding: 16, alignItems: 'center', gap: 8 },
+  platformSaveBtn: { backgroundColor: '#0a84ff', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  platformSaveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  // ── Popular Screen ───────────────────────────────
+  popularHeader: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10 },
+  popularHeaderTitle: { color: '#fff', fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
+  popularHeaderSub: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 2 },
+  popularTopBar: { borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.08)', backgroundColor: BG },
+  popularTopBarRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, flexDirection: 'row' },
+  popularTopBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: 'rgba(118,118,128,0.18)' },
+  popularTopBtnActive: { backgroundColor: '#0a84ff' },
+  popularTopBtnGenreActive: { backgroundColor: 'rgba(10,132,255,0.25)' },
+  popularTopBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '500' },
+  popularTopBtnTextActive: { color: '#fff', fontWeight: '600' },
+  popularTopBtnTextGenreActive: { color: '#0a84ff', fontWeight: '600' },
+  popularTopSeparator: { width: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 2 },
+  popularSection: { marginBottom: 24 },
+  popularPlatformLabel: { marginHorizontal: 16, marginBottom: 10, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, alignSelf: 'flex-start', borderWidth: 1 },
+  popularPlatformLogo: { width: 80, height: 20 },
+  popularRow: { paddingHorizontal: 16, gap: 10 },
+  popularCard: { width: 115 },
+  popularCardImg: { width: 115, height: 168, borderRadius: 12, marginBottom: 6 },
+  popularCardTitle: { color: 'rgba(255,255,255,0.85)', fontSize: 11, lineHeight: 14, marginBottom: 4 },
+  popularImdb: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  popularScore: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  popularRankBadge: { position: 'absolute', top: 6, left: 6, zIndex: 1, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 },
+  popularRank: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
+  popularFireBadge: { backgroundColor: 'rgba(26,26,46,0.9)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 },
+  popularFireText: { color: '#ff6b35', fontSize: 11, fontWeight: '700' },
+
+  // ── Collections ──────────────────────────────────
+  collectionHeader: { paddingHorizontal: 16, paddingBottom: 6, paddingTop: 4 },
+  collectionName: { color: '#ffffff', fontSize: 15, fontWeight: '600', marginBottom: 4, letterSpacing: -0.3 },
+  collectionMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  collectionScore: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  collectionCount: { color: 'rgba(255,255,255,0.4)', fontSize: 12 },
+
+  // ── Misc ─────────────────────────────────────────
+  filtersBtn: { marginHorizontal: 16, marginVertical: 8, backgroundColor: 'rgba(44,44,46,0.8)', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  filtersBtnActive: { backgroundColor: 'rgba(10,132,255,0.15)' },
+  filtersBtnText: { color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  filtersBtnTextActive: { color: '#0a84ff' },
   imdbBadgeHeader: { backgroundColor: '#F5C518', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   imdbBadgeHeaderText: { color: '#000', fontSize: 10, fontWeight: 'bold' },
-  platformBtn: { backgroundColor: SURFACE, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: BORDER, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-end' },
-  platformBtnLogos: { flexDirection: 'row', gap: 4 },
-  platformBtnDot: { width: 7, height: 7, borderRadius: 4 },
-  platformBtnText: { color: '#ffffff66', fontSize: 11 },
-  commentBubble: { backgroundColor: '#00A8E122', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#00A8E144', alignSelf: 'flex-start' },
-  commentText: { color: '#00A8E1cc', fontSize: 13, fontStyle: 'italic', fontWeight: '500' },
+  headerRight: { flex: 1, gap: 6 },
+  headerTagRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerSubtitle: { color: 'rgba(255,255,255,0.5)', fontSize: 13 },
+  commentBubble: { backgroundColor: 'rgba(10,132,255,0.12)', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 },
+  commentText: { color: 'rgba(10,132,255,0.9)', fontSize: 13, fontStyle: 'italic', fontWeight: '500' },
+  appIcon: { width: 70, height: 70, borderRadius: 18, backgroundColor: '#E50914', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  appIconPlay: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center', position: 'absolute', top: 8, left: 10 },
+  appIconTriangle: { width: 0, height: 0, borderTopWidth: 7, borderBottomWidth: 7, borderLeftWidth: 12, borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: '#fff', marginLeft: 2 },
+  appIconQ: { position: 'absolute', bottom: 4, right: 8 },
+  appIconQText: { color: '#fff', fontSize: 32, fontWeight: '900', lineHeight: 36 },
   platformLogoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   platformLogoCard: { flex: 1, minWidth: '45%', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, justifyContent: 'center', alignItems: 'center' },
   platformLogoImg: { width: 80, height: 22 },
   platformLogoOff: { fontSize: 10, fontWeight: '700', marginTop: 4 },
-  platformSelectBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(118,118,128,0.2)', paddingHorizontal: 16, paddingVertical: 13, borderRadius: 14, borderWidth: 0, marginTop: 4 },
-  platformSelectDots: { flexDirection: 'row', gap: 5 },
-  platformSelectDot: { width: 10, height: 10, borderRadius: 5 },
-  platformSelectText: { color: '#fff', fontSize: 16, fontWeight: '700', flex: 1 },
-  platformSelectCount: { color: '#ffffff55', fontSize: 13 },
-  searchRow: { flexDirection: 'row', paddingHorizontal: 16, marginVertical: 10, gap: 8, alignItems: 'center', flexShrink: 0 },
-  searchContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  searchInput: { flex: 1, minWidth: 0, backgroundColor: 'rgba(118,118,128,0.2)', color: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, borderWidth: 0 },
-  clearBtn: { backgroundColor: SURFACE, width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: BORDER, flexShrink: 0 },
-  clearBtnText: { color: '#ffffff44', fontSize: 14 },
-  searchBtn: { backgroundColor: '#0a84ff', paddingHorizontal: 16, paddingVertical: 11, borderRadius: 12, flexShrink: 0 },
-  searchBtnText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
-  filterBar: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, alignItems: 'center', gap: 8 },
-  filterToggle: { flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(118,118,128,0.2)', alignItems: 'center', borderWidth: 0 },
-  filterToggleActive: { borderColor: ACCENT },
-  filterToggleText: { color: '#ffffff55', fontSize: 13, fontWeight: '600' },
-  filterToggleTextActive: { color: ACCENT },
-  resetBtnInline: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: '#E5091466' },
-  resetBtnInlineText: { color: '#E50914', fontSize: 13 },
-  filtersBox: { marginHorizontal: 16, marginBottom: 10, backgroundColor: 'rgba(44,44,46,0.95)', borderRadius: 16, padding: 16 },
-  filterSectionTitle: { color: '#ffffff88', fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 },
-  typeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  typeBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(118,118,128,0.2)', alignItems: 'center', borderWidth: 0 },
-  typeBtnActive: { backgroundColor: '#0a84ff', borderWidth: 0 },
-  typeBtnText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' },
-  typeBtnTextActive: { color: '#fff' },
-  sortRow: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
-  sortBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(118,118,128,0.2)', borderWidth: 0 },
-  sortBtnActive: { backgroundColor: '#0a84ff33', borderWidth: 0 },
-  sortDirBtn: { marginLeft: 'auto' },
-  sortBtnText: { color: 'rgba(255,255,255,0.6)', fontSize: 13 },
-  sortBtnTextActive: { color: ACCENT, fontWeight: '600' },
-  filterLabel: { color: '#ffffff55', fontSize: 12, marginBottom: 6 },
-  filterValue: { color: ACCENT, fontWeight: '600' },
-  sliderBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(118,118,128,0.2)', marginRight: 6, borderWidth: 0 },
-  sliderBtnActive: { backgroundColor: '#0a84ff', borderWidth: 0 },
-  sliderBtnText: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
-  sliderBtnTextActive: { color: '#fff', fontWeight: '600' },
-  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  list: { paddingHorizontal: 16, paddingBottom: 20 },
-  card: { flexDirection: 'row', backgroundColor: CARD, borderRadius: 16, marginBottom: 10, overflow: 'hidden' },
-  poster: { width: 88, height: 128 },
-  posterPlaceholder: { width: 85, height: 125, backgroundColor: SURFACE, alignItems: 'center', justifyContent: 'center' },
-  posterPlaceholderText: { color: '#ffffff22', fontSize: 24 },
-  info: { flex: 1, padding: 12 },
-  row: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 2, flexWrap: 'wrap' },
-  title: { color: '#ffffff', fontSize: 14, fontWeight: '600', marginBottom: 3, letterSpacing: -0.2 },
-  originalTitle: { color: '#ffffff33', fontSize: 11, fontStyle: 'italic', marginBottom: 3 },
-  typeText: { color: '#ffffff55', fontSize: 11 },
-  dot: { color: '#ffffff22', fontSize: 11 },
-  genreText: { color: '#ffffff44', fontSize: 11 },
-  metaText: { color: '#ffffff44', fontSize: 11 },
-  platformRow: { flexDirection: 'row', gap: 6, marginVertical: 6 },
-  platformPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  platformPillLogo: { width: 40, height: 14 },
-  bottomRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' },
-  imdbBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: SURFACE, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: BORDER },
-  imdbBadge: { backgroundColor: '#F5C518', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5 },
-  imdbBadgeText: { color: '#000', fontSize: 9, fontWeight: 'bold' },
-  imdbScore: { color: '#F5C518', fontSize: 14, fontWeight: 'bold' },
-  imdbArrow: { color: '#ffffff33', fontSize: 10 },
-  trailerBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: '#0a84ff' },
-  trailerBtnText: { color: '#E50914', fontSize: 11, fontWeight: '600' },
-  detailBtn: { backgroundColor: SURFACE, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: BORDER },
-  detailBtnText: { color: '#ffffff55', fontSize: 11 },
-  emptyContainer: { alignItems: 'center', marginTop: 80 },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyText: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginBottom: 6 },
-  emptySubText: { color: '#ffffff33', fontSize: 13 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'flex-end' },
-  platformModalContainer: { backgroundColor: CARD, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, borderWidth: 1, borderColor: BORDER },
-  platformModalHandle: { width: 40, height: 4, backgroundColor: '#ffffff22', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  platformModalTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
-  platformModalSubtitle: { color: '#ffffff44', fontSize: 13, marginBottom: 20 },
-  platformGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 20 },
-  platformCard: { width: '47%', backgroundColor: SURFACE, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: BORDER, position: 'relative' },
-  platformCardBg: { borderRadius: 10, padding: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  platformCardLogo: { width: '100%', height: 28 },
-  platformCardCheck: { position: 'absolute', top: 10, right: 10, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  platformCardCheckText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  platformCardName: { color: '#ffffff66', fontSize: 12, textAlign: 'center' },
-  platformSaveBtn: { backgroundColor: ACCENT, paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
-  platformSaveBtnText: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
-  detailModalContainer: { backgroundColor: '#1c1c1e', borderRadius: 20, margin: 16, marginTop: 'auto', maxHeight: '90%', overflow: 'hidden' },
-  modalHeader: { flexDirection: 'row', gap: 14, marginBottom: 14 },
-  modalPoster: { width: 90, height: 132, borderRadius: 10 },
-  modalPosterPlaceholder: { width: 90, height: 132, backgroundColor: SURFACE, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  modalHeaderInfo: { flex: 1, justifyContent: 'center' },
-  modalTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
-  modalOriginalTitle: { color: '#ffffff44', fontSize: 11, fontStyle: 'italic', marginBottom: 4 },
-  modalMeta: { color: '#ffffff55', fontSize: 12, marginBottom: 2 },
-  modalImdbRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  imdbScoreLarge: { color: '#F5C518', fontSize: 18, fontWeight: 'bold' },
-  modalPlatformRow: { flexDirection: 'row', gap: 6, marginTop: 8 },
-  modalPlatformBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  modalPlatformLogo: { width: 50, height: 16 },
-  modalTagline: { color: '#ffffff44', fontSize: 12, fontStyle: 'italic', marginBottom: 12, borderLeftWidth: 2, borderLeftColor: ACCENT, paddingLeft: 10 },
-  modalDetail: { color: '#ffffff66', fontSize: 12, marginBottom: 6 },
-  modalDetailLabel: { fontWeight: 'bold', color: '#ffffff88' },
-  modalSynopsisTitle: { color: ACCENT, fontSize: 13, fontWeight: 'bold', marginTop: 10, marginBottom: 6 },
-  modalSynopsis: { color: '#ffffff88', fontSize: 13, lineHeight: 20, marginBottom: 16 },
-  modalButtons: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  imdbLinkBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: SURFACE, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: BORDER },
-  imdbLinkText: { color: '#ffffff55', fontSize: 12 },
-  closeBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(118,118,128,0.2)', borderWidth: 0 },
-  tabBar: { flexDirection: 'row', backgroundColor: 'rgba(28,28,30,0.95)', borderTopWidth: 0.5, borderTopColor: 'rgba(255,255,255,0.1)', paddingBottom: 6, paddingTop: 4 },
-  tabItem: { flex: 1, alignItems: 'center', paddingVertical: 6, gap: 2 },
-  tabItemActive: { borderTopWidth: 2, borderTopColor: ACCENT },
-  tabIcon: { fontSize: 20 },
-  tabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: '500', letterSpacing: 0.2 },
-  tabLabelActive: { color: '#0a84ff', fontWeight: '600' },
-  popularTopBar: { borderBottomWidth: 1, borderBottomColor: BORDER, backgroundColor: BG },
-  popularTopBarRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, flexDirection: 'row' },
-  popularTopBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER },
-  popularTopBtnActive: { backgroundColor: '#fff', borderColor: '#fff' },
-  popularTopBtnText: { color: '#ffffff88', fontSize: 14, fontWeight: '600' },
-  popularTopBtnTextActive: { color: '#000' },
-  popularTopBtnGenreActive: { backgroundColor: ACCENT + '33', borderColor: ACCENT },
-  popularTopBtnTextGenreActive: { color: ACCENT },
-  popularTopSeparator: { width: 1, backgroundColor: BORDER, marginHorizontal: 4 },
-  genreDropdown: { backgroundColor: CARD, marginHorizontal: 16, borderRadius: 14, borderWidth: 1, borderColor: BORDER, marginTop: 4, position: 'absolute', top: 52, left: 0, right: 0, zIndex: 100, marginHorizontal: 16 },
-  genreDropdownItem: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: BORDER },
-  genreDropdownItemActive: { backgroundColor: SURFACE },
-  genreDropdownText: { color: '#ffffffaa', fontSize: 14 },
-  genreDropdownTextActive: { color: '#fff', fontWeight: '600' },
-  popularHeader: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: BORDER },
-  popularHeaderTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  popularHeaderSub: { color: '#ffffff99', fontSize: 12, marginTop: 2 },
-  popularSection: { marginTop: 20 },
-  popularPlatformLabel: { marginHorizontal: 16, marginBottom: 10, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, alignSelf: 'flex-start' },
-  popularPlatformLogo: { width: 80, height: 22 },
-  popularRow: { paddingHorizontal: 16, gap: 10 },
-  popularCard: { width: 115, position: 'relative' },
-  popularCardImg: { width: 115, height: 168, borderRadius: 10, marginBottom: 6 },
-  popularCardTitle: { color: '#ffffffcc', fontSize: 11, lineHeight: 14 },
-  filtersBtn: { marginHorizontal: 16, marginVertical: 8, backgroundColor: SURFACE, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: BORDER },
-  filtersBtnActive: { borderColor: ACCENT },
-  filtersBtnText: { color: '#ffffffaa', fontSize: 14, fontWeight: '600', textAlign: 'center' },
-  filtersBtnTextActive: { color: ACCENT },
-  collectionHeader: { paddingHorizontal: 16, paddingBottom: 6, paddingTop: 4 },
-  collectionName: { color: '#ffffff', fontSize: 15, fontWeight: '600', marginBottom: 4, letterSpacing: -0.3 },
-  collectionMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  collectionScore: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  collectionCount: { color: '#ffffff55', fontSize: 12 },
-  collectionHeader: { paddingHorizontal: 16, paddingBottom: 6, paddingTop: 4 },
-  collectionName: { color: '#ffffff', fontSize: 15, fontWeight: '600', marginBottom: 4, letterSpacing: -0.3 },
-  collectionMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  collectionScore: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  collectionCount: { color: '#ffffff55', fontSize: 12 },
-  popularCardImg: { width: 115, height: 168, borderRadius: 10, marginBottom: 6 },
-  popularCardTitle: { color: '#ffffffcc', fontSize: 11, lineHeight: 14, marginBottom: 4 },
-  popularRankBadge: { position: 'absolute', top: 6, left: 6, zIndex: 1, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 },
-  popularRank: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
-  popularFireBadge: { backgroundColor: '#1a1a2e', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 },
-  popularFireText: { color: '#ff6b35', fontSize: 11, fontWeight: '700' },
-  popularPoster: { width: 110, height: 160, borderRadius: 10, marginBottom: 6 },
-  popularTitle: { color: '#ffffffcc', fontSize: 11, fontWeight: '600', lineHeight: 15 },
-  popularImdb: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
-  popularScore: { color: '#F5C518', fontSize: 12, fontWeight: 'bold' },
-  closeBtnText: { color: '#ffffff55', fontSize: 13 },
-  similarSection: { marginTop: 14, marginBottom: 4 },
-  similarTitle: { color: '#ffffff99', fontSize: 12, fontWeight: '600', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
-  similarCard: { width: 90 },
-  similarPoster: { width: 90, height: 130, borderRadius: 8, marginBottom: 6 },
-  similarCardTitle: { color: '#ffffffcc', fontSize: 11, marginBottom: 4, lineHeight: 14 },
-  similarScore: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  similarPlatformDot: { width: 8, height: 8, borderRadius: 4 },
-  scrollTopBtn: { position: 'absolute', right: 16, bottom: 80, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(10,132,255,0.9)', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#0a84ff', shadowOffset: {width:0,height:2}, shadowOpacity: 0.4, shadowRadius: 8 },
-  scrollTopIcon: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
 });
