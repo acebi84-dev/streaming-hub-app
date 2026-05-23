@@ -507,6 +507,10 @@ function PopularScreen({ selectedPlatforms }) {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
 
+      <View style={styles.popularHeader}>
+        <Text style={styles.popularHeaderTitle}>🔥 Globalde En Popüler</Text>
+        <Text style={styles.popularHeaderSub}>Türkiye kataloğunda izlenebilir</Text>
+      </View>
       {/* Netflix-style top filter bar */}
       <View style={styles.popularTopBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularTopBarRow}>
@@ -554,10 +558,6 @@ function PopularScreen({ selectedPlatforms }) {
       )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
-        <View style={styles.popularHeader}>
-          <Text style={styles.popularHeaderTitle}>🔥 Globalde En Popüler</Text>
-          <Text style={styles.popularHeaderSub}>Türkiye kataloğunda izlenebilir</Text>
-        </View>
         {loading ? (
           <ActivityIndicator size="large" color={ACCENT} style={{ marginTop: 60 }} />
         ) : (
