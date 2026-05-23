@@ -336,7 +336,7 @@ function CollectionsScreen({ selectedPlatforms }) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
         <View style={styles.popularHeader}>
           <Text style={styles.popularHeaderTitle}>🎬 Koleksiyonlar</Text>
-          <Text style={styles.popularHeaderSub}>IMDB puanına göre sıralı</Text>
+          <Text style={styles.popularHeaderSub}>Ortalama oy sayısına göre sıralı</Text>
         </View>
         {loading ? (
           <ActivityIndicator size="large" color={ACCENT} style={{ marginTop: 60 }} />
