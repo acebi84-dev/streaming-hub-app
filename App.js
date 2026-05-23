@@ -159,7 +159,8 @@ function DetailModal({ item, onClose }) {
         .not('imdb_score', 'is', null);
 
       const filtered = (data || []).filter(i => i.availability && i.availability.length > 0).slice(0, 10);
-      setSimilarItems(filtered);
+      // Only show if we got at least 2 meaningful results
+      if (filtered.length >= 2) setSimilarItems(filtered);
     } catch (e) {
       console.error('Similar fetch error:', e);
     }
