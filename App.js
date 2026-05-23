@@ -572,7 +572,7 @@ function PopularScreen({ selectedPlatforms }) {
             if (!items || items.length === 0) return null;
             return (
               <View key={p.slug} style={styles.popularSection}>
-                <View style={[styles.popularPlatformLabel, { backgroundColor: p.color + '22', borderColor: p.color + '44' }]}>
+                <View style={[styles.popularPlatformLabel, { backgroundColor: p.color }]}>
                   <Image source={{ uri: p.darkLogo }} style={styles.popularPlatformLogo} resizeMode="contain" />
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularRow}>
@@ -1122,9 +1122,9 @@ const styles = StyleSheet.create({
   genreDropdownItemActive: { backgroundColor: 'rgba(10,132,255,0.2)' },
   genreDropdownText: { color: 'rgba(255,255,255,0.7)', fontSize: 14 },
   genreDropdownTextActive: { color: '#0a84ff', fontWeight: '600' },
-  popularSection: { marginBottom: 24 },
-  popularPlatformLabel: { marginHorizontal: 16, marginBottom: 10, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, alignSelf: 'flex-start', borderWidth: 1 },
-  popularPlatformLogo: { width: 80, height: 20 },
+  popularSection: { marginBottom: 12 },
+  popularPlatformLabel: { marginHorizontal: 16, marginBottom: 10, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 9, alignSelf: 'flex-start' },
+  popularPlatformLogo: { width: 100, height: 24 },
   popularRow: { paddingHorizontal: 16, gap: 10 },
   popularCard: { width: 115 },
   popularCardImg: { width: 115, height: 168, borderRadius: 12, marginBottom: 6 },
