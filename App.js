@@ -373,13 +373,22 @@ export default function App() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showPlatformModal, setShowPlatformModal] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState(getSelectedPlatforms);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const flatListRef = React.useRef(null);
+  const PAGE_SIZE = 30;
 
   useEffect(() => { fetchContents(); }, [activeSearch, selectedType, selectedGenre, selectedLanguage, sortBy, sortAsc, minImdb, minYear, selectedPlatforms]);
 
-  async function fetchContents() {
+  async function fetchContents(loadMore = false) {
     if (selectedPlatforms.length === 0) { setContents([]); setLoading(false); return; }
-    setLoading(true);
-    let query = supabase.from('hub_contents').select('*, availability:hub_availability(platform_slug, platform_url)').not('imdb_score', 'is', null).not('imdb_id', 'is', null).order(sortBy, { ascending: sortAsc }).limit(100);
+    if (loadMore) { setLoadingMore(true); } else { setLoading(true); setPage(0); }
+    const currentPage = loadMore ? page + 1 : 0;
+    const from = currentPage * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    let query = supabase.from('hub_contents').select('*, availability:hub_availability(platform_slug, platform_url)').not('imdb_score', 'is', null).not('imdb_id', 'is', null).order(sortBy, { ascending: sortAsc }).range(from, to + 200);
     if (activeSearch.length > 0) {
       query = supabase.from('hub_contents').select('*, availability:hub_availability(platform_slug, platform_url)').not('imdb_score', 'is', null).not('imdb_id', 'is', null).or('title.ilike.%' + activeSearch + '%,original_title.ilike.%' + activeSearch + '%,cast_list.ilike.%' + activeSearch + '%,director.ilike.%' + activeSearch + '%').order(sortBy, { ascending: sortAsc }).limit(6000);
     }
@@ -389,11 +398,19 @@ export default function App() {
     if (minImdb > 0) query = query.gte('imdb_score', minImdb);
     if (minYear > 1950) query = query.gte('year', minYear);
     const { data, error } = await query;
-    if (error) { console.error(error); setLoading(false); return; }
+    if (error) { console.error(error); setLoading(false); setLoadingMore(false); return; }
     const filtered = (data || []).filter(item => item.availability && item.availability.some(a => selectedPlatforms.includes(a.platform_slug)));
     const enriched = filtered.map(item => ({ ...item, availability: item.availability.filter(a => selectedPlatforms.includes(a.platform_slug)) }));
-    setContents(enriched);
+    const newItems = enriched.slice(0, PAGE_SIZE);
+    if (loadMore) {
+      setContents(prev => [...prev, ...newItems]);
+      setPage(currentPage);
+    } else {
+      setContents(newItems);
+    }
+    setHasMore(enriched.length >= PAGE_SIZE);
     setLoading(false);
+    setLoadingMore(false);
   }
 
   function handlePlatformSave(slugs) { setSelectedPlatforms(slugs); saveSelectedPlatforms(slugs); }
@@ -631,10 +648,16 @@ export default function App() {
         <ActivityIndicator size="large" color="#00A8E1" style={styles.loader} />
       ) : (
         <FlatList
+          ref={flatListRef}
           data={contents}
           keyExtractor={item => item.id ? item.id.toString() : item.imdb_id}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
+          onEndReached={() => { if (hasMore && !loadingMore && !loading) fetchContents(true); }}
+          onEndReachedThreshold={0.3}
+          onScroll={e => setShowScrollTop(e.nativeEvent.contentOffset.y > 400)}
+          scrollEventThrottle={16}
+          ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#00A8E1" style={{ marginVertical: 16 }} /> : null}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyEmoji}>🎬</Text>
@@ -643,6 +666,11 @@ export default function App() {
             </View>
           }
         />
+        {showScrollTop && (
+          <TouchableOpacity style={styles.scrollTopBtn} onPress={() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true })}>
+            <Text style={styles.scrollTopIcon}>↑</Text>
+          </TouchableOpacity>
+        )}
       )}
           <View style={styles.tabBar}>
             <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('discover')}>
@@ -831,4 +859,6 @@ const styles = StyleSheet.create({
   popularImdb: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   popularScore: { color: '#F5C518', fontSize: 12, fontWeight: 'bold' },
   closeBtnText: { color: '#ffffff55', fontSize: 13 },
+  scrollTopBtn: { position: 'absolute', right: 16, bottom: 80, width: 44, height: 44, borderRadius: 22, backgroundColor: '#00A8E1', alignItems: 'center', justifyContent: 'center', elevation: 4 },
+  scrollTopIcon: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
 });
