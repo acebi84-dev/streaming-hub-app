@@ -139,28 +139,31 @@ function DetailModal({ item, onClose }) {
 
   async function fetchSimilar(item) {
     try {
+      // First get similar_tmdb_ids from DB
+      const { data: contentData } = await supabase
+        .from('hub_contents')
+        .select('similar_tmdb_ids')
+        .eq('imdb_id', item.imdb_id)
+        .single();
+
+      const tmdbIds = contentData?.similar_tmdb_ids;
+      if (!tmdbIds || tmdbIds.length === 0) return;
+
+      // Find contents in our DB that match these TMDB ids via imdb lookup
+      // We store tmdb ids, so we need to find matching hub_contents
+      // Use a workaround: find by checking tmdb_id if available, else skip
+      // For now, fetch imdb_ids from TMDB for these tmdb_ids
       const TMDB_KEY = 'd92c22452d03782f77e3523e6929f85a';
       const type = item.type === 'movie' ? 'movie' : 'tv';
+      const imdbIds = (await Promise.all(
+        tmdbIds.slice(0, 10).map(async tmdbId => {
+          const r = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}/external_ids?api_key=${TMDB_KEY}`);
+          const d = await r.json();
+          return d.imdb_id;
+        })
+      )).filter(Boolean);
 
-      // Get TMDB id first
-      const findRes = await fetch(`https://api.themoviedb.org/3/find/${item.imdb_id}?external_source=imdb_id&api_key=${TMDB_KEY}`);
-      const findData = await findRes.json();
-      const tmdbItem = findData.movie_results?.[0] || findData.tv_results?.[0];
-      if (!tmdbItem) return;
-
-      // Get similar
-      const simRes = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbItem.id}/similar?api_key=${TMDB_KEY}&language=en-US&page=1`);
-      const simData = await simRes.json();
-      const simImdbIds = (simData.results || []).slice(0, 20).map(s => s.id);
-      if (simImdbIds.length === 0) return;
-
-      // Find which ones are in our DB with availability
-      const imdbPromises = simData.results.slice(0, 20).map(async s => {
-        const r = await fetch(`https://api.themoviedb.org/3/${type}/${s.id}/external_ids?api_key=${TMDB_KEY}`);
-        const d = await r.json();
-        return d.imdb_id;
-      });
-      const imdbIds = (await Promise.all(imdbPromises)).filter(Boolean);
+      if (imdbIds.length === 0) return;
 
       const { data } = await supabase
         .from('hub_contents')
@@ -210,6 +213,11 @@ function DetailModal({ item, onClose }) {
             {item.director ? <Text style={styles.modalDetail}>🎬 <Text style={styles.modalDetailLabel}>Yönetmen: </Text>{item.director}</Text> : null}
             {item.cast_list ? <Text style={styles.modalDetail}>👥 <Text style={styles.modalDetailLabel}>Oyuncular: </Text>{item.cast_list}</Text> : null}
             {item.synopsis_tr ? (<><Text style={styles.modalSynopsisTitle}>Konu</Text><Text style={styles.modalSynopsis}>{item.synopsis_tr}</Text></>) : null}
+            <View style={styles.modalButtons}>
+              {item.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={() => window.open(item.trailer_url, '_blank')}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
+              {item.imdb_id && <TouchableOpacity style={styles.imdbLinkBtn} onPress={() => window.open('https://www.imdb.com/title/' + item.imdb_id + '/', '_blank')}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.imdbLinkText}>↗ imdb.com</Text></TouchableOpacity>}
+              <TouchableOpacity style={styles.closeBtn} onPress={onClose}><Text style={styles.closeBtnText}>✕ Kapat</Text></TouchableOpacity>
+            </View>
             {similarItems.length > 0 && (
               <View style={styles.similarSection}>
                 <Text style={styles.similarTitle}>Benzer İçerikler</Text>
@@ -231,11 +239,6 @@ function DetailModal({ item, onClose }) {
                 </ScrollView>
               </View>
             )}
-            <View style={styles.modalButtons}>
-              {item.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={() => window.open(item.trailer_url, '_blank')}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
-              {item.imdb_id && <TouchableOpacity style={styles.imdbLinkBtn} onPress={() => window.open('https://www.imdb.com/title/' + item.imdb_id + '/', '_blank')}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.imdbLinkText}>↗ imdb.com</Text></TouchableOpacity>}
-              <TouchableOpacity style={styles.closeBtn} onPress={onClose}><Text style={styles.closeBtnText}>✕ Kapat</Text></TouchableOpacity>
-            </View>
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
