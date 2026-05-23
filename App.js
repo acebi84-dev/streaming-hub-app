@@ -267,7 +267,7 @@ function PopularScreen({ selectedPlatforms }) {
           : <View style={[styles.popularPoster, { backgroundColor: SURFACE, alignItems: 'center', justifyContent: 'center' }]}><Text style={{ color: '#ffffff22', fontSize: 20 }}>?</Text></View>
         }
         <Text style={styles.popularTitle} numberOfLines={2}>{item.title}</Text>
-        <View style={styles.popularImdb}>{item.rating && <><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.popularScore}>{(item.rating / 10).toFixed(1)}</Text></>}{item.rating && <View style={styles.popularFireBadge}><Text style={styles.popularFireText}>🔥 {item.rating}</Text></View>}</View>
+        {item.rating && <View style={styles.popularImdb}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.popularScore}>{(item.rating / 10).toFixed(1)}</Text></View>}
       </TouchableOpacity>
     );
   }
