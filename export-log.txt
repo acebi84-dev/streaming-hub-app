@@ -1,0 +1,3 @@
+Starting Metro Bundler
+Android node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (2828/2828)
+Android Bundling failed 3341ms node_modules\expo-router\entry.js (2828 modules)
