@@ -139,7 +139,7 @@ function DetailModal({ item, onClose }) {
 
   async function fetchSimilar(item) {
     try {
-      // First get similar_tmdb_ids from DB
+      // Get similar_tmdb_ids from DB
       const { data: contentData } = await supabase
         .from('hub_contents')
         .select('similar_tmdb_ids')
@@ -149,26 +149,11 @@ function DetailModal({ item, onClose }) {
       const tmdbIds = contentData?.similar_tmdb_ids;
       if (!tmdbIds || tmdbIds.length === 0) return;
 
-      // Find contents in our DB that match these TMDB ids via imdb lookup
-      // We store tmdb ids, so we need to find matching hub_contents
-      // Use a workaround: find by checking tmdb_id if available, else skip
-      // For now, fetch imdb_ids from TMDB for these tmdb_ids
-      const TMDB_KEY = 'd92c22452d03782f77e3523e6929f85a';
-      const type = item.type === 'movie' ? 'movie' : 'tv';
-      const imdbIds = (await Promise.all(
-        tmdbIds.slice(0, 10).map(async tmdbId => {
-          const r = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}/external_ids?api_key=${TMDB_KEY}`);
-          const d = await r.json();
-          return d.imdb_id;
-        })
-      )).filter(Boolean);
-
-      if (imdbIds.length === 0) return;
-
+      // Find matching contents directly by tmdb_id — no TMDB API calls needed
       const { data } = await supabase
         .from('hub_contents')
         .select('id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, availability:hub_availability(platform_slug, platform_url)')
-        .in('imdb_id', imdbIds)
+        .in('tmdb_id', tmdbIds)
         .not('imdb_score', 'is', null);
 
       const filtered = (data || []).filter(i => i.availability && i.availability.length > 0).slice(0, 10);
