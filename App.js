@@ -308,8 +308,8 @@ function CollectionsScreen({ selectedPlatforms }) {
       <View style={[styles.searchContainer, { marginHorizontal: 16, marginVertical: 8 }]}>
         <TextInput maxFontSizeMultiplier={1} style={[styles.searchInput, { flex: 1 }]} placeholder="Koleksiyon ara..." placeholderTextColor="#ffffff44" value={colSearchInput} onChangeText={setColSearchInput} onSubmitEditing={() => setColActiveSearch(colSearchInput)} returnKeyType="search" />
         {colSearchInput.length > 0 && <TouchableOpacity style={styles.clearBtn} onPress={() => { setColSearchInput(''); setColActiveSearch(''); }}><Text style={styles.clearBtnText}>✕</Text></TouchableOpacity>}
-        <TouchableOpacity style={[styles.searchBtn, { paddingHorizontal: 14 }]} onPress={() => setColActiveSearch(colSearchInput)}>
-          <Text style={styles.searchBtnText}>Ara</Text>
+        <TouchableOpacity style={styles.searchIconBtn} onPress={() => setColActiveSearch(colSearchInput)}>
+          <Text style={styles.searchIconText}>⌕</Text>
         </TouchableOpacity>
       </View>
       {/* Filter button */}
@@ -754,7 +754,7 @@ export default function App() {
               <Text style={styles.tabLabel}>Keşfet</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('popular')}>
-              <TrendingUp size={22} color="#0a84ff" strokeWidth={1.8} />
+              <TrendingUp size={22} color="#ffffff" strokeWidth={1.8} />
               <Text style={[styles.tabLabel, styles.tabLabelActive]}>Popüler</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('collections')}>
@@ -776,7 +776,7 @@ export default function App() {
               <Text style={styles.tabLabel}>Popüler</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('collections')}>
-              <Film size={22} color="#0a84ff" strokeWidth={1.8} />
+              <Film size={22} color="#ffffff" strokeWidth={1.8} />
               <Text style={[styles.tabLabel, styles.tabLabelActive]}>Koleksiyon</Text>
             </TouchableOpacity>
           </View>
@@ -907,7 +907,7 @@ export default function App() {
 
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#0a84ff" />
+          <ActivityIndicator size="large" color="#ffffff" />
         </View>
       ) : (
         <View style={{ flex: 1 }}>
@@ -921,7 +921,7 @@ export default function App() {
             onEndReachedThreshold={0.3}
             onScroll={e => setShowScrollTop(e.nativeEvent.contentOffset.y > 400)}
             scrollEventThrottle={16}
-            ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#0a84ff" style={{ marginVertical: 16 }} /> : null}
+            ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#ffffff" style={{ marginVertical: 16 }} /> : null}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyEmoji}>🎬</Text>
@@ -939,7 +939,7 @@ export default function App() {
       )}
           <View style={styles.tabBar}>
             <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('discover')}>
-              <Compass size={22} color="#0a84ff" strokeWidth={1.8} />
+              <Compass size={22} color="#ffffff" strokeWidth={1.8} />
               <Text style={[styles.tabLabel, styles.tabLabelActive]}>Keşfet</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('popular')}>
@@ -971,14 +971,14 @@ const styles = StyleSheet.create({
   tabItem: { flex: 1, alignItems: 'center', paddingVertical: 6, gap: 3 },
   tabItemActive: {},
   tabLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 10, fontWeight: '500', letterSpacing: 0.3 },
-  tabLabelActive: { color: '#0a84ff', fontWeight: '600' },
+  tabLabelActive: { color: '#ffffff', fontWeight: '600' },
 
   // ── Header ───────────────────────────────────────
   header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10, borderBottomWidth: 0 },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   appTitle: { color: '#ffffff', fontSize: 34, fontWeight: '700', letterSpacing: -1 },
   sectionTitle: { color: '#ffffff', fontSize: 26, fontWeight: '700', letterSpacing: -0.6 },
-  platformSelectBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
+  platformSelectBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
   platformSelectDots: { flexDirection: 'row', gap: 4 },
   platformSelectDot: { width: 8, height: 8, borderRadius: 4 },
   platformSelectText: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '500' },
@@ -990,34 +990,36 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, backgroundColor: 'rgba(118,118,128,0.18)', color: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 16 },
   clearBtn: { backgroundColor: 'rgba(118,118,128,0.18)', width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   clearBtnText: { color: 'rgba(255,255,255,0.4)', fontSize: 14 },
-  searchBtn: { backgroundColor: '#0a84ff', paddingHorizontal: 16, paddingVertical: 11, borderRadius: 12 },
+  searchBtn: { backgroundColor: 'rgba(255,255,255,0.12)', paddingHorizontal: 16, paddingVertical: 11, borderRadius: 12 },
+  searchIconBtn: { backgroundColor: 'rgba(255,255,255,0.12)', width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  searchIconText: { color: '#ffffff', fontSize: 22 },
   searchBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 
   // ── Filters ──────────────────────────────────────
   filterBar: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, alignItems: 'center', gap: 8 },
   filterToggle: { flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(118,118,128,0.18)', alignItems: 'center' },
-  filterToggleActive: { backgroundColor: 'rgba(10,132,255,0.15)' },
+  filterToggleActive: { backgroundColor: 'rgba(255,255,255,0.1)' },
   filterToggleText: { color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: '600' },
-  filterToggleTextActive: { color: '#0a84ff' },
+  filterToggleTextActive: { color: '#ffffff' },
   resetBtnInline: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(255,59,48,0.12)' },
   resetBtnInlineText: { color: '#ff453a', fontSize: 13, fontWeight: '600' },
   filtersBox: { marginHorizontal: 16, marginBottom: 10, backgroundColor: 'rgba(44,44,46,0.96)', borderRadius: 16, padding: 16 },
   filterSectionTitle: { color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 },
   typeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   typeBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(118,118,128,0.18)', alignItems: 'center' },
-  typeBtnActive: { backgroundColor: '#0a84ff' },
+  typeBtnActive: { backgroundColor: 'rgba(255,255,255,0.2)' },
   typeBtnText: { color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: '600' },
   typeBtnTextActive: { color: '#fff' },
   sortRow: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
   sortBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(118,118,128,0.18)' },
-  sortBtnActive: { backgroundColor: 'rgba(10,132,255,0.25)' },
+  sortBtnActive: { backgroundColor: 'rgba(255,255,255,0.15)' },
   sortDirBtn: { marginLeft: 'auto' },
   sortBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 13 },
-  sortBtnTextActive: { color: '#0a84ff', fontWeight: '600' },
+  sortBtnTextActive: { color: '#ffffff', fontWeight: '600' },
   filterLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 12, marginBottom: 6 },
-  filterValue: { color: '#0a84ff', fontWeight: '600' },
+  filterValue: { color: '#ffffff', fontWeight: '600' },
   sliderBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(118,118,128,0.18)', marginRight: 6 },
-  sliderBtnActive: { backgroundColor: '#0a84ff' },
+  sliderBtnActive: { backgroundColor: 'rgba(255,255,255,0.2)' },
   sliderBtnText: { color: 'rgba(255,255,255,0.45)', fontSize: 12 },
   sliderBtnTextActive: { color: '#fff', fontWeight: '600' },
 
@@ -1049,11 +1051,11 @@ const styles = StyleSheet.create({
   imdbBadgeText: { color: '#000', fontSize: 9, fontWeight: '900' },
   imdbScore: { color: '#fff', fontSize: 13, fontWeight: '700' },
   imdbArrow: { color: 'rgba(255,255,255,0.35)', fontSize: 11 },
-  trailerBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: '#0a84ff' },
+  trailerBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.15)' },
   trailerBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   detailBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: 'rgba(118,118,128,0.2)' },
   detailBtnText: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
-  scrollTopBtn: { position: 'absolute', right: 16, bottom: 80, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(10,132,255,0.92)', alignItems: 'center', justifyContent: 'center', shadowColor: '#0a84ff', shadowOffset: {width:0,height:2}, shadowOpacity: 0.4, shadowRadius: 8 },
+  scrollTopBtn: { position: 'absolute', right: 16, bottom: 80, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: {width:0,height:2}, shadowOpacity: 0.4, shadowRadius: 8 },
   scrollTopIcon: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
 
   // ── Modal ────────────────────────────────────────
@@ -1072,10 +1074,10 @@ const styles = StyleSheet.create({
   modalPlatformRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 6 },
   modalPlatformBtn: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
   modalPlatformLogo: { width: 48, height: 14 },
-  modalTagline: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontStyle: 'italic', marginBottom: 12, paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: '#0a84ff' },
+  modalTagline: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontStyle: 'italic', marginBottom: 12, paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: 'rgba(255,255,255,0.3)' },
   modalDetail: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginBottom: 6, lineHeight: 18 },
   modalDetailLabel: { color: 'rgba(255,255,255,0.45)', fontWeight: '600' },
-  modalSynopsisTitle: { color: '#0a84ff', fontSize: 13, fontWeight: '700', marginTop: 8, marginBottom: 4, letterSpacing: 0.5 },
+  modalSynopsisTitle: { color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '700', marginTop: 8, marginBottom: 4, letterSpacing: 0.5 },
   modalSynopsis: { color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 20 },
   modalButtons: { flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap' },
   closeBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(118,118,128,0.2)' },
@@ -1102,7 +1104,7 @@ const styles = StyleSheet.create({
   platformCardCheck: { position: 'absolute', top: 8, right: 8, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   platformCardCheckText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
   platformModalCard: { borderRadius: 16, padding: 16, alignItems: 'center', gap: 8 },
-  platformSaveBtn: { backgroundColor: '#0a84ff', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  platformSaveBtn: { backgroundColor: 'rgba(255,255,255,0.15)', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
   platformSaveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   // ── Popular Screen ───────────────────────────────
@@ -1112,11 +1114,11 @@ const styles = StyleSheet.create({
   popularTopBar: { borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.08)', backgroundColor: BG },
   popularTopBarRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, flexDirection: 'row' },
   popularTopBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: 'rgba(118,118,128,0.18)' },
-  popularTopBtnActive: { backgroundColor: '#0a84ff' },
-  popularTopBtnGenreActive: { backgroundColor: 'rgba(10,132,255,0.25)' },
+  popularTopBtnActive: { backgroundColor: 'rgba(255,255,255,0.2)' },
+  popularTopBtnGenreActive: { backgroundColor: 'rgba(255,255,255,0.15)' },
   popularTopBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '500' },
-  popularTopBtnTextActive: { color: '#fff', fontWeight: '600' },
-  popularTopBtnTextGenreActive: { color: '#0a84ff', fontWeight: '600' },
+  popularTopBtnTextActive: { color: '#ffffff', fontWeight: '600' },
+  popularTopBtnTextGenreActive: { color: '#ffffff', fontWeight: '600' },
   popularTopSeparator: { width: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 2 },
   genreDropdown: { marginHorizontal: 16, marginBottom: 8, backgroundColor: 'rgba(44,44,46,0.98)', borderRadius: 14, padding: 8, maxHeight: 280 },
   genreDropdownItem: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
@@ -1146,9 +1148,9 @@ const styles = StyleSheet.create({
 
   // ── Misc ─────────────────────────────────────────
   filtersBtn: { marginHorizontal: 16, marginVertical: 8, backgroundColor: 'rgba(44,44,46,0.8)', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 },
-  filtersBtnActive: { backgroundColor: 'rgba(10,132,255,0.15)' },
+  filtersBtnActive: { backgroundColor: 'rgba(255,255,255,0.1)' },
   filtersBtnText: { color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: '600', textAlign: 'center' },
-  filtersBtnTextActive: { color: '#0a84ff' },
+  filtersBtnTextActive: { color: '#ffffff' },
   imdbBadgeHeader: { backgroundColor: '#F5C518', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   imdbBadgeHeaderText: { color: '#000', fontSize: 10, fontWeight: 'bold' },
   headerRight: { flex: 1, gap: 6 },
