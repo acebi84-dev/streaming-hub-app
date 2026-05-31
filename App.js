@@ -794,7 +794,10 @@ export default function App() {
       {/* Header - Apple TV minimal */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.appTitle}>İzlio</Text>
+          <View style={styles.appLogoRow}>
+            <Image source={require('./assets/images/logo.png')} style={styles.appLogoIcon} resizeMode="contain" />
+            <Text style={styles.appTitle}>İzlio</Text>
+          </View>
           <TouchableOpacity style={styles.platformSelectBtn} onPress={() => setShowPlatformModal(true)}>
             <View style={styles.platformSelectDots}>
               {selectedPlatforms.slice(0, 4).map(slug => {
@@ -983,7 +986,9 @@ const styles = StyleSheet.create({
   // ── Header ───────────────────────────────────────
   header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10, borderBottomWidth: 0 },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  appTitle: { color: '#ffffff', fontSize: 34, fontWeight: '700', letterSpacing: -1 },
+  appTitle: { color: '#ffffff', fontSize: 28, fontWeight: '700', letterSpacing: 2 },
+  appLogoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  appLogoIcon: { width: 32, height: 32, borderRadius: 8 },
   sectionTitle: { color: '#ffffff', fontSize: 26, fontWeight: '700', letterSpacing: -0.6 },
   platformSelectBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
   platformSelectDots: { flexDirection: 'row', gap: 4 },
