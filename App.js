@@ -429,7 +429,10 @@ function CollectionsScreen({ selectedPlatforms }) {
 function NewScreen({ selectedPlatforms }) {
   const [items, setItems] = useState({});
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState('week'); // 'day', 'week', 'month'
+  const [period, setPeriod] = useState('week');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [genreFilter, setGenreFilter] = useState(null);
+  const [showGenreDropdown, setShowGenreDropdown] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
   useEffect(() => { fetchNew(); }, [selectedPlatforms, period]);
@@ -446,18 +449,15 @@ function NewScreen({ selectedPlatforms }) {
       fromDate = new Date(now); fromDate.setMonth(now.getMonth() - 1);
     }
     const fromStr = fromDate.toISOString().split('T')[0];
-
     const platforms = selectedPlatforms.length > 0 ? selectedPlatforms : PLATFORMS.map(p => p.slug);
     const { data, error } = await supabase
       .from('hub_availability')
-      .select('platform_slug, platform_url, available_since, content:hub_contents(id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, type, year, synopsis_tr, director, cast_list, trailer_url, tagline)')
+      .select('platform_slug, platform_url, available_since, content:hub_contents(id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, type, year, synopsis_tr, director, cast_list, trailer_url, tagline, genres)')
       .in('platform_slug', platforms)
       .gte('available_since', fromStr)
       .order('available_since', { ascending: false })
-      .limit(200);
-
+      .limit(300);
     if (error) { console.error(error); setLoading(false); return; }
-
     const grouped = {};
     (data || []).forEach(row => {
       if (!row.content) return;
@@ -469,8 +469,16 @@ function NewScreen({ selectedPlatforms }) {
     setLoading(false);
   }
 
+  function filterItems(list) {
+    let result = list;
+    if (typeFilter === 'movie') result = result.filter(i => i.type === 'movie');
+    if (typeFilter === 'series') result = result.filter(i => i.type === 'series');
+    if (genreFilter) result = result.filter(i => i.genres && i.genres.includes(genreFilter));
+    return result;
+  }
+
   const platformOrder = PLATFORMS.filter(p => selectedPlatforms.includes(p.slug));
-  const periodLabels = [['day', 'Bugün'], ['week', 'Bu Hafta'], ['month', 'Bu Ay']];
+  const selectedGenreLabel = POPULAR_GENRES.find(g => g.en === genreFilter)?.tr || 'Tür';
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -481,31 +489,68 @@ function NewScreen({ selectedPlatforms }) {
       </View>
       <View style={styles.popularTopBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularTopBarRow}>
-          {periodLabels.map(([val, label]) => (
+          {[['all','Tümü'],['series','Diziler'],['movie','Filmler']].map(([val, label]) => (
+            <TouchableOpacity
+              key={val}
+              style={[styles.popularTopBtn, typeFilter === val && styles.popularTopBtnActive]}
+              onPress={() => { setTypeFilter(val); setShowGenreDropdown(false); }}
+            >
+              <Text style={[styles.popularTopBtnText, typeFilter === val && styles.popularTopBtnTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+          <View style={styles.popularTopSeparator} />
+          <TouchableOpacity
+            style={[styles.popularTopBtn, genreFilter !== null && styles.popularTopBtnGenreActive]}
+            onPress={() => setShowGenreDropdown(!showGenreDropdown)}
+          >
+            <Text style={[styles.popularTopBtnText, genreFilter !== null && styles.popularTopBtnTextGenreActive]}>{selectedGenreLabel} ▾</Text>
+          </TouchableOpacity>
+          {genreFilter && (
+            <TouchableOpacity style={styles.popularTopBtn} onPress={() => setGenreFilter(null)}>
+              <Text style={styles.popularTopBtnText}>✕</Text>
+            </TouchableOpacity>
+          )}
+          <View style={styles.popularTopSeparator} />
+          {[['day','Bugün'],['week','Bu Hafta'],['month','Bu Ay']].map(([val, label]) => (
             <TouchableOpacity
               key={val}
               style={[styles.popularTopBtn, period === val && styles.popularTopBtnActive]}
-              onPress={() => setPeriod(val)}
+              onPress={() => { setPeriod(val); setShowGenreDropdown(false); }}
             >
               <Text style={[styles.popularTopBtnText, period === val && styles.popularTopBtnTextActive]}>{label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
+      {showGenreDropdown && (
+        <View style={styles.genreDropdown}>
+          <ScrollView style={{ maxHeight: 240 }} showsVerticalScrollIndicator={false}>
+            {POPULAR_GENRES.map(g => (
+              <TouchableOpacity
+                key={g.en}
+                style={[styles.genreDropdownItem, genreFilter === g.en && styles.genreDropdownItemActive]}
+                onPress={() => { setGenreFilter(genreFilter === g.en ? null : g.en); setShowGenreDropdown(false); }}
+              >
+                <Text style={[styles.genreDropdownText, genreFilter === g.en && styles.genreDropdownTextActive]}>{g.tr}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
         {loading ? (
           <ActivityIndicator size="large" color={ACCENT} style={{ marginTop: 60 }} />
         ) : (
           platformOrder.map(p => {
-            const platformItems = items[p.slug] || [];
-            if (platformItems.length === 0) return null;
+            const filtered = filterItems(items[p.slug] || []);
+            if (filtered.length === 0) return null;
             return (
               <View key={p.slug} style={styles.popularSection}>
                 <View style={[styles.popularPlatformLabel, { backgroundColor: p.color }]}>
                   <Image source={{ uri: p.darkLogo }} style={styles.popularPlatformLogo} resizeMode="contain" />
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularRow}>
-                  {platformItems.map(item => (
+                  {filtered.map(item => (
                     <TouchableOpacity key={item.id} style={styles.popularCard} onPress={() => setSelectedItem({ ...item, availability: [{ platform_slug: p.slug, platform_url: item.platform_url }] })}>
                       <View style={styles.cardPosterWrap}>
                         {item.poster_url
@@ -524,7 +569,7 @@ function NewScreen({ selectedPlatforms }) {
             );
           })
         )}
-        {!loading && platformOrder.every(p => (items[p.slug] || []).length === 0) && (
+        {!loading && platformOrder.every(p => filterItems(items[p.slug] || []).length === 0) && (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyEmoji}>📭</Text>
             <Text style={styles.emptyText}>İçerik bulunamadı</Text>
