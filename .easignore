@@ -1,0 +1,9 @@
+node_modules
+android
+.expo
+dist
+dist-test
+*.gz
+*.exe
+response.json
+export-log.txt
