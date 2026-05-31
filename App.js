@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { Linking } from 'react-native';
 import { supabase } from './supabase';
-import { Compass, TrendingUp, Film } from 'lucide-react-native';
+import { Compass, TrendingUp, Film, Sparkles } from 'lucide-react-native';
 
 const PLATFORMS = [
   { slug: 'netflix',  name: 'Netflix',      color: '#E50914', darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
@@ -425,6 +425,117 @@ function CollectionsScreen({ selectedPlatforms }) {
 }
 
 
+
+function NewScreen({ selectedPlatforms }) {
+  const [items, setItems] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState('week'); // 'day', 'week', 'month'
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  useEffect(() => { fetchNew(); }, [selectedPlatforms, period]);
+
+  async function fetchNew() {
+    setLoading(true);
+    const now = new Date();
+    let fromDate;
+    if (period === 'day') {
+      fromDate = new Date(now); fromDate.setDate(now.getDate() - 1);
+    } else if (period === 'week') {
+      fromDate = new Date(now); fromDate.setDate(now.getDate() - 7);
+    } else {
+      fromDate = new Date(now); fromDate.setMonth(now.getMonth() - 1);
+    }
+    const fromStr = fromDate.toISOString().split('T')[0];
+
+    const platforms = selectedPlatforms.length > 0 ? selectedPlatforms : PLATFORMS.map(p => p.slug);
+    const { data, error } = await supabase
+      .from('hub_availability')
+      .select('platform_slug, platform_url, available_since, content:hub_contents(id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, type, year, synopsis_tr, director, cast_list, trailer_url, tagline)')
+      .in('platform_slug', platforms)
+      .gte('available_since', fromStr)
+      .order('available_since', { ascending: false })
+      .limit(200);
+
+    if (error) { console.error(error); setLoading(false); return; }
+
+    const grouped = {};
+    (data || []).forEach(row => {
+      if (!row.content) return;
+      const slug = row.platform_slug;
+      if (!grouped[slug]) grouped[slug] = [];
+      grouped[slug].push({ ...row.content, platform_url: row.platform_url, available_since: row.available_since });
+    });
+    setItems(grouped);
+    setLoading(false);
+  }
+
+  const platformOrder = PLATFORMS.filter(p => selectedPlatforms.includes(p.slug));
+  const periodLabels = [['day', 'Bugün'], ['week', 'Bu Hafta'], ['month', 'Bu Ay']];
+
+  return (
+    <View style={{ flex: 1, backgroundColor: BG }}>
+      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <View style={styles.popularHeader}>
+        <Text style={styles.sectionTitle}>En Yeniler</Text>
+        <Text style={styles.popularHeaderSub}>Platforma yeni eklenenler</Text>
+      </View>
+      <View style={styles.popularTopBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularTopBarRow}>
+          {periodLabels.map(([val, label]) => (
+            <TouchableOpacity
+              key={val}
+              style={[styles.popularTopBtn, period === val && styles.popularTopBtnActive]}
+              onPress={() => setPeriod(val)}
+            >
+              <Text style={[styles.popularTopBtnText, period === val && styles.popularTopBtnTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
+        {loading ? (
+          <ActivityIndicator size="large" color={ACCENT} style={{ marginTop: 60 }} />
+        ) : (
+          platformOrder.map(p => {
+            const platformItems = items[p.slug] || [];
+            if (platformItems.length === 0) return null;
+            return (
+              <View key={p.slug} style={styles.popularSection}>
+                <View style={[styles.popularPlatformLabel, { backgroundColor: p.color }]}>
+                  <Image source={{ uri: p.darkLogo }} style={styles.popularPlatformLogo} resizeMode="contain" />
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularRow}>
+                  {platformItems.map(item => (
+                    <TouchableOpacity key={item.id} style={styles.popularCard} onPress={() => setSelectedItem({ ...item, availability: [{ platform_slug: p.slug, platform_url: item.platform_url }] })}>
+                      <View style={styles.cardPosterWrap}>
+                        {item.poster_url
+                          ? <Image source={{ uri: item.poster_url }} style={styles.popularCardImg} resizeMode="cover" />
+                          : <View style={[styles.popularCardImg, { backgroundColor: SURFACE, alignItems: 'center', justifyContent: 'center' }]}><Text style={{ color: '#ffffff22', fontSize: 20 }}>?</Text></View>}
+                        {item.imdb_score && <View style={styles.cardImdbOverlay}>
+                          <View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View>
+                          <Text style={styles.cardImdbScore}>{item.imdb_score.toFixed(1)}</Text>
+                        </View>}
+                      </View>
+                      <Text style={styles.popularCardTitle} numberOfLines={2}>{item.original_language === 'tr' && item.title_tr ? item.title_tr : item.title}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            );
+          })
+        )}
+        {!loading && platformOrder.every(p => (items[p.slug] || []).length === 0) && (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyEmoji}>📭</Text>
+            <Text style={styles.emptyText}>İçerik bulunamadı</Text>
+            <Text style={styles.emptySubText}>Seçilen dönemde yeni içerik yok</Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
 function PopularScreen({ selectedPlatforms }) {
   const [popular, setPopular] = useState({});
   const [loading, setLoading] = useState(true);
@@ -764,6 +875,32 @@ export default function App() {
               <TrendingUp size={22} color="#ffffff" strokeWidth={1.8} />
               <Text style={[styles.tabLabel, styles.tabLabelActive]}>Popüler</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('new')}>
+              <Sparkles size={22} color="#ffffff44" strokeWidth={1.8} />
+              <Text style={styles.tabLabel}>Yeniler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('collections')}>
+              <Film size={22} color="#ffffff44" strokeWidth={1.8} />
+              <Text style={styles.tabLabel}>Koleksiyon</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      ) : activeTab === 'new' ? (
+        <>
+          <NewScreen selectedPlatforms={selectedPlatforms} />
+          <View style={styles.tabBar}>
+            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('discover')}>
+              <Compass size={22} color="#ffffff44" strokeWidth={1.8} />
+              <Text style={styles.tabLabel}>Keşfet</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('popular')}>
+              <TrendingUp size={22} color="#ffffff44" strokeWidth={1.8} />
+              <Text style={styles.tabLabel}>Popüler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('new')}>
+              <Sparkles size={22} color="#ffffff" strokeWidth={1.8} />
+              <Text style={[styles.tabLabel, styles.tabLabelActive]}>Yeniler</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('collections')}>
               <Film size={22} color="#ffffff44" strokeWidth={1.8} />
               <Text style={styles.tabLabel}>Koleksiyon</Text>
@@ -781,6 +918,10 @@ export default function App() {
             <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('popular')}>
               <TrendingUp size={22} color="#ffffff44" strokeWidth={1.8} />
               <Text style={styles.tabLabel}>Popüler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('new')}>
+              <Sparkles size={22} color="#ffffff44" strokeWidth={1.8} />
+              <Text style={styles.tabLabel}>Yeniler</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('collections')}>
               <Film size={22} color="#ffffff" strokeWidth={1.8} />
@@ -955,6 +1096,10 @@ export default function App() {
             <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('popular')}>
               <TrendingUp size={22} color="#ffffff44" strokeWidth={1.8} />
               <Text style={styles.tabLabel}>Popüler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('new')}>
+              <Sparkles size={22} color="#ffffff44" strokeWidth={1.8} />
+              <Text style={styles.tabLabel}>Yeniler</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('collections')}>
               <Film size={22} color="#ffffff44" strokeWidth={1.8} />
