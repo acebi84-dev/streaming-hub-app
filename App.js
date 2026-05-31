@@ -22,7 +22,7 @@ const GoogleSignin = Platform.OS !== 'web' ? require('@react-native-google-signi
 import * as AppleAuthentication from 'expo-apple-authentication';
 
 
-const GENRES = [
+const PROFILE_GENRES = [
   { id: 'action',    label: 'Aksiyon',      emoji: '💥' },
   { id: 'comedy',    label: 'Komedi',        emoji: '😂' },
   { id: 'drama',     label: 'Drama',         emoji: '🎭' },
@@ -1048,7 +1048,7 @@ function OnboardingScreen({ user, onComplete }) {
             <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', marginBottom: 6 }}>Favori Türlerin</Text>
             <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, marginBottom: 28 }}>Birden fazla seçebilirsin.</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              {GENRES.map(g => {
+              {PROFILE_GENRES.map(g => {
                 const sel = selGenres.includes(g.id);
                 return (
                   <TouchableOpacity key={g.id}
@@ -1233,7 +1233,7 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
           <View style={{ gap: 12 }}>
             <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 }}>Favori Türler</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {GENRES.map(g => {
+              {PROFILE_GENRES.map(g => {
                 const sel = selGenres.includes(g.id);
                 return (
                   <TouchableOpacity key={g.id}
