@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "Ne İzlesek?",
-    "slug": "streaming-hub",
+    "name": "İzlio",
+    "slug": "izlio",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
-    "scheme": "streaminghub",
+    "scheme": "izlio",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.acebi.streaminghub",
+      "bundleIdentifier": "com.acebi.izlio",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -17,9 +17,9 @@
       "jsEngine": "jsc",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/logo.png",
-        "backgroundColor": "#0d0f14"
+        "backgroundColor": "#000000"
       },
-      "package": "com.acebi.streaminghub"
+      "package": "com.acebi.izlio"
     },
     "web": {
       "output": "static",
@@ -33,14 +33,14 @@
       "expo-font",
       "expo-web-browser",
       [
-  "expo-splash-screen",
-  {
-    "backgroundColor": "#000000",
-    "image": "./assets/images/splash.png",
-    "imageWidth": 400,
-    "resizeMode": "contain"
-  }
-]
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#000000",
+          "image": "./assets/images/splash.png",
+          "imageWidth": 400,
+          "resizeMode": "contain"
+        }
+      ]
     ],
     "extra": {
       "router": {
