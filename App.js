@@ -957,6 +957,14 @@ export default function App() {
     isLoadingMoreRef.current = false;
   }
 
+  function handlePlatformToggle(slug) {
+    setSelectedPlatforms(prev => {
+      const next = prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug];
+      saveSelectedPlatforms(next);
+      return next;
+    });
+  }
+
   function handlePlatformSave(slugs) { setSelectedPlatforms(slugs); saveSelectedPlatforms(slugs); }
   function handleSearch() { setActiveSearch(searchInput); setShowFilters(false); }
   function clearSearch() { setSearchInput(''); setActiveSearch(''); }
