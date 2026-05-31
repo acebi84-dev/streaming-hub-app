@@ -453,7 +453,7 @@ function NewScreen({ selectedPlatforms }) {
     const platforms = selectedPlatforms.length > 0 ? selectedPlatforms : PLATFORMS.map(p => p.slug);
     const { data, error } = await supabase
       .from('hub_availability')
-      .select('platform_slug, platform_url, available_since, content:hub_contents(id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, type, year, synopsis_tr, director, cast_list, trailer_url, tagline, genres)')
+      .select('platform_slug, platform_url, available_since, content:hub_contents(id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, type, year, synopsis_tr, director, cast_list, trailer_url, tagline, genre)')
       .in('platform_slug', platforms)
       .gte('available_since', fromStr)
       .order('available_since', { ascending: false })
@@ -474,7 +474,6 @@ function NewScreen({ selectedPlatforms }) {
     let result = list;
     if (typeFilter === 'movie') result = result.filter(i => i.type === 'movie');
     if (typeFilter === 'series') result = result.filter(i => i.type === 'series');
-    if (genreFilter) result = result.filter(i => i.genres && i.genres.includes(genreFilter));
     return result;
   }
 
@@ -626,7 +625,6 @@ function PopularScreen({ selectedPlatforms }) {
     let result = items;
     if (typeFilter === 'movie') result = result.filter(i => i.show_type === 'movie');
     if (typeFilter === 'series') result = result.filter(i => i.show_type === 'series');
-    if (genreFilter) result = result.filter(i => i.genres && i.genres.includes(genreFilter));
     return result;
   }
 
