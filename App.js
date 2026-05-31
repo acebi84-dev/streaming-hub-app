@@ -15,7 +15,7 @@ import {
   Image, ActivityIndicator, SafeAreaView, StatusBar, ScrollView,
   Animated, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Linking } from 'react-native';
+import { Linking, Share } from 'react-native';
 import { supabase } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff } from 'lucide-react-native';
 const GoogleSignin = Platform.OS !== 'web' ? require('@react-native-google-signin/google-signin').GoogleSignin : null;
@@ -116,6 +116,245 @@ function CarouselComments() {
   );
 }
 
+
+// ── Watchlist Helpers ─────────────────────────────────────────
+async function getWatchlistEntry(userId, contentId) {
+  const { data } = await supabase.from('watchlist').select('*').eq('user_id', userId).eq('content_id', contentId).single();
+  return data;
+}
+async function upsertWatchlist(userId, contentId, status, rating = null) {
+  const { data, error } = await supabase.from('watchlist').upsert({
+    user_id: userId, content_id: contentId, status, rating,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'user_id,content_id' }).select().single();
+  return { data, error };
+}
+async function removeWatchlist(userId, contentId) {
+  await supabase.from('watchlist').delete().eq('user_id', userId).eq('content_id', contentId);
+}
+
+// ── Watchlist Button (içerik kartı için) ─────────────────────
+function WatchlistButton({ item, user, style }) {
+  const [entry, setEntry] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showRating, setShowRating] = useState(false);
+  const isMounted = useRef(true);
+  useEffect(() => { return () => { isMounted.current = false; }; }, []);
+
+  useEffect(() => {
+    if (user && item?.id) {
+      getWatchlistEntry(user.id, item.id).then(d => { if (isMounted.current) setEntry(d); });
+    }
+  }, [user, item?.id]);
+
+  async function setStatus(status) {
+    if (!user) return;
+    const { data } = await upsertWatchlist(user.id, item.id, status, entry?.rating || null);
+    if (isMounted.current) {
+      setEntry(data);
+      setShowMenu(false);
+      if (status === 'watched') setShowRating(true);
+    }
+  }
+
+  async function setRating(rating) {
+    if (!user || !entry) return;
+    const { data } = await upsertWatchlist(user.id, item.id, entry.status, rating);
+    if (isMounted.current) { setEntry(data); setShowRating(false); }
+  }
+
+  async function remove() {
+    if (!user) return;
+    await removeWatchlist(user.id, item.id);
+    if (isMounted.current) { setEntry(null); setShowMenu(false); }
+  }
+
+  async function share() {
+    const title = item.title_tr || item.title;
+    const statusLabel = entry?.status === 'watched' ? 'izledim' : entry?.status === 'watching' ? 'izliyorum' : 'izlemek istiyorum';
+    const ratingText = entry?.rating ? ` — ${entry.rating}/10 puan verdim` : '';
+    const text = `"${title}" filmini/dizisini ${statusLabel}${ratingText}! 🎬 İzlio ile keşfet.`;
+    Share.share({ message: text, title });
+    setShowMenu(false);
+  }
+
+  const statusConfig = {
+    watched:  { label: 'İzledim',          emoji: '✅', color: '#51cf66' },
+    watching: { label: 'İzliyorum',         emoji: '▶️',  color: '#339af0' },
+    want:     { label: 'İzlemek İstiyorum', emoji: '🔖', color: '#ffd43b' },
+  };
+
+  return (
+    <View style={[{ position: 'relative' }, style]}>
+      <TouchableOpacity
+        style={[wlStyles.btn, entry && { backgroundColor: statusConfig[entry.status]?.color + '22', borderColor: statusConfig[entry.status]?.color }]}
+        onPress={() => setShowMenu(true)}
+      >
+        <Text style={{ fontSize: 14 }}>{entry ? statusConfig[entry.status]?.emoji : '＋'}</Text>
+        <Text style={[wlStyles.btnText, entry && { color: statusConfig[entry.status]?.color }]}>
+          {entry ? statusConfig[entry.status]?.label : 'Listeye Ekle'}
+        </Text>
+        {entry?.rating && <Text style={[wlStyles.ratingText, { color: statusConfig[entry.status]?.color }]}>★{entry.rating}</Text>}
+      </TouchableOpacity>
+
+      {/* Status menu */}
+      <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
+        <TouchableOpacity style={wlStyles.menuOverlay} activeOpacity={1} onPress={() => setShowMenu(false)}>
+          <View style={wlStyles.menuBox}>
+            <Text style={wlStyles.menuTitle}>{item.title_tr || item.title}</Text>
+            {Object.entries(statusConfig).map(([key, cfg]) => (
+              <TouchableOpacity key={key} style={[wlStyles.menuItem, entry?.status === key && { backgroundColor: cfg.color + '22' }]} onPress={() => setStatus(key)}>
+                <Text style={{ fontSize: 18 }}>{cfg.emoji}</Text>
+                <Text style={[wlStyles.menuItemText, entry?.status === key && { color: cfg.color, fontWeight: '700' }]}>{cfg.label}</Text>
+                {entry?.status === key && <Text style={{ color: cfg.color, fontSize: 12, marginLeft: 'auto' }}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+            {entry && <>
+              <View style={wlStyles.menuDivider} />
+              <TouchableOpacity style={wlStyles.menuItem} onPress={() => { setShowMenu(false); setShowRating(true); }}>
+                <Text style={{ fontSize: 18 }}>⭐</Text>
+                <Text style={wlStyles.menuItemText}>Puan Ver {entry.rating ? `(${entry.rating}/10)` : ''}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={wlStyles.menuItem} onPress={share}>
+                <Text style={{ fontSize: 18 }}>📤</Text>
+                <Text style={wlStyles.menuItemText}>Paylaş</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={wlStyles.menuItem} onPress={remove}>
+                <Text style={{ fontSize: 18 }}>🗑</Text>
+                <Text style={[wlStyles.menuItemText, { color: '#ff6b6b' }]}>Listeden Çıkar</Text>
+              </TouchableOpacity>
+            </>}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Rating modal */}
+      <Modal visible={showRating} transparent animationType="fade" onRequestClose={() => setShowRating(false)}>
+        <TouchableOpacity style={wlStyles.menuOverlay} activeOpacity={1} onPress={() => setShowRating(false)}>
+          <View style={wlStyles.ratingBox}>
+            <Text style={wlStyles.menuTitle}>Puan Ver</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 16, textAlign: 'center' }}>{item.title_tr || item.title}</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+              {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                <TouchableOpacity key={n} style={[wlStyles.ratingBtn, entry?.rating === n && { backgroundColor: '#ffd43b', borderColor: '#ffd43b' }]} onPress={() => setRating(n)}>
+                  <Text style={[wlStyles.ratingBtnText, entry?.rating === n && { color: '#000' }]}>{n}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {entry?.rating && (
+              <TouchableOpacity style={{ marginTop: 16, alignItems: 'center' }} onPress={() => setRating(null)}>
+                <Text style={{ color: '#ff6b6b', fontSize: 13 }}>Puanı Kaldır</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
+
+const wlStyles = StyleSheet.create({
+  btn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+  btnText: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' },
+  ratingText: { fontSize: 12, fontWeight: '700', marginLeft: 4 },
+  menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  menuBox: { backgroundColor: '#1c1c1e', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
+  menuTitle: { color: '#fff', fontSize: 17, fontWeight: '700', marginBottom: 16, textAlign: 'center' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 8, borderRadius: 12 },
+  menuItemText: { color: 'rgba(255,255,255,0.85)', fontSize: 16 },
+  menuDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 8 },
+  ratingBox: { backgroundColor: '#1c1c1e', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
+  ratingBtn: { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  ratingBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+});
+
+// ── Watchlist Screen ───────────────────────────────────────────
+function WatchlistScreen({ user, onItemPress, onBack }) {
+  const [tab, setTab] = useState('watched');
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const isMounted = useRef(true);
+  useEffect(() => { return () => { isMounted.current = false; }; }, []);
+
+  useEffect(() => { fetchList(); }, [tab]);
+
+  async function fetchList() {
+    if (!user) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from('watchlist')
+      .select('*, content:hub_contents(id, title, title_tr, type, year, imdb_score, poster_url, imdb_id, original_language, availability:hub_availability(platform_slug, platform_url))')
+      .eq('user_id', user.id)
+      .eq('status', tab)
+      .order('updated_at', { ascending: false });
+    if (isMounted.current) { setItems(data || []); setLoading(false); }
+  }
+
+  const tabs = [
+    { key: 'watched',  label: 'İzledim',          emoji: '✅' },
+    { key: 'watching', label: 'İzliyorum',         emoji: '▶️' },
+    { key: 'want',     label: 'İzleyeceğim',       emoji: '🔖' },
+  ];
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#000' }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
+        <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', marginBottom: 14 }}>İzleme Listem</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+          {tabs.map(t => (
+            <TouchableOpacity key={t.key}
+              style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.12)' }}
+              onPress={() => setTab(t.key)}>
+              <Text style={{ color: tab === t.key ? '#000' : '#fff', fontWeight: '700', fontSize: 14 }}>{t.emoji} {t.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {loading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color="#fff" size="large" />
+        </View>
+      ) : items.length === 0 ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <Text style={{ fontSize: 48 }}>{tabs.find(t => t.key === tab)?.emoji}</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16 }}>Henüz içerik yok</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={i => i.id}
+          contentContainerStyle={{ padding: 16, gap: 12 }}
+          renderItem={({ item: row }) => {
+            const c = row.content;
+            if (!c) return null;
+            const p = PLATFORMS.find(x => x.slug === c.availability?.[0]?.platform_slug);
+            return (
+              <TouchableOpacity style={{ flexDirection: 'row', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 10 }} onPress={() => onItemPress(c)}>
+                {c.poster_url ? <Image source={{ uri: c.poster_url }} style={{ width: 60, height: 90, borderRadius: 8 }} resizeMode="cover" /> : <View style={{ width: 60, height: 90, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' }} />}
+                <View style={{ flex: 1, justifyContent: 'space-between' }}>
+                  <View>
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }} numberOfLines={2}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, marginTop: 2 }}>{c.type === 'movie' ? 'Film' : 'Dizi'} · {c.year}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <View style={{ backgroundColor: '#f5c518', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 }}><Text style={{ color: '#000', fontSize: 10, fontWeight: '800' }}>IMDb</Text></View>
+                      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{c.imdb_score?.toFixed(1)}</Text>
+                      {row.rating && <><Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>·</Text><Text style={{ color: '#ffd43b', fontSize: 13, fontWeight: '700' }}>★{row.rating}/10</Text></>}
+                      {p && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.color }} />}
+                    </View>
+                  </View>
+                  <WatchlistButton item={c} user={user} />
+                </View>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      )}
+      <FloatingBackBtn onPress={onBack} />
+    </View>
+  );
+}
+
 function PlatformModal({ visible, selected, onSave, onClose }) {
   const [local, setLocal] = useState(selected);
   useEffect(() => { setLocal(selected); }, [selected, visible]);
@@ -153,7 +392,7 @@ function PlatformModal({ visible, selected, onSave, onClose }) {
   );
 }
 
-function DetailModal({ item, onClose }) {
+function DetailModal({ item, onClose, user }) {
   if (!item) return null;
   const [itemStack, setItemStack] = React.useState([item]);
   const cur = itemStack[itemStack.length - 1];
@@ -237,6 +476,7 @@ function DetailModal({ item, onClose }) {
             {cur.director ? <Text style={styles.modalDetail}>🎬 <Text style={styles.modalDetailLabel}>Yönetmen: </Text>{cur.director}</Text> : null}
             {cur.cast_list ? <Text style={styles.modalDetail}>👥 <Text style={styles.modalDetailLabel}>Oyuncular: </Text>{cur.cast_list}</Text> : null}
             {cur.synopsis_tr ? (<><Text style={styles.modalSynopsisTitle}>Konu</Text><Text style={styles.modalSynopsis}>{cur.synopsis_tr}</Text></>) : null}
+            <WatchlistButton item={cur} user={user} style={{ marginHorizontal: 0, marginBottom: 12 }} />
             <View style={styles.modalButtons}>
               {cur.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={() => Linking.openURL(cur.trailer_url)}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
               {cur.imdb_id && <TouchableOpacity style={styles.imdbLinkBtn} onPress={() => Linking.openURL('https://www.imdb.com/title/' + cur.imdb_id + '/')}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.imdbLinkText}>↗ imdb.com</Text></TouchableOpacity>}
@@ -338,7 +578,7 @@ function CollectionsScreen({ selectedPlatforms, onBack }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
       <ProfileModal
         visible={showProfile}
         user={user}
@@ -526,7 +766,7 @@ function NewScreen({ selectedPlatforms, onBack }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
       <ProfileModal
         visible={showProfile}
         user={user}
@@ -739,7 +979,7 @@ function PopularScreen({ selectedPlatforms, onBack }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
       <ProfileModal
         visible={showProfile}
         user={user}
@@ -874,9 +1114,14 @@ function HomeScreen({ selectedPlatforms, onPlatformToggle, onNavigate }) {
         {/* Top bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8 }}>
           <View style={{ flex: 1 }} />
-          <TouchableOpacity onPress={() => setShowProfile(true)} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
-            <Text style={{ fontSize: 18 }}>👤</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity onPress={() => setShowWatchlist(true)} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
+              <Text style={{ fontSize: 18 }}>🔖</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowProfile(true)} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
+              <Text style={{ fontSize: 18 }}>👤</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Logo & Tagline */}
@@ -1489,6 +1734,8 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showWatchlist, setShowWatchlist] = useState(false);
+  const [watchlistItem, setWatchlistItem] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -1702,6 +1949,17 @@ export default function App() {
     const { data } = await supabase.from('profiles').select('selected_platforms').eq('id', u.id).single();
     if (!data?.selected_platforms || data.selected_platforms.length === 0) setShowOnboarding(true);
   }} />;
+  if (showWatchlist) return (
+    <>
+      <WatchlistScreen
+        user={user}
+        onBack={() => { setShowWatchlist(false); setWatchlistItem(null); }}
+        onItemPress={(item) => setWatchlistItem(item)}
+      />
+      <DetailModal item={watchlistItem} onClose={() => setWatchlistItem(null)} user={user} />
+    </>
+  );
+
   if (showOnboarding) return <OnboardingScreen user={user} onComplete={({ platforms }) => {
     setSelectedPlatforms(platforms);
     saveSelectedPlatforms(platforms);
@@ -1711,7 +1969,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
-      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
       <ProfileModal
         visible={showProfile}
         user={user}
