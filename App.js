@@ -308,8 +308,6 @@ function CollectionsScreen({ selectedPlatforms }) {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
-      {showFilters && <TouchableOpacity style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 5 }} activeOpacity={1} onPress={() => setShowFilters(false)} />}
-
       <View style={styles.header}>
         <Text style={styles.sectionTitle}>Koleksiyonlar</Text>
       </View>
@@ -329,7 +327,7 @@ function CollectionsScreen({ selectedPlatforms }) {
       </TouchableOpacity>
 
       {showFilters && (
-        <View style={styles.filtersBox}>
+        <View style={[styles.filtersBox, { zIndex: 10 }]}>
           {/* Sıralama */}
           <Text style={styles.filterSectionTitle}>Sıralama</Text>
           <View style={styles.sortRow}>
@@ -841,7 +839,7 @@ export default function App() {
       </View>
 
       {showFilters && (
-        <View style={styles.filtersBox}>
+        <View style={[styles.filtersBox, { zIndex: 10 }]}>
 
           {/* Tür */}
           <Text style={styles.filterSectionTitle}>İçerik Türü</Text>
