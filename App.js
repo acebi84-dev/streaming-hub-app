@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Linking } from 'react-native';
 import { supabase } from './supabase';
-import { Compass, TrendingUp, Film, Sparkles, House } from 'lucide-react-native';
+import { Compass, TrendingUp, Film, Sparkles, RotateCcw } from 'lucide-react-native';
 
 const PLATFORMS = [
   { slug: 'netflix',  name: 'Netflix',      color: '#E50914', darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
@@ -259,7 +259,7 @@ const POPULAR_GENRES = [
 ];
 
 
-function CollectionsScreen({ selectedPlatforms }) {
+function CollectionsScreen({ selectedPlatforms, onBack }) {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedGenre, setSelectedGenre] = useState(null);
@@ -313,8 +313,8 @@ function CollectionsScreen({ selectedPlatforms }) {
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <TouchableOpacity style={styles.miniHeaderBack} onPress={() => setShowHome(true)}>
-            <House size={18} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
+          <TouchableOpacity style={styles.miniHeaderBack} onPress={onBack}>
+            <RotateCcw size={18} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
           </TouchableOpacity>
           <Text style={styles.sectionTitle}>Koleksiyonlar</Text>
         </View>
@@ -494,7 +494,7 @@ function NewScreen({ selectedPlatforms, onBack }) {
       <View style={styles.popularHeader}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 }}>
           <TouchableOpacity style={styles.miniHeaderBack} onPress={onBack}>
-            <House size={18} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
+            <RotateCcw size={18} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
           </TouchableOpacity>
           <Text style={styles.sectionTitle}>En Yeniler</Text>
         </View>
@@ -702,7 +702,7 @@ function PopularScreen({ selectedPlatforms, onBack }) {
       <View style={styles.popularHeader}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 }}>
           <TouchableOpacity style={styles.miniHeaderBack} onPress={onBack}>
-            <House size={18} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
+            <RotateCcw size={18} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
           </TouchableOpacity>
           <Text style={styles.sectionTitle}>Popüler</Text>
         </View>
@@ -887,7 +887,7 @@ function HomeScreen({ selectedPlatforms, onPlatformToggle, onNavigate }) {
 }
 
 export default function App() {
-  useEffect(() => { SplashScreen.hideAsync(); }, []);
+  useEffect(() => { setTimeout(() => SplashScreen.hideAsync(), 2000); }, []);
 
   const [activeTab, setActiveTab] = useState('discover');
   const [showHome, setShowHome] = useState(true);
@@ -1065,90 +1065,20 @@ export default function App() {
 
         </>
       ) : activeTab === 'popular' ? (
-        <>
           <PopularScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} />
-          <View style={styles.tabBar}>
-            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('discover')}>
-              <Compass size={22} color="#ffffff44" strokeWidth={1.8} />
-              <Text style={styles.tabLabel}>Keşfet</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('popular')}>
-              <TrendingUp size={22} color="#ffffff" strokeWidth={1.8} />
-              <Text style={[styles.tabLabel, styles.tabLabelActive]}>Popüler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('new')}>
-              <Sparkles size={22} color="#ffffff44" strokeWidth={1.8} />
-              <Text style={styles.tabLabel}>Yeniler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('collections')}>
-              <Film size={22} color="#ffffff44" strokeWidth={1.8} />
-              <Text style={styles.tabLabel}>Koleksiyon</Text>
-            </TouchableOpacity>
-          </View>
-        </>
       ) : activeTab === 'new' ? (
-        <>
           <NewScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} />
-          <View style={styles.tabBar}>
-            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('discover')}>
-              <Compass size={22} color="#ffffff44" strokeWidth={1.8} />
-              <Text style={styles.tabLabel}>Keşfet</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('popular')}>
-              <TrendingUp size={22} color="#ffffff44" strokeWidth={1.8} />
-              <Text style={styles.tabLabel}>Popüler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('new')}>
-              <Sparkles size={22} color="#ffffff" strokeWidth={1.8} />
-              <Text style={[styles.tabLabel, styles.tabLabelActive]}>Yeniler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('collections')}>
-              <Film size={22} color="#ffffff44" strokeWidth={1.8} />
-              <Text style={styles.tabLabel}>Koleksiyon</Text>
-            </TouchableOpacity>
-          </View>
-        </>
       ) : activeTab === 'collections' ? (
-        <>
-          <CollectionsScreen selectedPlatforms={selectedPlatforms} />
-          <View style={styles.tabBar}>
-            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('discover')}>
-              <Compass size={22} color="#ffffff44" strokeWidth={1.8} />
-              <Text style={styles.tabLabel}>Keşfet</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('popular')}>
-              <TrendingUp size={22} color="#ffffff44" strokeWidth={1.8} />
-              <Text style={styles.tabLabel}>Popüler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('new')}>
-              <Sparkles size={22} color="#ffffff44" strokeWidth={1.8} />
-              <Text style={styles.tabLabel}>Yeniler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('collections')}>
-              <Film size={22} color="#ffffff" strokeWidth={1.8} />
-              <Text style={[styles.tabLabel, styles.tabLabelActive]}>Koleksiyon</Text>
-            </TouchableOpacity>
-          </View>
-        </>
+          <CollectionsScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} />
       ) : (
         <View style={{ flex: 1 }}>
 
       {/* Header - Apple TV minimal */}
       {/* Mini Header */}
       <View style={styles.miniHeader}>
-        <TouchableOpacity style={styles.miniHeaderBack} onPress={() => setShowHome(true)}>
-          <House size={20} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
-        </TouchableOpacity>
         <Text style={styles.miniHeaderTitle}>Keşfet</Text>
-        <TouchableOpacity style={styles.platformSelectBtn} onPress={() => setShowPlatformModal(true)}>
-          <View style={styles.platformSelectDots}>
-            {selectedPlatforms.slice(0, 4).map(slug => {
-              const p = PLATFORMS.find(x => x.slug === slug);
-              return p ? <View key={slug} style={[styles.platformSelectDot, { backgroundColor: p.color }]} /> : null;
-            })}
-          </View>
-          <Text style={styles.platformSelectText}>Platformlar</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>›</Text>
+        <TouchableOpacity style={styles.miniHeaderBack} onPress={() => setShowHome(true)}>
+          <RotateCcw size={20} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
         </TouchableOpacity>
       </View>
 
@@ -1288,28 +1218,7 @@ export default function App() {
           )}
         </View>
       )}
-          <View style={styles.tabBar}>
-            <TouchableOpacity style={styles.tabItem} onPress={() => setShowHome(true)}>
-              <House size={22} color="#ffffff44" strokeWidth={1.8} />
-              <Text style={styles.tabLabel}>Ana</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('discover')}>
-              <Compass size={22} color="#ffffff" strokeWidth={1.8} />
-              <Text style={[styles.tabLabel, styles.tabLabelActive]}>Keşfet</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('popular')}>
-              <TrendingUp size={22} color="#ffffff44" strokeWidth={1.8} />
-              <Text style={styles.tabLabel}>Popüler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('new')}>
-              <Sparkles size={22} color="#ffffff44" strokeWidth={1.8} />
-              <Text style={styles.tabLabel}>Yeniler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('collections')}>
-              <Film size={22} color="#ffffff44" strokeWidth={1.8} />
-              <Text style={styles.tabLabel}>Koleksiyon</Text>
-            </TouchableOpacity>
-          </View>
+
         </View>
       )}
     </SafeAreaView>
