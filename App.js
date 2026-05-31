@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync();
 import {
   StyleSheet, Text, View, FlatList, TextInput, TouchableOpacity,
   Image, ActivityIndicator, SafeAreaView, StatusBar, ScrollView,
@@ -9,10 +12,10 @@ import { supabase } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles } from 'lucide-react-native';
 
 const PLATFORMS = [
-  { slug: 'netflix',  name: 'Netflix',      color: '#E50914', darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
-  { slug: 'amazon',   name: 'Prime Video',  color: '#00A8E1', darkLogo: 'https://media.movieofthenight.com/services/prime/logo-white.svg' },
-  { slug: 'disney',   name: 'Disney+',      color: '#0063E5', darkLogo: 'https://media.movieofthenight.com/services/disney/logo-white.svg' },
-  { slug: 'hbo',      name: 'HBO Max',      color: '#8B4FBE', darkLogo: 'https://media.movieofthenight.com/services/hbo/logo-white.svg' },
+  { slug: 'netflix',  name: 'Netflix',      color: '#E50914', darkLogo: null },
+  { slug: 'amazon',   name: 'Prime Video',  color: '#00A8E1', darkLogo: null },
+  { slug: 'disney',   name: 'Disney+',      color: '#0063E5', darkLogo: null },
+  { slug: 'hbo',      name: 'HBO Max',      color: '#8B4FBE', darkLogo: null },
 ];
 
 const GENRES = [
@@ -108,7 +111,7 @@ function PlatformModal({ visible, selected, onSave, onClose }) {
                 return (
                   <TouchableOpacity key={p.slug} style={[styles.platformCard, isSel && { borderColor: p.color, borderWidth: 2 }]} onPress={() => toggle(p.slug)}>
                     <View style={[styles.platformCardBg, { backgroundColor: p.color }]}>
-                      <Image source={{ uri: p.darkLogo }} style={styles.platformCardLogo} resizeMode="contain" />
+                      {p.darkLogo ? <Image source={{ uri: p.darkLogo }} style={styles.platformCardLogo} resizeMode="contain" /> : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{p.name}</Text>}
                     </View>
                     {isSel && <View style={[styles.platformCardCheck, { backgroundColor: p.color }]}><Text style={styles.platformCardCheckText}>✓</Text></View>}
                   </TouchableOpacity>
@@ -762,6 +765,8 @@ function PopularScreen({ selectedPlatforms }) {
 }
 
 export default function App() {
+  useEffect(() => { SplashScreen.hideAsync(); }, []);
+
   const [activeTab, setActiveTab] = useState('discover');
   const [contents, setContents] = useState([]);
   const [loading, setLoading] = useState(true);
