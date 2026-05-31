@@ -33,11 +33,14 @@
       "expo-font",
       "expo-web-browser",
       [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#0d0f14"
-        }
-      ]
+  "expo-splash-screen",
+  {
+    "backgroundColor": "#000000",
+    "image": "./assets/images/splash.png",
+    "imageWidth": 400,
+    "resizeMode": "contain"
+  }
+]
     ],
     "extra": {
       "router": {
