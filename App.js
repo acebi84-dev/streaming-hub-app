@@ -3,11 +3,13 @@ import * as SplashScreen from 'expo-splash-screen';
 
 SplashScreen.preventAutoHideAsync();
 
-GoogleSignin.configure({
-  iosClientId: '556246058284-50k1stl1ivqfqgu1sql3pfg9ucr0h04v.apps.googleusercontent.com',
-  webClientId: '556246058284-r4vmadiam9e59t6spf8flav811an8vq4.apps.googleusercontent.com',
-  scopes: ['email', 'profile'],
-});
+if (Platform.OS !== 'web' && GoogleSignin) {
+  GoogleSignin.configure({
+    iosClientId: '556246058284-50k1stl1ivqfqgu1sql3pfg9ucr0h04v.apps.googleusercontent.com',
+    webClientId: '556246058284-r4vmadiam9e59t6spf8flav811an8vq4.apps.googleusercontent.com',
+    scopes: ['email', 'profile'],
+  });
+}
 import {
   StyleSheet, Text, View, FlatList, TextInput, TouchableOpacity,
   Image, ActivityIndicator, SafeAreaView, StatusBar, ScrollView,
@@ -16,7 +18,7 @@ import {
 import { Linking } from 'react-native';
 import { supabase } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff } from 'lucide-react-native';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+const GoogleSignin = Platform.OS !== 'web' ? require('@react-native-google-signin/google-signin').GoogleSignin : null;
 import * as AppleAuthentication from 'expo-apple-authentication';
 
 const PLATFORMS = [
@@ -943,6 +945,7 @@ function AuthScreen({ onAuth }) {
   }
 
   async function handleGoogle() {
+    if (!GoogleSignin || Platform.OS === 'web') { setError('Google giriş sadece mobilde çalışır'); return; }
     setLoading(true); setError('');
     try {
       await GoogleSignin.hasPlayServices();
