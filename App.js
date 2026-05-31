@@ -132,6 +132,7 @@ function DetailModal({ item, onClose }) {
   const typeLabel = cur.type === 'movie' ? '🎬 Film' : '📺 Dizi';
   const langLabel = cur.original_language ? LANGUAGE_MAP[cur.original_language] : null;
   const [similarItems, setSimilarItems] = React.useState([]);
+  const [posterFullscreen, setPosterFullscreen] = React.useState(false);
 
   React.useEffect(() => {
     setSimilarItems([]);
@@ -172,7 +173,14 @@ function DetailModal({ item, onClose }) {
         <View style={styles.detailModalContainer}>
           <TouchableOpacity activeOpacity={1}>
             <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => cur.poster_url && setPosterFullscreen(true)} activeOpacity={0.85}>
               {cur.poster_url ? <Image source={{ uri: cur.poster_url }} style={styles.modalPoster} /> : <View style={styles.modalPosterPlaceholder}><Text style={{ color: '#ffffff22', fontSize: 24 }}>?</Text></View>}
+            </TouchableOpacity>
+            <Modal visible={posterFullscreen} transparent animationType="fade" onRequestClose={() => setPosterFullscreen(false)}>
+              <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setPosterFullscreen(false)} activeOpacity={1}>
+                <Image source={{ uri: cur.poster_url }} style={{ width: '90%', height: '80%', borderRadius: 16 }} resizeMode="contain" />
+              </TouchableOpacity>
+            </Modal>
               <View style={styles.modalHeaderInfo}>
                 <Text style={styles.modalTitle} numberOfLines={2}>{cur.original_language === 'tr' && cur.title_tr ? cur.title_tr : cur.title}</Text>
                 {cur.original_title && cur.original_title !== cur.title && cur.original_language !== 'tr' && <Text style={styles.modalOriginalTitle}>{cur.original_title}</Text>}
@@ -270,7 +278,7 @@ function CollectionsScreen({ selectedPlatforms }) {
     const { data, error } = await supabase
       .from('hub_collections')
       .select('*, items:hub_collection_items(content_id, imdb_score, content:hub_contents(id, title, title_tr, original_language, poster_url, imdb_score, imdb_id, availability:hub_availability(platform_slug, platform_url)))')
-      .order(sortBy, { ascending: sortAscCol });
+      .order(sortBy, { ascending: sortAscCol, nullsFirst: false });
     if (error) { console.error(error); setLoading(false); return; }
 
     // Filter collections where at least one movie is in selected platforms
@@ -648,7 +656,7 @@ export default function App() {
         .not('imdb_score', 'is', null)
         .not('imdb_id', 'is', null)
         .or(platformFilter, { referencedTable: 'hub_availability' })
-        .or('title.ilike.%' + activeSearch + '%,original_title.ilike.%' + activeSearch + '%,cast_list.ilike.%' + activeSearch + '%,director.ilike.%' + activeSearch + '%')
+        .or('title.ilike.%' + activeSearch + '%,original_title.ilike.%' + activeSearch + '%,title_tr.ilike.%' + activeSearch + '%,cast_list.ilike.%' + activeSearch + '%,director.ilike.%' + activeSearch + '%')
         .order(sortBy, { ascending: sortAsc })
         .limit(500);
     }
@@ -712,6 +720,7 @@ export default function App() {
         </View>
         <View style={styles.info}>
           <Text style={styles.title} numberOfLines={2}>{item.original_language === 'tr' && item.title_tr ? item.title_tr : item.title}</Text>
+          {item.original_title && item.original_title !== item.title && <Text style={styles.originalTitle} numberOfLines={1}>{item.original_title}</Text>}
           <Text style={styles.cardMeta} numberOfLines={1}>
             {[typeLabel, genres, item.year].filter(Boolean).join(' · ')}
           </Text>
@@ -1134,6 +1143,10 @@ const styles = StyleSheet.create({
   popularCardTitle: { color: 'rgba(255,255,255,0.85)', fontSize: 11, lineHeight: 14, marginBottom: 4 },
   popularImdb: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   popularScore: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingHorizontal: 32 },
+  emptyEmoji: { fontSize: 48, marginBottom: 16 },
+  emptyText: { color: '#ffffff', fontSize: 18, fontWeight: '600', marginBottom: 8, textAlign: 'center' },
+  emptySubText: { color: 'rgba(255,255,255,0.4)', fontSize: 14, textAlign: 'center', lineHeight: 20 },
   popularRankBadge: { position: 'absolute', top: 6, left: 6, zIndex: 1, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 },
   popularRank: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
   popularFireBadge: { backgroundColor: 'rgba(26,26,46,0.9)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 },
