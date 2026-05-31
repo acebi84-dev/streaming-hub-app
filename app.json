@@ -12,7 +12,8 @@
       "jsEngine": "jsc",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "jsEngine": "jsc",
@@ -40,6 +41,12 @@
           "image": "./assets/images/splash.png",
           "imageWidth": 400,
           "resizeMode": "contain"
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.556246058284-50k1stl1ivqfqgu1sql3pfg9ucr0h04v"
         }
       ]
     ],

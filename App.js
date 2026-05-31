@@ -2,14 +2,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 
 SplashScreen.preventAutoHideAsync();
+
+GoogleSignin.configure({
+  iosClientId: '556246058284-50k1stl1ivqfqgu1sql3pfg9ucr0h04v.apps.googleusercontent.com',
+  webClientId: '556246058284-r4vmadiam9e59t6spf8flav811an8vq4.apps.googleusercontent.com',
+  scopes: ['email', 'profile'],
+});
 import {
   StyleSheet, Text, View, FlatList, TextInput, TouchableOpacity,
   Image, ActivityIndicator, SafeAreaView, StatusBar, ScrollView,
-  Animated, Modal,
+  Animated, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Linking } from 'react-native';
 import { supabase } from './supabase';
-import { Compass, TrendingUp, Film, Sparkles, ChevronLeft } from 'lucide-react-native';
+import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff } from 'lucide-react-native';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 const PLATFORMS = [
   { slug: 'netflix',  name: 'Netflix',      color: '#E50914', darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
@@ -897,8 +905,237 @@ function FloatingBackBtn({ onPress }) {
   );
 }
 
+
+// ── Auth Screen ──────────────────────────────────────────────
+function AuthScreen({ onAuth }) {
+  const [mode, setMode] = useState('login'); // 'login' | 'signup' | 'forgot'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [msg, setMsg] = useState('');
+
+  async function handleEmail() {
+    if (!email || !password) { setError('Email ve şifre gerekli'); return; }
+    setLoading(true); setError(''); setMsg('');
+    try {
+      let result;
+      if (mode === 'login') {
+        result = await supabase.auth.signInWithPassword({ email, password });
+      } else {
+        result = await supabase.auth.signUp({ email, password });
+        if (!result.error) setMsg('Doğrulama emaili gönderildi. Emailini kontrol et.');
+      }
+      if (result.error) setError(result.error.message);
+      else if (mode === 'login' && result.data?.user) onAuth(result.data.user);
+    } catch(e) { setError(e.message); }
+    setLoading(false);
+  }
+
+  async function handleForgot() {
+    if (!email) { setError('Email adresin gerekli'); return; }
+    setLoading(true); setError(''); setMsg('');
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) setError(error.message);
+    else setMsg('Şifre sıfırlama emaili gönderildi.');
+    setLoading(false);
+  }
+
+  async function handleGoogle() {
+    setLoading(true); setError('');
+    try {
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo.data?.idToken || userInfo.idToken;
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: idToken,
+      });
+      if (error) setError(error.message);
+      else if (data?.user) onAuth(data.user);
+    } catch(e) {
+      if (e.code !== '-5') setError(e.message || 'Google giriş başarısız');
+    }
+    setLoading(false);
+  }
+
+  async function handleApple() {
+    setLoading(true); setError('');
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+      });
+      if (error) setError(error.message);
+      else if (data?.user) onAuth(data.user);
+    } catch(e) {
+      if (e.code !== 'ERR_REQUEST_CANCELED') setError(e.message || 'Apple giriş başarısız');
+    }
+    setLoading(false);
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+      <StatusBar barStyle="light-content" />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={authStyles.container} keyboardShouldPersistTaps="handled">
+
+          {/* Logo */}
+          <View style={authStyles.logoWrap}>
+            <Image source={require('./assets/images/logo.png')} style={authStyles.logo} resizeMode="contain" />
+            <Text style={authStyles.title}>İzlio</Text>
+            <Text style={authStyles.subtitle}>Bir sonraki favorini keşfet.</Text>
+          </View>
+
+          {/* Social Buttons */}
+          <View style={authStyles.socialWrap}>
+            <TouchableOpacity style={authStyles.googleBtn} onPress={handleGoogle} disabled={loading}>
+              <Text style={authStyles.googleIcon}>G</Text>
+              <Text style={authStyles.googleText}>Google ile devam et</Text>
+            </TouchableOpacity>
+
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+              cornerRadius={14}
+              style={authStyles.appleBtn}
+              onPress={handleApple}
+            />
+          </View>
+
+          <View style={authStyles.dividerRow}>
+            <View style={authStyles.divider} />
+            <Text style={authStyles.dividerText}>ya da email ile</Text>
+            <View style={authStyles.divider} />
+          </View>
+
+          {/* Email & Password */}
+          <View style={authStyles.inputWrap}>
+            <View style={authStyles.inputRow}>
+              <Mail size={18} color="rgba(255,255,255,0.4)" strokeWidth={1.8} />
+              <TextInput
+                style={authStyles.input}
+                placeholder="Email"
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            {mode !== 'forgot' && (
+              <View style={authStyles.inputRow}>
+                <EyeOff size={18} color="rgba(255,255,255,0.4)" strokeWidth={1.8} />
+                <TextInput
+                  style={authStyles.input}
+                  placeholder="Şifre"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPass}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity onPress={() => setShowPass(!showPass)}>
+                  {showPass
+                    ? <Eye size={18} color="rgba(255,255,255,0.5)" strokeWidth={1.8} />
+                    : <EyeOff size={18} color="rgba(255,255,255,0.3)" strokeWidth={1.8} />}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          {error ? <Text style={authStyles.error}>{error}</Text> : null}
+          {msg ? <Text style={authStyles.success}>{msg}</Text> : null}
+
+          {/* Main Button */}
+          <TouchableOpacity
+            style={[authStyles.mainBtn, loading && { opacity: 0.6 }]}
+            onPress={mode === 'forgot' ? handleForgot : handleEmail}
+            disabled={loading}
+          >
+            {loading
+              ? <ActivityIndicator color="#000" />
+              : <Text style={authStyles.mainBtnText}>
+                  {mode === 'login' ? 'Giriş Yap' : mode === 'signup' ? 'Kayıt Ol' : 'Şifremi Sıfırla'}
+                </Text>}
+          </TouchableOpacity>
+
+          {/* Mode Switch */}
+          <View style={authStyles.switchRow}>
+            {mode === 'login' && <>
+              <TouchableOpacity onPress={() => { setMode('signup'); setError(''); setMsg(''); }}>
+                <Text style={authStyles.linkText}>Hesap oluştur</Text>
+              </TouchableOpacity>
+              <Text style={authStyles.dot}> · </Text>
+              <TouchableOpacity onPress={() => { setMode('forgot'); setError(''); setMsg(''); }}>
+                <Text style={authStyles.linkText}>Şifremi unuttum</Text>
+              </TouchableOpacity>
+            </>}
+            {mode !== 'login' && (
+              <TouchableOpacity onPress={() => { setMode('login'); setError(''); setMsg(''); }}>
+                <Text style={authStyles.linkText}>Zaten hesabım var</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const authStyles = StyleSheet.create({
+  container: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 20, paddingBottom: 40, justifyContent: 'center' },
+  logoWrap: { alignItems: 'center', marginBottom: 40 },
+  logo: { width: 72, height: 72, borderRadius: 18, marginBottom: 14 },
+  title: { color: '#fff', fontSize: 34, fontWeight: '800', letterSpacing: 1 },
+  subtitle: { color: 'rgba(255,255,255,0.45)', fontSize: 15, marginTop: 6 },
+  socialWrap: { gap: 12, marginBottom: 24 },
+  googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 14, paddingVertical: 14 },
+  googleIcon: { fontSize: 18, fontWeight: '800', color: '#4285F4' },
+  googleText: { fontSize: 16, fontWeight: '700', color: '#111' },
+  appleBtn: { width: '100%', height: 50 },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
+  divider: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
+  dividerText: { color: 'rgba(255,255,255,0.35)', fontSize: 13 },
+  inputWrap: { gap: 12, marginBottom: 16 },
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  input: { flex: 1, color: '#fff', fontSize: 16 },
+  error: { color: '#ff6b6b', fontSize: 13, textAlign: 'center', marginBottom: 10 },
+  success: { color: '#51cf66', fontSize: 13, textAlign: 'center', marginBottom: 10 },
+  mainBtn: { backgroundColor: '#fff', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginBottom: 20 },
+  mainBtnText: { color: '#000', fontSize: 16, fontWeight: '800' },
+  switchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
+  linkText: { color: 'rgba(255,255,255,0.6)', fontSize: 14, textDecorationLine: 'underline' },
+  dot: { color: 'rgba(255,255,255,0.3)' },
+});
+
 export default function App() {
-  useEffect(() => { setTimeout(() => SplashScreen.hideAsync(), 2000); }, []);
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!authLoading) setTimeout(() => SplashScreen.hideAsync(), 2000);
+  }, [authLoading]);
 
   const [activeTab, setActiveTab] = useState('discover');
   const [showHome, setShowHome] = useState(true);
@@ -1059,6 +1296,9 @@ export default function App() {
       </TouchableOpacity>
     );
   }
+
+  if (authLoading) return null;
+  if (!user) return <AuthScreen onAuth={(u) => setUser(u)} />;
 
   return (
     <SafeAreaView style={styles.container}>
