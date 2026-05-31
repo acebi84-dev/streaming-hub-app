@@ -501,13 +501,7 @@ function NewScreen({ selectedPlatforms, onBack }) {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
       <View style={styles.popularHeader}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 }}>
-          <TouchableOpacity style={styles.backBtn} onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <ChevronLeft size={17} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
-            <Text style={styles.backBtnText}>Geri Dön</Text>
-          </TouchableOpacity>
-          <Text style={styles.sectionTitle}>En Yeniler</Text>
-        </View>
+        <Text style={styles.sectionTitle}>En Yeniler</Text>
         <Text style={styles.popularHeaderSub}>Platforma yeni eklenenler</Text>
       </View>
       <View style={styles.popularTopBar}>
@@ -713,13 +707,7 @@ function PopularScreen({ selectedPlatforms, onBack }) {
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
 
       <View style={styles.popularHeader}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 }}>
-          <TouchableOpacity style={styles.backBtn} onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <ChevronLeft size={17} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
-            <Text style={styles.backBtnText}>Geri Dön</Text>
-          </TouchableOpacity>
-          <Text style={styles.sectionTitle}>Popüler</Text>
-        </View>
+        <Text style={styles.sectionTitle}>Popüler</Text>
         <Text style={styles.popularHeaderSub}>Türkiye kataloğunda izlenebilir</Text>
       </View>
       {/* Netflix-style top filter bar */}
@@ -897,6 +885,21 @@ function HomeScreen({ selectedPlatforms, onPlatformToggle, onNavigate }) {
 
       </Animated.View>
     </ScrollView>
+  );
+}
+
+
+function FloatingBackBtn({ onPress }) {
+  return (
+    <TouchableOpacity
+      style={styles.floatingBackBtn}
+      onPress={onPress}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      activeOpacity={0.75}
+    >
+      <ChevronLeft size={16} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
+      <Text style={styles.floatingBackBtnText}>Geri Dön</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -1081,9 +1084,15 @@ export default function App() {
       ) : activeTab === 'popular' ? (
           <PopularScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} />
       ) : activeTab === 'new' ? (
+        <View style={{ flex: 1 }}>
           <NewScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} />
+          <FloatingBackBtn onPress={() => setShowHome(true)} />
+        </View>
       ) : activeTab === 'collections' ? (
+        <View style={{ flex: 1 }}>
           <CollectionsScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} />
+          <FloatingBackBtn onPress={() => setShowHome(true)} />
+        </View>
       ) : (
         <View style={{ flex: 1 }}>
 
@@ -1091,10 +1100,6 @@ export default function App() {
       {/* Mini Header */}
       <View style={styles.miniHeader}>
         <Text style={styles.miniHeaderTitle}>Keşfet</Text>
-        <TouchableOpacity style={styles.backBtn} onPress={() => setShowHome(true)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <ChevronLeft size={17} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
-          <Text style={styles.backBtnText}>Geri Dön</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Arama */}
@@ -1234,6 +1239,7 @@ export default function App() {
         </View>
       )}
 
+        <FloatingBackBtn onPress={() => setShowHome(true)} />
         </View>
       )}
     </SafeAreaView>
@@ -1480,6 +1486,8 @@ const styles = StyleSheet.create({
   homeLogoIcon: { width: 44, height: 44, borderRadius: 10 },
   miniHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 10 },
   miniHeaderBack: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  floatingBackBtn: { position: 'absolute', bottom: 28, right: 20, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(30,30,40,0.92)', borderRadius: 24, paddingHorizontal: 18, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
+  floatingBackBtnText: { color: 'white', fontSize: 15, fontWeight: '700', letterSpacing: 0.2 },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   backBtnText: { color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: '700', letterSpacing: 0.2 },
   miniHeaderTitle: { flex: 1, color: '#fff', fontSize: 18, fontWeight: '700', letterSpacing: 0.5 },
