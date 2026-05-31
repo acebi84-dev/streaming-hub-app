@@ -1,7 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import * as SplashScreen from 'expo-splash-screen';
-
-SplashScreen.preventAutoHideAsync();
 import {
   StyleSheet, Text, View, FlatList, TextInput, TouchableOpacity,
   Image, ActivityIndicator, SafeAreaView, StatusBar, ScrollView,
@@ -12,10 +9,10 @@ import { supabase } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles } from 'lucide-react-native';
 
 const PLATFORMS = [
-  { slug: 'netflix',  name: 'Netflix',      color: '#E50914', darkLogo: null },
-  { slug: 'amazon',   name: 'Prime Video',  color: '#00A8E1', darkLogo: null },
-  { slug: 'disney',   name: 'Disney+',      color: '#0063E5', darkLogo: null },
-  { slug: 'hbo',      name: 'HBO Max',      color: '#8B4FBE', darkLogo: null },
+  { slug: 'netflix',  name: 'Netflix',      color: '#E50914', darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
+  { slug: 'amazon',   name: 'Prime Video',  color: '#00A8E1', darkLogo: 'https://media.movieofthenight.com/services/prime/logo-white.svg' },
+  { slug: 'disney',   name: 'Disney+',      color: '#0063E5', darkLogo: 'https://media.movieofthenight.com/services/disney/logo-white.svg' },
+  { slug: 'hbo',      name: 'HBO Max',      color: '#8B4FBE', darkLogo: 'https://media.movieofthenight.com/services/hbo/logo-white.svg' },
 ];
 
 const GENRES = [
@@ -111,7 +108,7 @@ function PlatformModal({ visible, selected, onSave, onClose }) {
                 return (
                   <TouchableOpacity key={p.slug} style={[styles.platformCard, isSel && { borderColor: p.color, borderWidth: 2 }]} onPress={() => toggle(p.slug)}>
                     <View style={[styles.platformCardBg, { backgroundColor: p.color }]}>
-                      {p.darkLogo ? <Image source={{ uri: p.darkLogo }} style={styles.platformCardLogo} resizeMode="contain" /> : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{p.name}</Text>}
+                      <Image source={{ uri: p.darkLogo }} style={styles.platformCardLogo} resizeMode="contain" />
                     </View>
                     {isSel && <View style={[styles.platformCardCheck, { backgroundColor: p.color }]}><Text style={styles.platformCardCheckText}>✓</Text></View>}
                   </TouchableOpacity>
@@ -764,10 +761,113 @@ function PopularScreen({ selectedPlatforms }) {
   );
 }
 
-export default function App() {
-  useEffect(() => { SplashScreen.hideAsync(); }, []);
 
+function HomeScreen({ selectedPlatforms, onPlatformToggle, onNavigate }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 700, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const TABS = [
+    {
+      id: 'discover',
+      icon: <Compass size={28} color="#ffffff" strokeWidth={1.6} />,
+      name: 'Keşfet',
+      desc: 'Tüm içeriklerde ara, puanla sırala, türe göre filtrele',
+      color: '#0A84FF',
+    },
+    {
+      id: 'popular',
+      icon: <TrendingUp size={28} color="#ffffff" strokeWidth={1.6} />,
+      name: 'Popüler',
+      desc: 'Şu an en çok izlenen filmler ve diziler',
+      color: '#FF375F',
+    },
+    {
+      id: 'new',
+      icon: <Sparkles size={28} color="#ffffff" strokeWidth={1.6} />,
+      name: 'Yeniler',
+      desc: 'Platforma bu hafta yeni eklenen içerikler',
+      color: '#30D158',
+    },
+    {
+      id: 'collections',
+      icon: <Film size={28} color="#ffffff" strokeWidth={1.6} />,
+      name: 'Koleksiyon',
+      desc: 'Sinema evrenleri, seriler ve özel listeler',
+      color: '#BF5AF2',
+    },
+  ];
+
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: '#000' }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+
+        {/* Logo & Tagline */}
+        <View style={styles.homeLogo}>
+          <Text style={styles.homeTitle}>İzlio</Text>
+          <Text style={styles.homeTagline}>Bir sonraki favorini keşfet.</Text>
+        </View>
+
+        {/* Platform Seçimi */}
+        <View style={styles.homeSectionWrap}>
+          <Text style={styles.homeSectionLabel}>Platformlarını seç</Text>
+          <View style={styles.homePlatformRow}>
+            {PLATFORMS.map(p => {
+              const isSelected = selectedPlatforms.includes(p.slug);
+              return (
+                <TouchableOpacity
+                  key={p.slug}
+                  style={[styles.homePlatformCard, { borderColor: isSelected ? p.color : 'rgba(255,255,255,0.1)' }]}
+                  onPress={() => onPlatformToggle(p.slug)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.homePlatformDot, { backgroundColor: p.color }]} />
+                  <Text style={[styles.homePlatformName, { color: isSelected ? '#fff' : 'rgba(255,255,255,0.4)' }]}>{p.name}</Text>
+                  {isSelected && <View style={[styles.homePlatformCheck, { backgroundColor: p.color }]}><Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>✓</Text></View>}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Sekme Kartları */}
+        <View style={styles.homeSectionWrap}>
+          <Text style={styles.homeSectionLabel}>Ne yapmak istersin?</Text>
+          <View style={styles.homeTabGrid}>
+            {TABS.map(tab => (
+              <TouchableOpacity
+                key={tab.id}
+                style={styles.homeTabCard}
+                onPress={() => onNavigate(tab.id)}
+                activeOpacity={0.85}
+              >
+                <View style={[styles.homeTabIconWrap, { backgroundColor: tab.color + '22' }]}>
+                  {React.cloneElement(tab.icon, { color: tab.color })}
+                </View>
+                <Text style={styles.homeTabName}>{tab.name}</Text>
+                <Text style={styles.homeTabDesc}>{tab.desc}</Text>
+                <View style={[styles.homeTabArrow, { backgroundColor: tab.color }]}>
+                  <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>›</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+      </Animated.View>
+    </ScrollView>
+  );
+}
+
+export default function App() {
   const [activeTab, setActiveTab] = useState('discover');
+  const [showHome, setShowHome] = useState(true);
   const [contents, setContents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
@@ -924,7 +1024,27 @@ export default function App() {
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
       <PlatformModal visible={showPlatformModal} selected={selectedPlatforms} onSave={handlePlatformSave} onClose={() => setShowPlatformModal(false)} />
 
-      {activeTab === 'popular' ? (
+      {showHome ? (
+        <>
+          <View style={styles.homeTopBar}>
+            <Text style={styles.homeTopBarTitle}>İzlio</Text>
+          </View>
+          <HomeScreen
+            selectedPlatforms={selectedPlatforms}
+            onPlatformToggle={handlePlatformToggle}
+            onNavigate={(tab) => { setActiveTab(tab); setShowHome(false); }}
+          />
+          <View style={styles.homeBottomBar}>
+            <TouchableOpacity
+              style={[styles.homeStartBtn, selectedPlatforms.length === 0 && { opacity: 0.4 }]}
+              onPress={() => { if (selectedPlatforms.length > 0) { setActiveTab('discover'); setShowHome(false); } }}
+              disabled={selectedPlatforms.length === 0}
+            >
+              <Text style={styles.homeStartBtnText}>Keşfetmeye Başla →</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      ) : activeTab === 'popular' ? (
         <>
           <PopularScreen selectedPlatforms={selectedPlatforms} />
           <View style={styles.tabBar}>
@@ -1150,6 +1270,10 @@ export default function App() {
         </View>
       )}
           <View style={styles.tabBar}>
+            <TouchableOpacity style={styles.tabItem} onPress={() => setShowHome(true)}>
+              <Text style={styles.tabLabel}>🏠</Text>
+              <Text style={styles.tabLabel}>Ana</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]} onPress={() => setActiveTab('discover')}>
               <Compass size={22} color="#ffffff" strokeWidth={1.8} />
               <Text style={[styles.tabLabel, styles.tabLabelActive]}>Keşfet</Text>
@@ -1389,4 +1513,27 @@ const styles = StyleSheet.create({
   platformLogoCard: { flex: 1, minWidth: '45%', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, justifyContent: 'center', alignItems: 'center' },
   platformLogoImg: { width: 80, height: 22 },
   platformLogoOff: { fontSize: 10, fontWeight: '700', marginTop: 4 },
+
+  // Home Screen
+  homeTopBar: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
+  homeTopBarTitle: { color: '#fff', fontSize: 28, fontWeight: '700', letterSpacing: 2 },
+  homeLogo: { alignItems: 'center', paddingTop: 20, paddingBottom: 28 },
+  homeTitle: { color: '#fff', fontSize: 42, fontWeight: '800', letterSpacing: 1 },
+  homeTagline: { color: 'rgba(255,255,255,0.45)', fontSize: 15, marginTop: 6, letterSpacing: 0.3 },
+  homeSectionWrap: { paddingHorizontal: 20, marginBottom: 28 },
+  homeSectionLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '600', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 },
+  homePlatformRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  homePlatformCard: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, backgroundColor: 'rgba(255,255,255,0.05)', position: 'relative', width: '47%' },
+  homePlatformDot: { width: 8, height: 8, borderRadius: 4 },
+  homePlatformName: { fontSize: 13, fontWeight: '600' },
+  homePlatformCheck: { position: 'absolute', top: -5, right: -5, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  homeTabGrid: { gap: 12 },
+  homeTabCard: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', position: 'relative' },
+  homeTabIconWrap: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  homeTabName: { color: '#fff', fontSize: 17, fontWeight: '700', marginBottom: 4 },
+  homeTabDesc: { color: 'rgba(255,255,255,0.45)', fontSize: 13, lineHeight: 18 },
+  homeTabArrow: { position: 'absolute', top: 18, right: 18, width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  homeBottomBar: { padding: 16, paddingBottom: 24 },
+  homeStartBtn: { backgroundColor: '#fff', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  homeStartBtnText: { color: '#000', fontSize: 16, fontWeight: '700' },
 });
