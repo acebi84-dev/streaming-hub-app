@@ -794,7 +794,7 @@ export default function App() {
       {/* Header - Apple TV minimal */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.appTitle}>Ne İzlesek?</Text>
+          <Text style={styles.appTitle}>İzlio</Text>
           <TouchableOpacity style={styles.platformSelectBtn} onPress={() => setShowPlatformModal(true)}>
             <View style={styles.platformSelectDots}>
               {selectedPlatforms.slice(0, 4).map(slug => {
