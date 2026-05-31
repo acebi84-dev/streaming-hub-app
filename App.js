@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Linking } from 'react-native';
 import { supabase } from './supabase';
-import { Compass, TrendingUp, Film, Sparkles, RotateCcw } from 'lucide-react-native';
+import { Compass, TrendingUp, Film, Sparkles, ChevronLeft } from 'lucide-react-native';
 
 const PLATFORMS = [
   { slug: 'netflix',  name: 'Netflix',      color: '#E50914', darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
@@ -262,6 +262,8 @@ const POPULAR_GENRES = [
 function CollectionsScreen({ selectedPlatforms, onBack }) {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
+  const isMounted = useRef(true);
+  useEffect(() => { return () => { isMounted.current = false; }; }, []);
   const [selectedGenre, setSelectedGenre] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
@@ -277,6 +279,7 @@ function CollectionsScreen({ selectedPlatforms, onBack }) {
   useEffect(() => { fetchCollections(); }, [sortBy, sortAscCol]);
 
   async function fetchCollections() {
+    if (!isMounted.current) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('hub_collections')
@@ -313,8 +316,9 @@ function CollectionsScreen({ selectedPlatforms, onBack }) {
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <TouchableOpacity style={styles.miniHeaderBack} onPress={onBack}>
-            <RotateCcw size={18} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
+          <TouchableOpacity style={styles.backBtn} onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <ChevronLeft size={17} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
+            <Text style={styles.backBtnText}>Geri Dön</Text>
           </TouchableOpacity>
           <Text style={styles.sectionTitle}>Koleksiyonlar</Text>
         </View>
@@ -438,6 +442,8 @@ function NewScreen({ selectedPlatforms, onBack }) {
   const [items, setItems] = useState({});
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('week');
+  const isMountedNew = useRef(true);
+  useEffect(() => { return () => { isMountedNew.current = false; }; }, []);
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
   const [typeFilter, setTypeFilter] = useState('all');
   const [genreFilter, setGenreFilter] = useState(null);
@@ -447,6 +453,7 @@ function NewScreen({ selectedPlatforms, onBack }) {
   useEffect(() => { fetchNew(); }, [selectedPlatforms, period]);
 
   async function fetchNew() {
+    if (!isMountedNew.current) return;
     setLoading(true);
     const now = new Date();
     let fromDate;
@@ -466,6 +473,8 @@ function NewScreen({ selectedPlatforms, onBack }) {
       .gte('available_since', fromStr)
       .order('available_since', { ascending: false })
       .limit(300);
+    if (!isMountedNew.current) return;
+    if (!isMountedPop.current) return;
     if (error) { console.error(error); setLoading(false); return; }
     const grouped = {};
     (data || []).forEach(row => {
@@ -493,8 +502,9 @@ function NewScreen({ selectedPlatforms, onBack }) {
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
       <View style={styles.popularHeader}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 }}>
-          <TouchableOpacity style={styles.miniHeaderBack} onPress={onBack}>
-            <RotateCcw size={18} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
+          <TouchableOpacity style={styles.backBtn} onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <ChevronLeft size={17} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
+            <Text style={styles.backBtnText}>Geri Dön</Text>
           </TouchableOpacity>
           <Text style={styles.sectionTitle}>En Yeniler</Text>
         </View>
@@ -609,6 +619,8 @@ function NewScreen({ selectedPlatforms, onBack }) {
 function PopularScreen({ selectedPlatforms, onBack }) {
   const [popular, setPopular] = useState({});
   const [loading, setLoading] = useState(true);
+  const isMountedPop = useRef(true);
+  useEffect(() => { return () => { isMountedPop.current = false; }; }, []);
   const [selectedItem, setSelectedItem] = useState(null);
   const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'movie', 'series'
   const [genreFilter, setGenreFilter] = useState(null);
@@ -617,6 +629,7 @@ function PopularScreen({ selectedPlatforms, onBack }) {
   useEffect(() => { fetchPopular(); }, [selectedPlatforms]);
 
   async function fetchPopular() {
+    if (!isMountedPop.current) return;
     setLoading(true);
     const platforms = selectedPlatforms.length > 0 ? selectedPlatforms : PLATFORMS.map(p => p.slug);
     const { data, error } = await supabase
@@ -701,8 +714,9 @@ function PopularScreen({ selectedPlatforms, onBack }) {
 
       <View style={styles.popularHeader}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 }}>
-          <TouchableOpacity style={styles.miniHeaderBack} onPress={onBack}>
-            <RotateCcw size={18} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
+          <TouchableOpacity style={styles.backBtn} onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <ChevronLeft size={17} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
+            <Text style={styles.backBtnText}>Geri Dön</Text>
           </TouchableOpacity>
           <Text style={styles.sectionTitle}>Popüler</Text>
         </View>
@@ -1077,8 +1091,9 @@ export default function App() {
       {/* Mini Header */}
       <View style={styles.miniHeader}>
         <Text style={styles.miniHeaderTitle}>Keşfet</Text>
-        <TouchableOpacity style={styles.miniHeaderBack} onPress={() => setShowHome(true)}>
-          <RotateCcw size={20} color="rgba(255,255,255,0.6)" strokeWidth={1.8} />
+        <TouchableOpacity style={styles.backBtn} onPress={() => setShowHome(true)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <ChevronLeft size={17} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
+          <Text style={styles.backBtnText}>Geri Dön</Text>
         </TouchableOpacity>
       </View>
 
@@ -1465,5 +1480,7 @@ const styles = StyleSheet.create({
   homeLogoIcon: { width: 44, height: 44, borderRadius: 10 },
   miniHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 10 },
   miniHeaderBack: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  backBtnText: { color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: '700', letterSpacing: 0.2 },
   miniHeaderTitle: { flex: 1, color: '#fff', fontSize: 18, fontWeight: '700', letterSpacing: 0.5 },
 });
