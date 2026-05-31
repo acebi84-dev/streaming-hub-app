@@ -21,6 +21,21 @@ import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff } f
 const GoogleSignin = Platform.OS !== 'web' ? require('@react-native-google-signin/google-signin').GoogleSignin : null;
 import * as AppleAuthentication from 'expo-apple-authentication';
 
+
+const GENRES = [
+  { id: 'action',    label: 'Aksiyon',      emoji: '💥' },
+  { id: 'comedy',    label: 'Komedi',        emoji: '😂' },
+  { id: 'drama',     label: 'Drama',         emoji: '🎭' },
+  { id: 'crime',     label: 'Suç',           emoji: '🔪' },
+  { id: 'scifi',     label: 'Bilim Kurgu',   emoji: '🚀' },
+  { id: 'horror',    label: 'Korku',         emoji: '👻' },
+  { id: 'documentary', label: 'Belgesel',    emoji: '🎥' },
+  { id: 'animation', label: 'Animasyon',     emoji: '🎨' },
+  { id: 'romance',   label: 'Romantik',      emoji: '❤️' },
+  { id: 'thriller',  label: 'Gerilim',       emoji: '😰' },
+  { id: 'fantasy',   label: 'Fantastik',     emoji: '🧙' },
+  { id: 'history',   label: 'Tarih',         emoji: '⚔️' },
+];
 const PLATFORMS = [
   { slug: 'netflix',  name: 'Netflix',      color: '#E50914', darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
   { slug: 'amazon',   name: 'Prime Video',  color: '#00A8E1', darkLogo: 'https://media.movieofthenight.com/services/prime/logo-white.svg' },
@@ -209,7 +224,7 @@ function DetailModal({ item, onClose }) {
                       const p = PLATFORMS.find(x => x.slug === a.platform_slug);
                       if (!p) return null;
                       return (
-                        <TouchableOpacity key={a.platform_slug} style={[styles.modalPlatformBtn, { backgroundColor: p.color }]} onPress={() => a.platform_url && Linking.openURL(a.platform_url)} disabled={!a.platform_url}>
+                        <TouchableOpacity key={a.platform_slug} style={[styles.modalPlatformBtn, { backgroundColor: p.color }]} onPress={() => openPlatformUrl(a.platform_slug, a.platform_url)} disabled={!a.platform_url}>
                           <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>{p.name}</Text>
                         </TouchableOpacity>
                       );
@@ -223,8 +238,8 @@ function DetailModal({ item, onClose }) {
             {cur.cast_list ? <Text style={styles.modalDetail}>👥 <Text style={styles.modalDetailLabel}>Oyuncular: </Text>{cur.cast_list}</Text> : null}
             {cur.synopsis_tr ? (<><Text style={styles.modalSynopsisTitle}>Konu</Text><Text style={styles.modalSynopsis}>{cur.synopsis_tr}</Text></>) : null}
             <View style={styles.modalButtons}>
-              {cur.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={() => window.open(cur.trailer_url, '_blank')}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
-              {cur.imdb_id && <TouchableOpacity style={styles.imdbLinkBtn} onPress={() => window.open('https://www.imdb.com/title/' + cur.imdb_id + '/', '_blank')}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.imdbLinkText}>↗ imdb.com</Text></TouchableOpacity>}
+              {cur.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={() => Linking.openURL(cur.trailer_url)}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
+              {cur.imdb_id && <TouchableOpacity style={styles.imdbLinkBtn} onPress={() => Linking.openURL('https://www.imdb.com/title/' + cur.imdb_id + '/')}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.imdbLinkText}>↗ imdb.com</Text></TouchableOpacity>}
               {itemStack.length > 1 && <TouchableOpacity style={styles.closeBtn} onPress={() => setItemStack(prev => prev.slice(0,-1))}><Text style={styles.closeBtnText}>← Geri</Text></TouchableOpacity>}
               <TouchableOpacity style={styles.closeBtn} onPress={onClose}><Text style={styles.closeBtnText}>✕ Kapat</Text></TouchableOpacity>
             </View>
@@ -324,6 +339,14 @@ function CollectionsScreen({ selectedPlatforms, onBack }) {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <ProfileModal
+        visible={showProfile}
+        user={user}
+        selectedPlatforms={selectedPlatforms}
+        onClose={() => setShowProfile(false)}
+        onSave={(platforms) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); }}
+        onSignOut={async () => { await supabase.auth.signOut(); setUser(null); setShowProfile(false); }}
+      />
       <View style={styles.header}>
         <Text style={styles.sectionTitle}>Koleksiyonlar</Text>
       </View>
@@ -504,6 +527,14 @@ function NewScreen({ selectedPlatforms, onBack }) {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <ProfileModal
+        visible={showProfile}
+        user={user}
+        selectedPlatforms={selectedPlatforms}
+        onClose={() => setShowProfile(false)}
+        onSave={(platforms) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); }}
+        onSignOut={async () => { await supabase.auth.signOut(); setUser(null); setShowProfile(false); }}
+      />
       <View style={styles.popularHeader}>
         <Text style={styles.sectionTitle}>En Yeniler</Text>
         <Text style={styles.popularHeaderSub}>Platforma yeni eklenenler</Text>
@@ -709,6 +740,14 @@ function PopularScreen({ selectedPlatforms, onBack }) {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <ProfileModal
+        visible={showProfile}
+        user={user}
+        selectedPlatforms={selectedPlatforms}
+        onClose={() => setShowProfile(false)}
+        onSave={(platforms) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); }}
+        onSignOut={async () => { await supabase.auth.signOut(); setUser(null); setShowProfile(false); }}
+      />
 
       <View style={styles.popularHeader}>
         <Text style={styles.sectionTitle}>Popüler</Text>
@@ -832,6 +871,14 @@ function HomeScreen({ selectedPlatforms, onPlatformToggle, onNavigate }) {
     <ScrollView style={{ flex: 1, backgroundColor: '#000' }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
       <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
 
+        {/* Top bar */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8 }}>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity onPress={() => setShowProfile(true)} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
+            <Text style={{ fontSize: 18 }}>👤</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Logo & Tagline */}
         <View style={styles.homeLogo}>
           <View style={styles.homeLogoRow}>
@@ -893,6 +940,20 @@ function HomeScreen({ selectedPlatforms, onPlatformToggle, onNavigate }) {
 }
 
 
+
+function openPlatformUrl(slug, url) {
+  if (!url) return;
+  const nativeSchemes = {
+    netflix: url.replace('https://www.netflix.com', 'nflx://www.netflix.com'),
+    amazon: url.replace('https://www.amazon.com', 'aiv://aiv').replace('https://www.primevideo.com', 'aiv://aiv'),
+    disney: url.replace('https://www.disneyplus.com', 'disneyplus://'),
+    hbo: url.replace('https://www.max.com', 'max://').replace('https://play.hbomax.com', 'max://'),
+  };
+  const nativeUrl = nativeSchemes[slug] || url;
+  Linking.canOpenURL(nativeUrl).then(supported => {
+    Linking.openURL(supported ? nativeUrl : url);
+  }).catch(() => Linking.openURL(url));
+}
 function FloatingBackBtn({ onPress }) {
   return (
     <TouchableOpacity
@@ -907,6 +968,308 @@ function FloatingBackBtn({ onPress }) {
   );
 }
 
+
+
+// ── Onboarding Screen ─────────────────────────────────────────
+function OnboardingScreen({ user, onComplete }) {
+  const [step, setStep] = useState(0); // 0=welcome 1=platforms 2=genres 3=profile
+  const [selPlatforms, setSelPlatforms] = useState(['netflix','amazon','disney','hbo']);
+  const [selGenres, setSelGenres] = useState([]);
+  const [displayName, setDisplayName] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [gender, setGender] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  function togglePlatform(slug) {
+    setSelPlatforms(prev => prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug]);
+  }
+  function toggleGenre(id) {
+    setSelGenres(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
+  }
+
+  async function finish() {
+    setLoading(true);
+    await supabase.from('profiles').update({
+      selected_platforms: selPlatforms,
+      favorite_genres: selGenres,
+      display_name: displayName || null,
+      birth_date: birthDate || null,
+      gender: gender || null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', user.id);
+    onComplete({ platforms: selPlatforms, genres: selGenres });
+    setLoading(false);
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+      <StatusBar barStyle="light-content" />
+      {/* Progress */}
+      <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 24, paddingTop: 12, paddingBottom: 4 }}>
+        {[0,1,2,3].map(i => (
+          <View key={i} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: i <= step ? '#fff' : 'rgba(255,255,255,0.15)' }} />
+        ))}
+      </View>
+
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+
+        {step === 0 && (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
+            <Image source={require('./assets/images/logo.png')} style={{ width: 90, height: 90, borderRadius: 22, marginBottom: 24 }} resizeMode="contain" />
+            <Text style={{ color: '#fff', fontSize: 32, fontWeight: '800', letterSpacing: 0.5, marginBottom: 12 }}>İzlio'ya Hoş Geldin</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, textAlign: 'center', lineHeight: 24 }}>
+              Sana özel içerik keşfi için birkaç saniyeni al.
+            </Text>
+          </View>
+        )}
+
+        {step === 1 && (
+          <View style={{ paddingTop: 32 }}>
+            <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', marginBottom: 6 }}>Platformlarını Seç</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, marginBottom: 28 }}>Hangi platformlara aboneliğin var?</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+              {PLATFORMS.map(p => {
+                const sel = selPlatforms.includes(p.slug);
+                return (
+                  <TouchableOpacity key={p.slug}
+                    style={{ width: '47%', aspectRatio: 2.2, borderRadius: 14, backgroundColor: sel ? p.color : 'rgba(255,255,255,0.07)', borderWidth: 2, borderColor: sel ? p.color : 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}
+                    onPress={() => togglePlatform(p.slug)}>
+                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>{p.name}</Text>
+                    {sel && <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 2 }}>✓ Seçildi</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {step === 2 && (
+          <View style={{ paddingTop: 32 }}>
+            <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', marginBottom: 6 }}>Favori Türlerin</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, marginBottom: 28 }}>Birden fazla seçebilirsin.</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              {GENRES.map(g => {
+                const sel = selGenres.includes(g.id);
+                return (
+                  <TouchableOpacity key={g.id}
+                    style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24, backgroundColor: sel ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: sel ? '#fff' : 'rgba(255,255,255,0.12)' }}
+                    onPress={() => toggleGenre(g.id)}>
+                    <Text style={{ color: sel ? '#000' : '#fff', fontWeight: sel ? '700' : '500', fontSize: 14 }}>{g.emoji} {g.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {step === 3 && (
+          <View style={{ paddingTop: 32 }}>
+            <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', marginBottom: 6 }}>Profilini Tamamla</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, marginBottom: 28 }}>İsteğe bağlı — dilersen atlayabilirsin.</Text>
+
+            <View style={{ gap: 14 }}>
+              <View style={obStyles.inputRow}>
+                <TextInput style={obStyles.input} placeholder="İsmin (isteğe bağlı)" placeholderTextColor="rgba(255,255,255,0.3)" value={displayName} onChangeText={setDisplayName} />
+              </View>
+              <View style={obStyles.inputRow}>
+                <TextInput style={obStyles.input} placeholder="Doğum tarihi (YYYY-AA-GG)" placeholderTextColor="rgba(255,255,255,0.3)" value={birthDate} onChangeText={setBirthDate} keyboardType="numbers-and-punctuation" />
+              </View>
+              <View style={{ gap: 8 }}>
+                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 4 }}>Cinsiyet (isteğe bağlı)</Text>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  {[['male','Erkek'],['female','Kadın'],['other','Diğer']].map(([val, label]) => (
+                    <TouchableOpacity key={val}
+                      style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: gender === val ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: gender === val ? '#fff' : 'rgba(255,255,255,0.12)', alignItems: 'center' }}
+                      onPress={() => setGender(prev => prev === val ? '' : val)}>
+                      <Text style={{ color: gender === val ? '#000' : '#fff', fontWeight: '600', fontSize: 14 }}>{label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
+      </ScrollView>
+
+      {/* Bottom buttons */}
+      <View style={{ paddingHorizontal: 24, paddingBottom: 32, gap: 12 }}>
+        {step < 3 ? (
+          <TouchableOpacity
+            style={[obStyles.mainBtn, step === 1 && selPlatforms.length === 0 && { opacity: 0.4 }]}
+            disabled={step === 1 && selPlatforms.length === 0}
+            onPress={() => setStep(s => s + 1)}>
+            <Text style={obStyles.mainBtnText}>{step === 0 ? 'Başla' : 'Devam'} →</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={[obStyles.mainBtn, loading && { opacity: 0.6 }]} onPress={finish} disabled={loading}>
+            {loading ? <ActivityIndicator color="#000" /> : <Text style={obStyles.mainBtnText}>Tamamla 🎉</Text>}
+          </TouchableOpacity>
+        )}
+        {step > 0 && (
+          <TouchableOpacity onPress={() => setStep(s => s - 1)} style={{ alignItems: 'center' }}>
+            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>← Geri</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const obStyles = StyleSheet.create({
+  inputRow: { backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  input: { color: '#fff', fontSize: 16 },
+  mainBtn: { backgroundColor: '#fff', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  mainBtnText: { color: '#000', fontSize: 16, fontWeight: '800' },
+});
+
+// ── Profile Modal ──────────────────────────────────────────────
+function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSignOut }) {
+  const [profile, setProfile] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editBirth, setEditBirth] = useState('');
+  const [editGender, setEditGender] = useState('');
+  const [selPlatforms, setSelPlatforms] = useState(selectedPlatforms);
+  const [selGenres, setSelGenres] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (visible && user) {
+      supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data }) => {
+        if (data) {
+          setProfile(data);
+          setEditName(data.display_name || '');
+          setEditBirth(data.birth_date || '');
+          setEditGender(data.gender || '');
+          setSelPlatforms(data.selected_platforms?.length > 0 ? data.selected_platforms : selectedPlatforms);
+          setSelGenres(data.favorite_genres || []);
+        }
+      });
+    }
+  }, [visible]);
+
+  function togglePlatform(slug) {
+    setSelPlatforms(prev => prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug]);
+  }
+  function toggleGenre(id) {
+    setSelGenres(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
+  }
+
+  async function save() {
+    setLoading(true);
+    await supabase.from('profiles').update({
+      display_name: editName || null,
+      birth_date: editBirth || null,
+      gender: editGender || null,
+      selected_platforms: selPlatforms,
+      favorite_genres: selGenres,
+      updated_at: new Date().toISOString(),
+    }).eq('id', user.id);
+    onSave(selPlatforms);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+    setLoading(false);
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#111' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' }}>
+          <Text style={{ flex: 1, color: '#fff', fontSize: 20, fontWeight: '800' }}>Profil</Text>
+          <TouchableOpacity onPress={onClose}>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16 }}>Kapat</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView contentContainerStyle={{ padding: 20, gap: 28 }} keyboardShouldPersistTaps="handled">
+
+          {/* Kullanıcı bilgisi */}
+          <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+              <Text style={{ fontSize: 30 }}>👤</Text>
+            </View>
+            <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>{editName || user?.email}</Text>
+            {editName ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 2 }}>{user?.email}</Text> : null}
+          </View>
+
+          {/* Kişisel bilgiler */}
+          <View style={{ gap: 12 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 }}>Kişisel Bilgiler</Text>
+            <View style={pmStyles.inputRow}>
+              <TextInput style={pmStyles.input} placeholder="İsim" placeholderTextColor="rgba(255,255,255,0.3)" value={editName} onChangeText={setEditName} />
+            </View>
+            <View style={pmStyles.inputRow}>
+              <TextInput style={pmStyles.input} placeholder="Doğum tarihi (YYYY-AA-GG)" placeholderTextColor="rgba(255,255,255,0.3)" value={editBirth} onChangeText={setEditBirth} keyboardType="numbers-and-punctuation" />
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[['male','Erkek'],['female','Kadın'],['other','Diğer']].map(([val, label]) => (
+                <TouchableOpacity key={val}
+                  style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: editGender === val ? '#fff' : 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: editGender === val ? '#fff' : 'rgba(255,255,255,0.1)', alignItems: 'center' }}
+                  onPress={() => setEditGender(prev => prev === val ? '' : val)}>
+                  <Text style={{ color: editGender === val ? '#000' : 'rgba(255,255,255,0.7)', fontWeight: '600', fontSize: 13 }}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Platformlar */}
+          <View style={{ gap: 12 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 }}>Platformlar</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              {PLATFORMS.map(p => {
+                const sel = selPlatforms.includes(p.slug);
+                return (
+                  <TouchableOpacity key={p.slug}
+                    style={{ paddingHorizontal: 18, paddingVertical: 10, borderRadius: 24, backgroundColor: sel ? p.color : 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: sel ? p.color : 'rgba(255,255,255,0.1)' }}
+                    onPress={() => togglePlatform(p.slug)}>
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{p.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Türler */}
+          <View style={{ gap: 12 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 }}>Favori Türler</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {GENRES.map(g => {
+                const sel = selGenres.includes(g.id);
+                return (
+                  <TouchableOpacity key={g.id}
+                    style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: sel ? '#fff' : 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: sel ? '#fff' : 'rgba(255,255,255,0.1)' }}
+                    onPress={() => toggleGenre(g.id)}>
+                    <Text style={{ color: sel ? '#000' : '#fff', fontWeight: sel ? '700' : '500', fontSize: 13 }}>{g.emoji} {g.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Kaydet */}
+          <TouchableOpacity style={[pmStyles.saveBtn, loading && { opacity: 0.6 }]} onPress={save} disabled={loading}>
+            {loading ? <ActivityIndicator color="#000" /> : <Text style={pmStyles.saveBtnText}>{saved ? '✓ Kaydedildi' : 'Kaydet'}</Text>}
+          </TouchableOpacity>
+
+          {/* Çıkış */}
+          <TouchableOpacity style={pmStyles.signOutBtn} onPress={onSignOut}>
+            <Text style={pmStyles.signOutText}>Çıkış Yap</Text>
+          </TouchableOpacity>
+
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+const pmStyles = StyleSheet.create({
+  inputRow: { backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  input: { color: '#fff', fontSize: 15 },
+  saveBtn: { backgroundColor: '#fff', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
+  saveBtnText: { color: '#000', fontSize: 16, fontWeight: '800' },
+  signOutBtn: { paddingVertical: 16, alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+  signOutText: { color: 'rgba(255,255,255,0.5)', fontSize: 15, fontWeight: '600' },
+});
 
 // ── Auth Screen ──────────────────────────────────────────────
 function AuthScreen({ onAuth }) {
@@ -1124,16 +1487,49 @@ const authStyles = StyleSheet.create({
 export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) {
+        const { data } = await supabase.from('profiles').select('selected_platforms').eq('id', u.id).single();
+        if (!data?.selected_platforms || data.selected_platforms.length === 0) {
+          setShowOnboarding(true);
+        }
+      }
       setAuthLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u && _event === 'SIGNED_IN') {
+        const { data } = await supabase.from('profiles').select('selected_platforms').eq('id', u.id).single();
+        if (!data?.selected_platforms || data.selected_platforms.length === 0) {
+          setShowOnboarding(true);
+        }
+      }
     });
-    return () => subscription.unsubscribe();
+
+    // Email doğrulama deep link handler
+    const handleUrl = async (url) => {
+      if (!url) return;
+      if (url.includes('access_token') || url.includes('refresh_token')) {
+        const params = new URLSearchParams(url.split('#')[1] || url.split('?')[1] || '');
+        const access_token = params.get('access_token');
+        const refresh_token = params.get('refresh_token');
+        if (access_token && refresh_token) {
+          await supabase.auth.setSession({ access_token, refresh_token });
+        }
+      }
+    };
+
+    Linking.getInitialURL().then(url => { if (url) handleUrl(url); });
+    const linkingSub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+
+    return () => { subscription.unsubscribe(); linkingSub.remove(); };
   }, []);
 
   useEffect(() => {
@@ -1239,7 +1635,7 @@ export default function App() {
     });
   }
 
-  function handlePlatformSave(slugs) { setSelectedPlatforms(slugs); saveSelectedPlatforms(slugs); }
+  function handlePlatformSave(slugs) { setSelectedPlatforms(slugs); saveSelectedPlatforms(slugs); if (user) savePlatformsToProfile(user.id, slugs); }
   function handleSearch() { setActiveSearch(searchInput); setShowFilters(false); }
   function clearSearch() { setSearchInput(''); setActiveSearch(''); }
   function toggleSort(field) { if (sortBy === field) setSortAsc(!sortAsc); else { setSortBy(field); setSortAsc(false); } }
@@ -1282,7 +1678,7 @@ export default function App() {
                 const p = PLATFORMS.find(x => x.slug === a.platform_slug);
                 if (!p) return null;
                 return (
-                  <TouchableOpacity key={a.platform_slug} style={[styles.platformPill, { backgroundColor: p.color }]} onPress={(e) => { e.stopPropagation?.(); a.platform_url && Linking.openURL(a.platform_url); }} disabled={!a.platform_url}>
+                  <TouchableOpacity key={a.platform_slug} style={[styles.platformPill, { backgroundColor: p.color }]} onPress={(e) => { e.stopPropagation?.(); openPlatformUrl(a.platform_slug, a.platform_url); }} disabled={!a.platform_url}>
                     <Text style={{ color: "#fff", fontWeight: "700", fontSize: 11 }}>{p.name}</Text>
                   </TouchableOpacity>
                 );
@@ -1290,8 +1686,8 @@ export default function App() {
             </View>
           )}
           <View style={styles.bottomRow}>
-            {item.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={(e) => { e.stopPropagation?.(); window.open(item.trailer_url, '_blank'); }}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
-            <TouchableOpacity style={styles.imdbBtn} onPress={(e) => { e.stopPropagation?.(); item.imdb_id && window.open('https://www.imdb.com/title/' + item.imdb_id + '/', '_blank'); }}>
+            {item.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={(e) => { e.stopPropagation?.(); Linking.openURL(item.trailer_url); }}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
+            <TouchableOpacity style={styles.imdbBtn} onPress={(e) => { e.stopPropagation?.(); item.imdb_id && Linking.openURL('https://www.imdb.com/title/' + item.imdb_id + '/'); }}>
               <Text style={styles.imdbArrow}>IMDb ↗</Text>
             </TouchableOpacity>
           </View>
@@ -1301,12 +1697,29 @@ export default function App() {
   }
 
   if (authLoading) return null;
-  if (!user) return <AuthScreen onAuth={(u) => setUser(u)} />;
+  if (!user) return <AuthScreen onAuth={async (u) => {
+    setUser(u);
+    const { data } = await supabase.from('profiles').select('selected_platforms').eq('id', u.id).single();
+    if (!data?.selected_platforms || data.selected_platforms.length === 0) setShowOnboarding(true);
+  }} />;
+  if (showOnboarding) return <OnboardingScreen user={user} onComplete={({ platforms }) => {
+    setSelectedPlatforms(platforms);
+    saveSelectedPlatforms(platforms);
+    setShowOnboarding(false);
+  }} />;
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <ProfileModal
+        visible={showProfile}
+        user={user}
+        selectedPlatforms={selectedPlatforms}
+        onClose={() => setShowProfile(false)}
+        onSave={(platforms) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); }}
+        onSignOut={async () => { await supabase.auth.signOut(); setUser(null); setShowProfile(false); }}
+      />
       <PlatformModal visible={showPlatformModal} selected={selectedPlatforms} onSave={handlePlatformSave} onClose={() => setShowPlatformModal(false)} />
 
       {showHome ? (
