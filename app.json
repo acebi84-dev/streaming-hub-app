@@ -11,7 +11,21 @@
       "bundleIdentifier": "com.acebi.izlio",
       "jsEngine": "jsc",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.556246058284-50k1stl1ivqfqgu1sql3pfg9ucr0h04v"
+            ]
+          }
+        ],
+        "GADApplicationIdentifier": "ca-app-pub-9370563428249896~1494231440",
+        "SKAdNetworkItems": [
+          { "SKAdNetworkIdentifier": "cstr6suwn9.skadnetwork" },
+          { "SKAdNetworkIdentifier": "4fzdc2evr5.skadnetwork" },
+          { "SKAdNetworkIdentifier": "2fnua5tdw4.skadnetwork" },
+          { "SKAdNetworkIdentifier": "ydx93a7ass.skadnetwork" }
+        ]
       },
       "googleServicesFile": "./GoogleService-Info.plist"
     },
@@ -44,9 +58,10 @@
         }
       ],
       [
-        "@react-native-google-signin/google-signin",
+        "react-native-google-mobile-ads",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.556246058284-50k1stl1ivqfqgu1sql3pfg9ucr0h04v"
+          "androidAppId": "ca-app-pub-9370563428249896~1494231440",
+          "iosAppId": "ca-app-pub-9370563428249896~1494231440"
         }
       ]
     ],

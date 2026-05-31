@@ -3,6 +3,12 @@ import * as SplashScreen from 'expo-splash-screen';
 
 SplashScreen.preventAutoHideAsync();
 
+const IS_DEV = __DEV__;
+const BANNER_ID = IS_DEV ? TestIds.BANNER : 'ca-app-pub-9370563428249896/7892118833';
+const INTERSTITIAL_ID = IS_DEV ? TestIds.INTERSTITIAL : 'ca-app-pub-9370563428249896/7060429068';
+
+
+
 if (Platform.OS !== 'web' && GoogleSignin) {
   GoogleSignin.configure({
     iosClientId: '556246058284-50k1stl1ivqfqgu1sql3pfg9ucr0h04v.apps.googleusercontent.com',
@@ -20,6 +26,7 @@ import { supabase } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff } from 'lucide-react-native';
 const GoogleSignin = Platform.OS !== 'web' ? require('@react-native-google-signin/google-signin').GoogleSignin : null;
 import * as AppleAuthentication from 'expo-apple-authentication';
+import MobileAds, { BannerAd, BannerAdSize, InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
 
 
 const PROFILE_GENRES = [
@@ -586,6 +593,8 @@ function CollectionsScreen({ selectedPlatforms, onBack }) {
         onClose={() => setShowProfile(false)}
         onSave={(platforms) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); }}
         onSignOut={async () => { await supabase.auth.signOut(); setUser(null); setShowProfile(false); }}
+        isPremium={isPremium}
+        onUpgrade={() => { setShowProfile(false); alert('Yakında! In-App Purchase entegrasyonu hazırlanıyor.'); }}
       />
       <View style={styles.header}>
         <Text style={styles.sectionTitle}>Koleksiyonlar</Text>
@@ -774,6 +783,8 @@ function NewScreen({ selectedPlatforms, onBack }) {
         onClose={() => setShowProfile(false)}
         onSave={(platforms) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); }}
         onSignOut={async () => { await supabase.auth.signOut(); setUser(null); setShowProfile(false); }}
+        isPremium={isPremium}
+        onUpgrade={() => { setShowProfile(false); alert('Yakında! In-App Purchase entegrasyonu hazırlanıyor.'); }}
       />
       <View style={styles.popularHeader}>
         <Text style={styles.sectionTitle}>En Yeniler</Text>
@@ -987,6 +998,8 @@ function PopularScreen({ selectedPlatforms, onBack }) {
         onClose={() => setShowProfile(false)}
         onSave={(platforms) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); }}
         onSignOut={async () => { await supabase.auth.signOut(); setUser(null); setShowProfile(false); }}
+        isPremium={isPremium}
+        onUpgrade={() => { setShowProfile(false); alert('Yakında! In-App Purchase entegrasyonu hazırlanıyor.'); }}
       />
 
       <View style={styles.popularHeader}>
@@ -1124,6 +1137,9 @@ function HomeScreen({ selectedPlatforms, onPlatformToggle, onNavigate }) {
           </View>
         </View>
 
+        {/* Ad Banner */}
+        {!isPremium && <AdBanner />}
+
         {/* Logo & Tagline */}
         <View style={styles.homeLogo}>
           <View style={styles.homeLogoRow}>
@@ -1199,6 +1215,34 @@ function openPlatformUrl(slug, url) {
     Linking.openURL(supported ? nativeUrl : url);
   }).catch(() => Linking.openURL(url));
 }
+
+
+function useInterstitial() {
+  const interstitial = useRef(InterstitialAd.createForAdRequest(INTERSTITIAL_ID)).current;
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    const unsubLoad = interstitial.addAdEventListener(AdEventType.LOADED, () => setLoaded(true));
+    const unsubClose = interstitial.addAdEventListener(AdEventType.CLOSED, () => {
+      setLoaded(false);
+      interstitial.load();
+    });
+    interstitial.load();
+    return () => { unsubLoad(); unsubClose(); };
+  }, []);
+  function show() { if (loaded) interstitial.show(); }
+  return show;
+}
+
+function AdBanner() {
+  return (
+    <BannerAd
+      unitId={BANNER_ID}
+      size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+      requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+    />
+  );
+}
+
 function FloatingBackBtn({ onPress }) {
   return (
     <TouchableOpacity
@@ -1369,7 +1413,7 @@ const obStyles = StyleSheet.create({
 });
 
 // ── Profile Modal ──────────────────────────────────────────────
-function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSignOut }) {
+function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSignOut, isPremium, onUpgrade }) {
   const [profile, setProfile] = useState(null);
   const [editName, setEditName] = useState('');
   const [editBirth, setEditBirth] = useState('');
@@ -1496,6 +1540,18 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
             {loading ? <ActivityIndicator color="#000" /> : <Text style={pmStyles.saveBtnText}>{saved ? '✓ Kaydedildi' : 'Kaydet'}</Text>}
           </TouchableOpacity>
 
+          {/* Premium */}
+          {!isPremium && (
+            <TouchableOpacity style={pmStyles.premiumBtn} onPress={onUpgrade}>
+              <Text style={pmStyles.premiumBtnText}>✨ Premium'a Geç — Reklamsız</Text>
+            </TouchableOpacity>
+          )}
+          {isPremium && (
+            <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+              <Text style={{ color: '#ffd43b', fontSize: 14, fontWeight: '700' }}>✨ Premium Üye</Text>
+            </View>
+          )}
+
           {/* Çıkış */}
           <TouchableOpacity style={pmStyles.signOutBtn} onPress={onSignOut}>
             <Text style={pmStyles.signOutText}>Çıkış Yap</Text>
@@ -1514,6 +1570,8 @@ const pmStyles = StyleSheet.create({
   saveBtnText: { color: '#000', fontSize: 16, fontWeight: '800' },
   signOutBtn: { paddingVertical: 16, alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
   signOutText: { color: 'rgba(255,255,255,0.5)', fontSize: 15, fontWeight: '600' },
+  premiumBtn: { backgroundColor: '#ffd43b', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  premiumBtnText: { color: '#000', fontSize: 15, fontWeight: '800' },
 });
 
 // ── Auth Screen ──────────────────────────────────────────────
@@ -1732,6 +1790,9 @@ const authStyles = StyleSheet.create({
 export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [isPremium, setIsPremium] = useState(false);
+
+  useEffect(() => { MobileAds().initialize(); }, []);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showWatchlist, setShowWatchlist] = useState(false);
@@ -1742,10 +1803,11 @@ export default function App() {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        const { data } = await supabase.from('profiles').select('selected_platforms').eq('id', u.id).single();
+        const { data } = await supabase.from('profiles').select('selected_platforms, is_premium').eq('id', u.id).single();
         if (!data?.selected_platforms || data.selected_platforms.length === 0) {
           setShowOnboarding(true);
         }
+        if (data?.is_premium) setIsPremium(true);
       }
       setAuthLoading(false);
     });
@@ -1977,6 +2039,8 @@ export default function App() {
         onClose={() => setShowProfile(false)}
         onSave={(platforms) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); }}
         onSignOut={async () => { await supabase.auth.signOut(); setUser(null); setShowProfile(false); }}
+        isPremium={isPremium}
+        onUpgrade={() => { setShowProfile(false); alert('Yakında! In-App Purchase entegrasyonu hazırlanıyor.'); }}
       />
       <PlatformModal visible={showPlatformModal} selected={selectedPlatforms} onSave={handlePlatformSave} onClose={() => setShowPlatformModal(false)} />
 
