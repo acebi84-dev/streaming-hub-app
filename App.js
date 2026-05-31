@@ -795,7 +795,7 @@ export default function App() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.appLogoRow}>
-            <Image source={require('./assets/images/logo.png')} style={styles.appLogoIcon} resizeMode="contain" />
+            <Image source={{ uri: 'https://raw.githubusercontent.com/acebi84-dev/streaming-hub-app/master/assets/images/logo.png' }} style={styles.appLogoIcon} resizeMode="contain" />
             <Text style={styles.appTitle}>İzlio</Text>
           </View>
           <TouchableOpacity style={styles.platformSelectBtn} onPress={() => setShowPlatformModal(true)}>
