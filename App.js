@@ -26,7 +26,13 @@ import { supabase } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff } from 'lucide-react-native';
 const GoogleSignin = Platform.OS !== 'web' ? require('@react-native-google-signin/google-signin').GoogleSignin : null;
 import * as AppleAuthentication from 'expo-apple-authentication';
-import MobileAds, { BannerAd, BannerAdSize, InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
+const _admob = Platform.OS !== 'web' ? require('react-native-google-mobile-ads') : null;
+const MobileAds = _admob ? _admob.default : () => ({ initialize: () => {} });
+const BannerAd = _admob?.BannerAd || (() => null);
+const BannerAdSize = _admob?.BannerAdSize || {};
+const InterstitialAd = _admob?.InterstitialAd || { createForAdRequest: () => ({ addAdEventListener: () => () => {}, load: () => {}, show: () => {} }) };
+const AdEventType = _admob?.AdEventType || {};
+const TestIds = _admob?.TestIds || { BANNER: '', INTERSTITIAL: '' };
 
 
 const PROFILE_GENRES = [
