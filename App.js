@@ -315,13 +315,7 @@ function CollectionsScreen({ selectedPlatforms, onBack }) {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
       <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <TouchableOpacity style={styles.backBtn} onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <ChevronLeft size={17} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
-            <Text style={styles.backBtnText}>Geri Dön</Text>
-          </TouchableOpacity>
-          <Text style={styles.sectionTitle}>Koleksiyonlar</Text>
-        </View>
+        <Text style={styles.sectionTitle}>Koleksiyonlar</Text>
       </View>
       <View style={[styles.searchContainer, { marginHorizontal: 16, marginVertical: 8 }]}>
         <TextInput maxFontSizeMultiplier={1} style={[styles.searchInput, { flex: 1 }]} placeholder="Koleksiyon ara..." placeholderTextColor="#ffffff44" value={colSearchInput} onChangeText={setColSearchInput} onSubmitEditing={() => setColActiveSearch(colSearchInput)} returnKeyType="search" />
@@ -474,7 +468,6 @@ function NewScreen({ selectedPlatforms, onBack }) {
       .order('available_since', { ascending: false })
       .limit(300);
     if (!isMountedNew.current) return;
-    if (!isMountedPop.current) return;
     if (error) { console.error(error); setLoading(false); return; }
     const grouped = {};
     (data || []).forEach(row => {
@@ -483,6 +476,7 @@ function NewScreen({ selectedPlatforms, onBack }) {
       if (!grouped[slug]) grouped[slug] = [];
       grouped[slug].push({ ...row.content, platform_url: row.platform_url, available_since: row.available_since });
     });
+    if (!isMountedNew.current) return;
     setItems(grouped);
     setLoading(false);
   }
@@ -1082,7 +1076,10 @@ export default function App() {
 
         </>
       ) : activeTab === 'popular' ? (
+        <View style={{ flex: 1 }}>
           <PopularScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} />
+          <FloatingBackBtn onPress={() => setShowHome(true)} />
+        </View>
       ) : activeTab === 'new' ? (
         <View style={{ flex: 1 }}>
           <NewScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} />
@@ -1490,5 +1487,5 @@ const styles = StyleSheet.create({
   floatingBackBtnText: { color: 'white', fontSize: 15, fontWeight: '700', letterSpacing: 0.2 },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   backBtnText: { color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: '700', letterSpacing: 0.2 },
-  miniHeaderTitle: { flex: 1, color: '#fff', fontSize: 18, fontWeight: '700', letterSpacing: 0.5 },
+  miniHeaderTitle: { flex: 1, color: '#fff', fontSize: 26, fontWeight: '700', letterSpacing: -0.6 },
 });
