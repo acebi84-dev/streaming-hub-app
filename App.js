@@ -430,6 +430,7 @@ function NewScreen({ selectedPlatforms }) {
   const [items, setItems] = useState({});
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('week');
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
   const [typeFilter, setTypeFilter] = useState('all');
   const [genreFilter, setGenreFilter] = useState(null);
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
@@ -511,15 +512,14 @@ function NewScreen({ selectedPlatforms }) {
             </TouchableOpacity>
           )}
           <View style={styles.popularTopSeparator} />
-          {[['day','Bugün'],['week','Bu Hafta'],['month','Bu Ay']].map(([val, label]) => (
-            <TouchableOpacity
-              key={val}
-              style={[styles.popularTopBtn, period === val && styles.popularTopBtnActive]}
-              onPress={() => { setPeriod(val); setShowGenreDropdown(false); }}
-            >
-              <Text style={[styles.popularTopBtnText, period === val && styles.popularTopBtnTextActive]}>{label}</Text>
-            </TouchableOpacity>
-          ))}
+          <TouchableOpacity
+            style={[styles.popularTopBtn, styles.popularTopBtnActive]}
+            onPress={() => { setShowPeriodDropdown(!showPeriodDropdown); setShowGenreDropdown(false); }}
+          >
+            <Text style={styles.popularTopBtnTextActive}>
+              {period === 'day' ? 'Bugün' : period === 'week' ? 'Bu Hafta' : 'Bu Ay'} ▾
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       </View>
       {showGenreDropdown && (
@@ -535,6 +535,19 @@ function NewScreen({ selectedPlatforms }) {
               </TouchableOpacity>
             ))}
           </ScrollView>
+        </View>
+      )}
+      {showPeriodDropdown && (
+        <View style={styles.genreDropdown}>
+          {[['day','Bugün'],['week','Bu Hafta'],['month','Bu Ay']].map(([val, label]) => (
+            <TouchableOpacity
+              key={val}
+              style={[styles.genreDropdownItem, period === val && styles.genreDropdownItemActive]}
+              onPress={() => { setPeriod(val); setShowPeriodDropdown(false); }}
+            >
+              <Text style={[styles.genreDropdownText, period === val && styles.genreDropdownTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       )}
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
