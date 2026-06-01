@@ -3,9 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 
 SplashScreen.preventAutoHideAsync();
 
-const IS_DEV = __DEV__;
-const BANNER_ID = IS_DEV ? TestIds.BANNER : 'ca-app-pub-9370563428249896/7892118833';
-const INTERSTITIAL_ID = IS_DEV ? TestIds.INTERSTITIAL : 'ca-app-pub-9370563428249896/7060429068';
+
 
 
 
@@ -26,13 +24,7 @@ import { supabase } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff } from 'lucide-react-native';
 const GoogleSignin = Platform.OS !== 'web' ? require('@react-native-google-signin/google-signin').GoogleSignin : null;
 import * as AppleAuthentication from 'expo-apple-authentication';
-const _admob = Platform.OS !== 'web' ? require('react-native-google-mobile-ads') : null;
-const MobileAds = _admob ? _admob.default : () => ({ initialize: () => {} });
-const BannerAd = _admob?.BannerAd || (() => null);
-const BannerAdSize = _admob?.BannerAdSize || {};
-const InterstitialAd = _admob?.InterstitialAd || { createForAdRequest: () => ({ addAdEventListener: () => () => {}, load: () => {}, show: () => {} }) };
-const AdEventType = _admob?.AdEventType || {};
-const TestIds = _admob?.TestIds || { BANNER: '', INTERSTITIAL: '' };
+// AdMob devre dışı
 
 
 const PROFILE_GENRES = [
@@ -1223,35 +1215,9 @@ function openPlatformUrl(slug, url) {
 }
 
 
-function useInterstitial() {
-  const interstitial = useRef(Platform.OS !== 'web' && _admob ? InterstitialAd.createForAdRequest(INTERSTITIAL_ID) : { addAdEventListener: () => () => {}, load: () => {}, show: () => {} }).current;
-  const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
-    const unsubLoad = interstitial.addAdEventListener(AdEventType.LOADED, () => setLoaded(true));
-    const unsubClose = interstitial.addAdEventListener(AdEventType.CLOSED, () => {
-      setLoaded(false);
-      interstitial.load();
-    });
-    interstitial.load();
-    return () => { unsubLoad(); unsubClose(); };
-  }, []);
-  function show() { if (loaded) interstitial.show(); }
-  return show;
-}
+function useInterstitial() { return () => {}; }
 
-function AdBanner() {
-  if (Platform.OS === 'web' || !_admob) return null;
-  try {
-    return (
-      <BannerAd
-        unitId={BANNER_ID}
-        size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-        requestOptions={{ requestNonPersonalizedAdsOnly: false }}
-        onAdFailedToLoad={(e) => console.warn('Banner failed:', e)}
-      />
-    );
-  } catch(e) { return null; }
-}
+function AdBanner() { return null; }
 
 function FloatingBackBtn({ onPress }) {
   return (
@@ -1802,7 +1768,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
 
-  useEffect(() => { try { if (Platform.OS !== 'web') MobileAds().initialize(); } catch(e) { console.warn('AdMob init failed:', e); } }, []);
+
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showWatchlist, setShowWatchlist] = useState(false);

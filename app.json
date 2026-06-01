@@ -18,21 +18,6 @@
               "com.googleusercontent.apps.556246058284-50k1stl1ivqfqgu1sql3pfg9ucr0h04v"
             ]
           }
-        ],
-        "GADApplicationIdentifier": "ca-app-pub-9370563428249896~1494231440",
-        "SKAdNetworkItems": [
-          {
-            "SKAdNetworkIdentifier": "cstr6suwn9.skadnetwork"
-          },
-          {
-            "SKAdNetworkIdentifier": "4fzdc2evr5.skadnetwork"
-          },
-          {
-            "SKAdNetworkIdentifier": "2fnua5tdw4.skadnetwork"
-          },
-          {
-            "SKAdNetworkIdentifier": "ydx93a7ass.skadnetwork"
-          }
         ]
       },
       "googleServicesFile": "./GoogleService-Info.plist"
