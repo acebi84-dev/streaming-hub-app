@@ -23,7 +23,7 @@ import { Linking, Share } from 'react-native';
 import { supabase } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff } from 'lucide-react-native';
 const GoogleSignin = Platform.OS !== 'web' ? require('@react-native-google-signin/google-signin').GoogleSignin : null;
-import * as AppleAuthentication from 'expo-apple-authentication';
+// import * as AppleAuthentication from 'expo-apple-authentication';
 // AdMob devre dışı
 
 
@@ -1606,24 +1606,7 @@ function AuthScreen({ onAuth }) {
   }
 
   async function handleApple() {
-    setLoading(true); setError('');
-    try {
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'apple',
-        token: credential.identityToken,
-      });
-      if (error) setError(error.message);
-      else if (data?.user) onAuth(data.user);
-    } catch(e) {
-      if (e.code !== 'ERR_REQUEST_CANCELED') setError(e.message || 'Apple giriş başarısız');
-    }
-    setLoading(false);
+    setError('Apple girişi yakında eklenecek.');
   }
 
   return (
@@ -1646,13 +1629,9 @@ function AuthScreen({ onAuth }) {
               <Text style={authStyles.googleText}>Google ile devam et</Text>
             </TouchableOpacity>
 
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-              cornerRadius={14}
-              style={authStyles.appleBtn}
-              onPress={handleApple}
-            />
+            <TouchableOpacity style={[authStyles.appleBtn, { backgroundColor: '#fff', borderRadius: 14, alignItems: 'center', justifyContent: 'center' }]} onPress={handleApple}>
+              <Text style={{ color: '#000', fontWeight: '700', fontSize: 16 }}>🍎 Apple ile devam et</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={authStyles.dividerRow}>
