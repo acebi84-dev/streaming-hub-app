@@ -7,13 +7,7 @@ SplashScreen.preventAutoHideAsync();
 
 
 
-if (Platform.OS !== 'web' && GoogleSignin) {
-  GoogleSignin.configure({
-    iosClientId: '556246058284-50k1stl1ivqfqgu1sql3pfg9ucr0h04v.apps.googleusercontent.com',
-    webClientId: '556246058284-r4vmadiam9e59t6spf8flav811an8vq4.apps.googleusercontent.com',
-    scopes: ['email', 'profile'],
-  });
-}
+// GoogleSignin devre dışı
 import {
   StyleSheet, Text, View, FlatList, TextInput, TouchableOpacity,
   Image, ActivityIndicator, SafeAreaView, StatusBar, ScrollView,
@@ -22,7 +16,7 @@ import {
 import { Linking, Share } from 'react-native';
 import { supabase } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff } from 'lucide-react-native';
-const GoogleSignin = Platform.OS !== 'web' ? require('@react-native-google-signin/google-signin').GoogleSignin : null;
+const GoogleSignin = null;
 // import * as AppleAuthentication from 'expo-apple-authentication';
 // AdMob devre dışı
 
