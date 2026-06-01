@@ -1224,7 +1224,7 @@ function openPlatformUrl(slug, url) {
 
 
 function useInterstitial() {
-  const interstitial = useRef(InterstitialAd.createForAdRequest(INTERSTITIAL_ID)).current;
+  const interstitial = useRef(Platform.OS !== 'web' && _admob ? InterstitialAd.createForAdRequest(INTERSTITIAL_ID) : { addAdEventListener: () => () => {}, load: () => {}, show: () => {} }).current;
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     const unsubLoad = interstitial.addAdEventListener(AdEventType.LOADED, () => setLoaded(true));
@@ -1240,13 +1240,17 @@ function useInterstitial() {
 }
 
 function AdBanner() {
-  return (
-    <BannerAd
-      unitId={BANNER_ID}
-      size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-      requestOptions={{ requestNonPersonalizedAdsOnly: false }}
-    />
-  );
+  if (Platform.OS === 'web' || !_admob) return null;
+  try {
+    return (
+      <BannerAd
+        unitId={BANNER_ID}
+        size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+        requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+        onAdFailedToLoad={(e) => console.warn('Banner failed:', e)}
+      />
+    );
+  } catch(e) { return null; }
 }
 
 function FloatingBackBtn({ onPress }) {
@@ -1798,7 +1802,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
 
-  useEffect(() => { MobileAds().initialize(); }, []);
+  useEffect(() => { try { if (Platform.OS !== 'web') MobileAds().initialize(); } catch(e) { console.warn('AdMob init failed:', e); } }, []);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showWatchlist, setShowWatchlist] = useState(false);
