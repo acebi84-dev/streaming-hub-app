@@ -3,11 +3,21 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = 'https://bvggvperehlduxziaqfu.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Q3JqA0F8fU7vE6fQMZ_ZcA_-x5qLhnk';
 
+// AsyncStorage kurulu olmadığından in-memory storage kullanıyoruz.
+// Oturum uygulama kapanana kadar açık kalır.
+const _store = {};
+const inMemoryStorage = {
+  getItem:    (key)        => Promise.resolve(_store[key] ?? null),
+  setItem:    (key, value) => { _store[key] = value; return Promise.resolve(); },
+  removeItem: (key)        => { delete _store[key]; return Promise.resolve(); },
+};
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
-    persistSession: false,
-    autoRefreshToken: false,
+    persistSession: true,
+    autoRefreshToken: true,
     detectSessionInUrl: false,
+    storage: inMemoryStorage,
   },
   realtime: {
     enabled: false,

@@ -16,6 +16,7 @@ import {
 import { Linking, Share } from 'react-native';
 import { supabase } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff } from 'lucide-react-native';
+import Svg, { Path } from 'react-native-svg';
 const GoogleSignin = null;
 // import * as AppleAuthentication from 'expo-apple-authentication';
 // AdMob devre dışı
@@ -83,16 +84,17 @@ const COMMENTS = [
   "Aile ile izleyebileceğim bir şey var mı? 👨‍👩‍👧",
 ];
 
+// localStorage React Native'de yok — in-memory cache kullanıyoruz, Supabase profile ile senkronize
+const _platformCache = { slugs: null };
 function getSelectedPlatforms() {
-  try { const s = localStorage.getItem('selectedPlatforms'); if (s) {
-    const parsed = JSON.parse(s);
-    const valid = parsed.filter(slug => PLATFORMS.some(p => p.slug === slug));
-    return valid.length > 0 ? valid : PLATFORMS.map(p => p.slug);
-  } } catch (e) {}
+  if (_platformCache.slugs) return _platformCache.slugs;
   return PLATFORMS.map(p => p.slug);
 }
 function saveSelectedPlatforms(slugs) {
-  try { localStorage.setItem('selectedPlatforms', JSON.stringify(slugs)); } catch (e) {}
+  _platformCache.slugs = slugs;
+}
+async function savePlatformsToProfile(userId, slugs) {
+  await supabase.from('profiles').update({ selected_platforms: slugs }).eq('id', userId);
 }
 
 function CarouselComments() {
@@ -100,11 +102,10 @@ function CarouselComments() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const interval = setInterval(() => {
-      Animated.sequence([
-        Animated.timing(fadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      ]).start();
-      setIndex(prev => (prev + 1) % COMMENTS.length);
+      Animated.timing(fadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start(() => {
+        setIndex(prev => (prev + 1) % COMMENTS.length);
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+      });
     }, 3000);
     return () => clearInterval(interval);
   }, []);
@@ -133,14 +134,15 @@ async function removeWatchlist(userId, contentId) {
 }
 
 // ── Watchlist Button (içerik kartı için) ─────────────────────
-function WatchlistButton({ item, user, style }) {
-  const [entry, setEntry] = useState(null);
+function WatchlistButton({ item, user, style, initialEntry, onUpdate }) {
+  const [entry, setEntry] = useState(initialEntry ?? null);
   const [showMenu, setShowMenu] = useState(false);
   const [showRating, setShowRating] = useState(false);
   const isMounted = useRef(true);
   useEffect(() => { return () => { isMounted.current = false; }; }, []);
 
   useEffect(() => {
+    if (initialEntry !== undefined) return; // initialEntry verilmişse DB sorgusu atla
     if (user && item?.id) {
       getWatchlistEntry(user.id, item.id).then(d => { if (isMounted.current) setEntry(d); });
     }
@@ -153,19 +155,20 @@ function WatchlistButton({ item, user, style }) {
       setEntry(data);
       setShowMenu(false);
       if (status === 'watched') setShowRating(true);
+      onUpdate?.();
     }
   }
 
   async function setRating(rating) {
     if (!user || !entry) return;
     const { data } = await upsertWatchlist(user.id, item.id, entry.status, rating);
-    if (isMounted.current) { setEntry(data); setShowRating(false); }
+    if (isMounted.current) { setEntry(data); setShowRating(false); onUpdate?.(); }
   }
 
   async function remove() {
     if (!user) return;
     await removeWatchlist(user.id, item.id);
-    if (isMounted.current) { setEntry(null); setShowMenu(false); }
+    if (isMounted.current) { setEntry(null); setShowMenu(false); onUpdate?.(); }
   }
 
   async function share() {
@@ -342,7 +345,7 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
                       {p && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.color }} />}
                     </View>
                   </View>
-                  <WatchlistButton item={c} user={user} />
+                  <WatchlistButton item={c} user={user} initialEntry={{ status: row.status, rating: row.rating }} onUpdate={fetchList} />
                 </View>
               </TouchableOpacity>
             );
@@ -523,7 +526,7 @@ const POPULAR_GENRES = [
 ];
 
 
-function CollectionsScreen({ selectedPlatforms, onBack }) {
+function CollectionsScreen({ selectedPlatforms, onBack, user }) {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
   const isMounted = useRef(true);
@@ -578,16 +581,6 @@ function CollectionsScreen({ selectedPlatforms, onBack }) {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
-      <ProfileModal
-        visible={showProfile}
-        user={user}
-        selectedPlatforms={selectedPlatforms}
-        onClose={() => setShowProfile(false)}
-        onSave={(platforms) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); }}
-        onSignOut={async () => { await supabase.auth.signOut(); setUser(null); setShowProfile(false); }}
-        isPremium={isPremium}
-        onUpgrade={() => { setShowProfile(false); alert('Yakında! In-App Purchase entegrasyonu hazırlanıyor.'); }}
-      />
       <View style={styles.header}>
         <Text style={styles.sectionTitle}>Koleksiyonlar</Text>
       </View>
@@ -706,7 +699,7 @@ function CollectionsScreen({ selectedPlatforms, onBack }) {
 
 
 
-function NewScreen({ selectedPlatforms, onBack }) {
+function NewScreen({ selectedPlatforms, onBack, user }) {
   const [items, setItems] = useState({});
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('week');
@@ -759,6 +752,7 @@ function NewScreen({ selectedPlatforms, onBack }) {
     let result = list;
     if (typeFilter === 'movie') result = result.filter(i => i.type === 'movie');
     if (typeFilter === 'series') result = result.filter(i => i.type === 'series');
+    if (genreFilter) result = result.filter(i => i.genre && i.genre.includes(genreFilter));
     return result;
   }
 
@@ -768,16 +762,6 @@ function NewScreen({ selectedPlatforms, onBack }) {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
-      <ProfileModal
-        visible={showProfile}
-        user={user}
-        selectedPlatforms={selectedPlatforms}
-        onClose={() => setShowProfile(false)}
-        onSave={(platforms) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); }}
-        onSignOut={async () => { await supabase.auth.signOut(); setUser(null); setShowProfile(false); }}
-        isPremium={isPremium}
-        onUpgrade={() => { setShowProfile(false); alert('Yakında! In-App Purchase entegrasyonu hazırlanıyor.'); }}
-      />
       <View style={styles.popularHeader}>
         <Text style={styles.sectionTitle}>En Yeniler</Text>
         <Text style={styles.popularHeaderSub}>Platforma yeni eklenenler</Text>
@@ -888,7 +872,7 @@ function NewScreen({ selectedPlatforms, onBack }) {
   );
 }
 
-function PopularScreen({ selectedPlatforms, onBack }) {
+function PopularScreen({ selectedPlatforms, onBack, user }) {
   const [popular, setPopular] = useState({});
   const [loading, setLoading] = useState(true);
   const isMountedPop = useRef(true);
@@ -983,17 +967,6 @@ function PopularScreen({ selectedPlatforms, onBack }) {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
-      <ProfileModal
-        visible={showProfile}
-        user={user}
-        selectedPlatforms={selectedPlatforms}
-        onClose={() => setShowProfile(false)}
-        onSave={(platforms) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); }}
-        onSignOut={async () => { await supabase.auth.signOut(); setUser(null); setShowProfile(false); }}
-        isPremium={isPremium}
-        onUpgrade={() => { setShowProfile(false); alert('Yakında! In-App Purchase entegrasyonu hazırlanıyor.'); }}
-      />
-
       <View style={styles.popularHeader}>
         <Text style={styles.sectionTitle}>Popüler</Text>
         <Text style={styles.popularHeaderSub}>Türkiye kataloğunda izlenebilir</Text>
@@ -1392,6 +1365,7 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
   const [selGenres, setSelGenres] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     if (visible && user) {
@@ -1417,7 +1391,8 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
 
   async function save() {
     setLoading(true);
-    await supabase.from('profiles').update({
+    setSaveError('');
+    const { error } = await supabase.from('profiles').update({
       display_name: editName || null,
       birth_date: editBirth || null,
       gender: editGender || null,
@@ -1425,9 +1400,13 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
       favorite_genres: selGenres,
       updated_at: new Date().toISOString(),
     }).eq('id', user.id);
-    onSave(selPlatforms);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    if (error) {
+      setSaveError('Kayıt başarısız, tekrar deneyin.');
+    } else {
+      onSave(selPlatforms);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
     setLoading(false);
   }
 
@@ -1506,6 +1485,7 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
           </View>
 
           {/* Kaydet */}
+          {saveError ? <Text style={{ color: '#ff6b6b', fontSize: 13, textAlign: 'center', marginBottom: 8 }}>{saveError}</Text> : null}
           <TouchableOpacity style={[pmStyles.saveBtn, loading && { opacity: 0.6 }]} onPress={save} disabled={loading}>
             {loading ? <ActivityIndicator color="#000" /> : <Text style={pmStyles.saveBtnText}>{saved ? '✓ Kaydedildi' : 'Kaydet'}</Text>}
           </TouchableOpacity>
@@ -1619,12 +1599,21 @@ function AuthScreen({ onAuth }) {
           {/* Social Buttons */}
           <View style={authStyles.socialWrap}>
             <TouchableOpacity style={authStyles.googleBtn} onPress={handleGoogle} disabled={loading}>
-              <Text style={authStyles.googleIcon}>G</Text>
+              <Svg width="20" height="20" viewBox="0 0 48 48">
+                <Path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <Path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <Path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <Path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                <Path fill="none" d="M0 0h48v48H0z"/>
+              </Svg>
               <Text style={authStyles.googleText}>Google ile devam et</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[authStyles.appleBtn, { backgroundColor: '#fff', borderRadius: 14, alignItems: 'center', justifyContent: 'center' }]} onPress={handleApple}>
-              <Text style={{ color: '#000', fontWeight: '700', fontSize: 16 }}>🍎 Apple ile devam et</Text>
+            <TouchableOpacity style={authStyles.appleBtnReal} onPress={handleApple}>
+              <Svg width="20" height="24" viewBox="0 0 814 1000">
+                <Path fill="#fff" d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 790.7 0 663 0 541.8c0-207.3 134.4-316.7 266.5-316.7 100.9 0 184.4 66.9 246.9 66.9 59.2 0 152-65.7 265.7-65.7zm-96.9-349.3c43.4-51.5 74.7-123.1 74.7-194.7 0-9.9-.6-19.9-2.5-28.6-71.4 2.5-154.7 47.9-206.4 107.3-39.5 44.7-81.8 116.8-81.8 189.3 0 10.5 1.9 21.1 2.5 24.4 4.5.6 11.5 1.9 18.5 1.9 63.5 0 144.4-42.8 194.9-99.6z"/>
+              </Svg>
+              <Text style={authStyles.appleBtnText}>Apple ile devam et</Text>
             </TouchableOpacity>
           </View>
 
@@ -1717,9 +1706,10 @@ const authStyles = StyleSheet.create({
   title: { color: '#fff', fontSize: 34, fontWeight: '800', letterSpacing: 1 },
   subtitle: { color: 'rgba(255,255,255,0.45)', fontSize: 15, marginTop: 6 },
   socialWrap: { gap: 12, marginBottom: 24 },
-  googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 14, paddingVertical: 14 },
-  googleIcon: { fontSize: 18, fontWeight: '800', color: '#4285F4' },
-  googleText: { fontSize: 16, fontWeight: '700', color: '#111' },
+  googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 14, paddingVertical: 15 },
+  googleText: { fontSize: 16, fontWeight: '600', color: '#111', letterSpacing: 0.2 },
+  appleBtnReal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#000', borderRadius: 14, paddingVertical: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+  appleBtnText: { fontSize: 16, fontWeight: '600', color: '#fff', letterSpacing: 0.2 },
   appleBtn: { width: '100%', height: 50 },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
   divider: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
@@ -1774,13 +1764,25 @@ export default function App() {
     // Email doğrulama deep link handler
     const handleUrl = async (url) => {
       if (!url) return;
-      if (url.includes('access_token') || url.includes('refresh_token')) {
-        const params = new URLSearchParams(url.split('#')[1] || url.split('?')[1] || '');
-        const access_token = params.get('access_token');
-        const refresh_token = params.get('refresh_token');
-        if (access_token && refresh_token) {
-          await supabase.auth.setSession({ access_token, refresh_token });
-        }
+      // Fragment (#) veya query (?) parametrelerini ayrıştır
+      const [base, fragment] = url.split('#');
+      const queryStr = (base.includes('?') ? base.split('?')[1] : '') || fragment || '';
+      const params = new URLSearchParams(queryStr);
+
+      const token_hash = params.get('token_hash');
+      const type = params.get('type');
+      if (token_hash && type) {
+        // PKCE/OTP akışı: email doğrulama ve magic link
+        const { error } = await supabase.auth.verifyOtp({ token_hash, type });
+        if (error) console.error('verifyOtp error:', error.message);
+        return;
+      }
+
+      const access_token = params.get('access_token');
+      const refresh_token = params.get('refresh_token');
+      if (access_token && refresh_token) {
+        // Implicit akış: OAuth callback
+        await supabase.auth.setSession({ access_token, refresh_token });
       }
     };
 
@@ -1849,12 +1851,13 @@ export default function App() {
       .range(from, to);
 
     if (activeSearch.length > 0) {
+      const s = activeSearch.replace(/[%_\\]/g, '\\$&');
       query = supabase.from('hub_contents')
         .select(availabilitySelect)
         .not('imdb_score', 'is', null)
         .not('imdb_id', 'is', null)
         .or(platformFilter, { referencedTable: 'hub_availability' })
-        .or('title.ilike.%' + activeSearch + '%,original_title.ilike.%' + activeSearch + '%,title_tr.ilike.%' + activeSearch + '%,cast_list.ilike.%' + activeSearch + '%,director.ilike.%' + activeSearch + '%')
+        .or(`title.ilike.%${s}%,original_title.ilike.%${s}%,title_tr.ilike.%${s}%,cast_list.ilike.%${s}%,director.ilike.%${s}%`)
         .order(sortBy, { ascending: sortAsc })
         .limit(500);
     }
@@ -2004,17 +2007,17 @@ export default function App() {
         </>
       ) : activeTab === 'popular' ? (
         <View style={{ flex: 1 }}>
-          <PopularScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} />
+          <PopularScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} user={user} />
           <FloatingBackBtn onPress={() => setShowHome(true)} />
         </View>
       ) : activeTab === 'new' ? (
         <View style={{ flex: 1 }}>
-          <NewScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} />
+          <NewScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} user={user} />
           <FloatingBackBtn onPress={() => setShowHome(true)} />
         </View>
       ) : activeTab === 'collections' ? (
         <View style={{ flex: 1 }}>
-          <CollectionsScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} />
+          <CollectionsScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} user={user} />
           <FloatingBackBtn onPress={() => setShowHome(true)} />
         </View>
       ) : (

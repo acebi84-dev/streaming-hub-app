@@ -15,12 +15,18 @@
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
+              "izlio"
+            ]
+          },
+          {
+            "CFBundleURLSchemes": [
               "com.googleusercontent.apps.556246058284-50k1stl1ivqfqgu1sql3pfg9ucr0h04v"
             ]
           }
         ]
       },
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "buildNumber": "2"
     },
     "android": {
       "jsEngine": "jsc",
