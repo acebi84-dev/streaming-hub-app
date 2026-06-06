@@ -1,7 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Updates from 'expo-updates';
 
 SplashScreen.preventAutoHideAsync();
+
+async function checkForOTAUpdate() {
+  try {
+    if (!Updates.isEmbeddedLaunch) {
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        await Updates.fetchUpdateAsync();
+        await Updates.reloadAsync();
+      }
+    }
+  } catch (_) {}
+}
+
+checkForOTAUpdate();
 
 
 
@@ -17,7 +32,7 @@ import {
 import YoutubeIframe from 'react-native-youtube-iframe';
 import { Linking, Share, AppState } from 'react-native';
 import ReAnimated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
-import { supabase, supabasePublic } from './supabase';
+import { supabase, supabasePublic, getStoredToken, setStoredToken } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Play, Star, Share2, Trash2 } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 const GoogleSignin = null;
@@ -39,11 +54,27 @@ const PROFILE_GENRES = [
   { id: 'fantasy',   label: 'Fantastik',     emoji: '🧙' },
   { id: 'history',   label: 'Tarih',         emoji: '⚔️' },
 ];
+const PROFILE_LANGUAGES = [
+  { code: 'tr', label: 'Türkçe',      emoji: '🇹🇷' },
+  { code: 'en', label: 'İngilizce',   emoji: '🇬🇧' },
+  { code: 'ko', label: 'Korece',      emoji: '🇰🇷' },
+  { code: 'ja', label: 'Japonca',     emoji: '🇯🇵' },
+  { code: 'es', label: 'İspanyolca',  emoji: '🇪🇸' },
+  { code: 'fr', label: 'Fransızca',   emoji: '🇫🇷' },
+  { code: 'de', label: 'Almanca',     emoji: '🇩🇪' },
+  { code: 'hi', label: 'Hintçe',      emoji: '🇮🇳' },
+  { code: 'pt', label: 'Portekizce',  emoji: '🇵🇹' },
+  { code: 'zh', label: 'Çince',       emoji: '🇨🇳' },
+  { code: 'it', label: 'İtalyanca',   emoji: '🇮🇹' },
+  { code: 'ru', label: 'Rusça',       emoji: '🇷🇺' },
+];
 const PLATFORMS = [
-  { slug: 'netflix',  name: 'Netflix',      color: '#E50914', mono: 'N',   darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
-  { slug: 'amazon',   name: 'Prime Video',  color: '#00A8E1', mono: 'P',   darkLogo: 'https://media.movieofthenight.com/services/prime/logo-white.svg' },
-  { slug: 'disney',   name: 'Disney+',      color: '#0063E5', mono: 'D+',  darkLogo: 'https://media.movieofthenight.com/services/disney/logo-white.svg' },
-  { slug: 'hbo',      name: 'HBO Max',      color: '#8B4FBE', mono: 'HBO', darkLogo: 'https://media.movieofthenight.com/services/hbo/logo-white.svg' },
+  { slug: 'netflix',     name: 'Netflix',     color: '#E50914', mono: 'N',   darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
+  { slug: 'amazon',      name: 'Prime Video', color: '#00A8E1', mono: 'P',   darkLogo: 'https://media.movieofthenight.com/services/prime/logo-white.svg' },
+  { slug: 'disney',      name: 'Disney+',     color: '#0063E5', mono: 'D+',  darkLogo: 'https://media.movieofthenight.com/services/disney/logo-white.svg' },
+  { slug: 'hbo',         name: 'HBO Max',     color: '#8B4FBE', mono: 'HBO', darkLogo: 'https://media.movieofthenight.com/services/hbo/logo-white.svg' },
+  { slug: 'mubi',        name: 'MUBI',        color: '#000000', mono: 'M',   darkLogo: 'https://media.movieofthenight.com/services/mubi/logo-white.svg' },
+  { slug: 'crunchyroll', name: 'Crunchyroll', color: '#FF6600', mono: 'CR',  darkLogo: 'https://media.movieofthenight.com/services/crunchyroll/logo-white.svg' },
 ];
 
 const GENRE_API_TERM = {
@@ -94,6 +125,38 @@ const COMMENTS = [
   "Aile ile izleyebileceğim bir şey var mı? 👨‍👩‍👧",
 ];
 
+// Direct REST client — iOS JSC'de Supabase JS auth lock'ı bypass eder
+const _SUPA = {
+  url: 'https://bvggvperehlduxziaqfu.supabase.co',
+  key: 'sb_publishable_Q3JqA0F8fU7vE6fQMZ_ZcA_-x5qLhnk',
+  token: null,
+};
+function dbXHR(path, method, body) {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.timeout = 6000;
+    const done = (data, error) => resolve({ data, error });
+    xhr.ontimeout = () => done(null, { message: 'timeout' });
+    xhr.onerror = () => done(null, { message: 'network' });
+    xhr.onload = () => {
+      try {
+        const json = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+        if (xhr.status >= 200 && xhr.status < 300) done(json, null);
+        else done(null, { message: (json && json.message) || 'hata' });
+      } catch (e) { done(null, { message: e.message }); }
+    };
+    xhr.open(method || 'GET', _SUPA.url + '/rest/v1/' + path);
+    const tok = _SUPA.token || getStoredToken() || _SUPA.key;
+    xhr.setRequestHeader('apikey', _SUPA.key);
+    xhr.setRequestHeader('Authorization', 'Bearer ' + tok);
+    if (body) {
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('Prefer', 'resolution=merge-duplicates,return=representation');
+    }
+    xhr.send(body ? JSON.stringify(body) : null);
+  });
+}
+
 // localStorage React Native'de yok — in-memory cache kullanıyoruz, Supabase profile ile senkronize
 const _platformCache = { slugs: null };
 function getSelectedPlatforms() {
@@ -104,7 +167,8 @@ function saveSelectedPlatforms(slugs) {
   _platformCache.slugs = slugs;
 }
 async function savePlatformsToProfile(userId, slugs) {
-  await supabase.from('profiles').upsert({ id: userId, selected_platforms: slugs }, { onConflict: 'id' });
+  _platformCache.slugs = slugs;
+  await dbXHR('profiles', 'POST', { id: userId, selected_platforms: slugs, updated_at: new Date().toISOString() });
 }
 
 function CarouselComments() {
@@ -129,32 +193,21 @@ function CarouselComments() {
 
 // ── Watchlist Helpers ─────────────────────────────────────────
 async function getWatchlistEntry(userId, contentId) {
-  try {
-    const { data } = await Promise.race([
-      supabase.from('watchlist').select('*').eq('user_id', userId).eq('content_id', contentId).single(),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
-    ]);
-    return data;
-  } catch { return null; }
+  const { data } = await dbXHR('watchlist?user_id=eq.' + userId + '&content_id=eq.' + contentId + '&select=*');
+  return Array.isArray(data) ? (data[0] || null) : null;
 }
-async function upsertWatchlist(userId, contentId, status, rating = null) {
-  try {
-    return await Promise.race([
-      supabase.from('watchlist').upsert({
-        user_id: userId, content_id: contentId, status, rating,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,content_id' }).select().single(),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
-    ]);
-  } catch {
-    return { data: null, error: null };
-  }
+async function upsertWatchlist(userId, contentId, status, rating) {
+  const { data, error } = await dbXHR('watchlist', 'POST', {
+    user_id: userId, content_id: contentId, status,
+    rating: rating !== undefined ? rating : null,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) console.warn('upsertWatchlist error:', JSON.stringify(error), 'status:', status);
+  const row = Array.isArray(data) ? (data[0] || null) : null;
+  return { data: row, error };
 }
 async function removeWatchlist(userId, contentId) {
-  await Promise.race([
-    supabase.from('watchlist').delete().eq('user_id', userId).eq('content_id', contentId),
-    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
-  ]).catch(() => {});
+  await dbXHR('watchlist?user_id=eq.' + userId + '&content_id=eq.' + contentId, 'DELETE');
 }
 
 function extractYouTubeId(url) {
@@ -220,7 +273,7 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
   const statusConfig = {
     watched:  { label: 'İzledim',          icon: <CheckCircle size={20} color="#51cf66" strokeWidth={2} />, color: '#51cf66' },
     watching: { label: 'İzliyorum',         icon: <Play size={20} color="#339af0" strokeWidth={2} />,        color: '#339af0' },
-    want:     { label: 'İzlemek İstiyorum', icon: <Bookmark size={20} color="#ffd43b" strokeWidth={2} />,    color: '#ffd43b' },
+    want:     { label: 'İzleyeceğim',        icon: <Bookmark size={20} color="#ffd43b" strokeWidth={2} />,    color: '#ffd43b' },
   };
 
   return (
@@ -325,20 +378,9 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
   async function fetchList() {
     if (!user) { setLoading(false); return; }
     setLoading(true);
-    try {
-      const { data } = await Promise.race([
-        supabase
-          .from('watchlist')
-          .select('*, content:hub_contents(id, title, title_tr, type, year, imdb_score, poster_url, imdb_id, original_language, availability:hub_availability(platform_slug, platform_url))')
-          .eq('user_id', user.id)
-          .eq('status', tab)
-          .order('updated_at', { ascending: false }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
-      ]);
-      if (isMounted.current) { setItems(data || []); setLoading(false); }
-    } catch {
-      if (isMounted.current) { setItems([]); setLoading(false); }
-    }
+    const sel = 'select=*,content:hub_contents(id,title,title_tr,type,year,imdb_score,poster_url,imdb_id,original_language,availability:hub_availability(platform_slug,platform_url))';
+    const { data } = await dbXHR('watchlist?user_id=eq.' + user.id + '&status=eq.' + tab + '&order=updated_at.desc&' + sel);
+    if (isMounted.current) { setItems(Array.isArray(data) ? data : []); setLoading(false); }
   }
 
   const tabs = [
@@ -484,7 +526,7 @@ function DetailModal({ item, onClose, user }) {
       if (!tmdbIds || tmdbIds.length === 0) return;
       const { data } = await supabasePublic
         .from('hub_contents')
-        .select('id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, availability:hub_availability(platform_slug, platform_url)')
+        .select('id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, synopsis_tr, director, cast_list, trailer_url, tagline, type, year, availability:hub_availability(platform_slug, platform_url)')
         .in('tmdb_id', tmdbIds).not('imdb_score', 'is', null);
       const filtered = (data || []).filter(i => i.availability && i.availability.length > 0).slice(0, 10);
       if (filtered.length >= 2) setSimilarItems(filtered);
@@ -747,7 +789,7 @@ function CollectionsScreen({ selectedPlatforms, onBack, user, initialCollectionI
     setLoading(true);
     const { data, error } = await supabasePublic
       .from('hub_collections')
-      .select('*, items:hub_collection_items(content_id, imdb_score, content:hub_contents(id, title, title_tr, original_language, poster_url, imdb_score, imdb_id, availability:hub_availability(platform_slug, platform_url)))')
+      .select('*, items:hub_collection_items(content_id, imdb_score, content:hub_contents(id, title, title_tr, original_language, poster_url, imdb_score, imdb_id, type, year, trailer_url, synopsis_tr, director, cast_list, tagline, availability:hub_availability(platform_slug, platform_url)))')
       .order(sortBy, { ascending: sortAscCol, nullsFirst: false });
     if (error) { console.error(error); setLoading(false); return; }
 
@@ -778,7 +820,7 @@ function CollectionsScreen({ selectedPlatforms, onBack, user, initialCollectionI
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
+      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
       <View style={[styles.header, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
         {onBack && (
           <TouchableOpacity onPress={onBack} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
@@ -878,7 +920,9 @@ function CollectionsScreen({ selectedPlatforms, onBack, user, initialCollectionI
                     if (!c) return null;
                     const platforms = c.availability?.filter(a => selectedPlatforms.includes(a.platform_slug)) || [];
                     return (
-                      <TouchableOpacity key={c.id} style={styles.popularCard} onPress={() => setSelectedItem({ ...c, availability: platforms })}>
+                      <TouchableOpacity key={c.id} style={styles.popularCard} onPress={() => {
+                          setSelectedItem({ ...c, availability: platforms });
+                        }}>
                         {c.poster_url
                           ? <Image source={{ uri: c.poster_url }} style={styles.popularCardImg} resizeMode="cover" />
                           : <View style={[styles.popularCardImg, { backgroundColor: SURFACE }]} />}
@@ -969,7 +1013,7 @@ function NewScreen({ selectedPlatforms, onBack, user }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
+      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
       <View style={[styles.popularHeader, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
         {onBack && (
           <TouchableOpacity onPress={onBack} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
@@ -1128,35 +1172,39 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
   const selectedGenreLabel = POPULAR_GENRES.find(g => g.en === genreFilter)?.tr || 'Tür';
 
   async function openPopularItem(item) {
-    // Base normalized item
+    const itemTitle = (item.title || item.show_name || '').trim();
     const base = {
       ...item,
+      title: itemTitle,
+      type: item.show_type || null,
+      year: item.release_year || null,
       poster_url: item.poster_w480 || item.poster_w240,
       imdb_score: item.rating ? item.rating / 10 : null,
       availability: item.streaming_link ? [{ platform_slug: item.platform, platform_url: item.streaming_link }] : [],
     };
-    setSelectedItem(base);
-
-    // Enrich from hub_contents if imdb_id exists
+    setSelectedItem(base); // Modal hemen açılır
+    const ENRICH_SELECT = 'synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, type, year, title_tr, original_language, imdb_id';
+    let enriched = null;
     if (item.imdb_id) {
-      const { data } = await supabase
-        .from('hub_contents')
-        .select('synopsis_tr, director, cast_list, trailer_url, tagline, poster_url')
-        .eq('imdb_id', item.imdb_id)
-        .limit(1)
-        .single();
-      if (data) {
-        setSelectedItem({
-          ...base,
-          synopsis_tr: data.synopsis_tr,
-          director: data.director,
-          cast_list: data.cast_list,
-          trailer_url: data.trailer_url,
-          tagline: data.tagline,
-          poster_url: data.poster_url || base.poster_url,
-        });
-      }
+      const { data } = await supabasePublic.from('hub_contents')
+        .select(ENRICH_SELECT).eq('imdb_id', item.imdb_id).single()
+        .catch(() => ({ data: null }));
+      enriched = data;
     }
+    if (!enriched && itemTitle) {
+      const { data } = await supabasePublic.from('hub_contents')
+        .select(ENRICH_SELECT).ilike('title', itemTitle).limit(1)
+        .catch(() => ({ data: null }));
+      enriched = Array.isArray(data) ? data[0] : data;
+    }
+    // İngilizce tam eşleşme olmadıysa kısmi arama dene
+    if (!enriched && itemTitle) {
+      const { data } = await supabasePublic.from('hub_contents')
+        .select(ENRICH_SELECT).ilike('title', `%${itemTitle}%`).limit(1)
+        .catch(() => ({ data: null }));
+      enriched = Array.isArray(data) ? data[0] : data;
+    }
+    if (enriched) setSelectedItem({ ...base, ...enriched, poster_url: enriched.poster_url || base.poster_url });
   }
 
   function renderPopularCard(item) {
@@ -1181,7 +1229,7 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
+      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
       <View style={[styles.popularHeader, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
         {onBack && (
           <TouchableOpacity onPress={onBack} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
@@ -1513,10 +1561,14 @@ function PersonalizedHeroSection({ items, scrollY, onPress }) {
 
   const panResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (_, gs) =>
-        Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy),
+        Math.abs(gs.dx) > 8 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.3,
+      onMoveShouldSetPanResponderCapture: (_, gs) =>
+        Math.abs(gs.dx) > 8 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.3,
       onPanResponderRelease: (_, gs) => {
-        if (Math.abs(gs.dx) < 50) return;
+        if (Math.abs(gs.dx) < 40) return;
         if (gs.dx < 0) nextFnRef.current?.();
         else prevFnRef.current?.();
       },
@@ -1550,6 +1602,12 @@ function PersonalizedHeroSection({ items, scrollY, onPress }) {
         <View style={{ position: 'absolute', bottom: HERO_H * 0.4, left: 0, right: 0, height: HERO_H * 0.1, backgroundColor: 'rgba(0,0,0,0.2)' }} />
         <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HERO_H * 0.42, backgroundColor: 'rgba(0,0,0,0.72)' }} />
         <Animated.View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: items.length > 1 ? 38 : 26, opacity: contentOpacity }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
+              <Text style={{ color: '#ffd43b', fontSize: 11 }}>✦</Text>
+              <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 }}>SANA ÖZEL</Text>
+            </View>
+          </View>
           <Text style={{ color: '#fff', fontSize: 35, fontWeight: '900', letterSpacing: -0.8, marginBottom: 8, lineHeight: 41, textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }} numberOfLines={2}>{title}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
             {item.imdb_score != null && <Text style={{ color: '#ffd43b', fontWeight: '800', fontSize: 14 }}>★ {item.imdb_score.toFixed(1)}</Text>}
@@ -1586,13 +1644,15 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
   const [activeSearch, setActiveSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [genreFilter, setGenreFilter] = useState(null);
+  const [langFilter, setLangFilter] = useState(null);
   const [minImdb, setMinImdb] = useState(0);
   const [sortBy, setSortBy] = useState('imdb_score');
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
+  const [showLangDropdown, setShowLangDropdown] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const isMounted = useRef(true);
   useEffect(() => { return () => { isMounted.current = false; }; }, []);
-  useEffect(() => { fetchItems().catch(() => {}); }, [selectedPlatforms, activeSearch, typeFilter, genreFilter, minImdb, sortBy]);
+  useEffect(() => { fetchItems().catch(() => {}); }, [selectedPlatforms, activeSearch, typeFilter, genreFilter, langFilter, minImdb, sortBy]);
 
   async function fetchItems() {
     if (!isMounted.current) return;
@@ -1609,6 +1669,7 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
     }
     if (typeFilter !== 'all') q = q.eq('type', typeFilter);
     if (genreFilter) q = q.ilike('genre', `%${genreFilter}%`);
+    if (langFilter) q = q.eq('original_language', langFilter);
     if (minImdb > 0) q = q.gte('imdb_score', minImdb);
     q = q.order(sortBy, { ascending: false, nullsFirst: false }).limit(90);
     const { data, error } = await q;
@@ -1620,10 +1681,11 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
   }
 
   const genreLabel = POPULAR_GENRES.find(g => g.en === genreFilter)?.tr || 'Tür';
+  const langLabel = PROFILE_LANGUAGES.find(l => l.code === langFilter)?.label || 'Dil';
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
-      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
+      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 }}>
         <TouchableOpacity onPress={onBack} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 26 }}>‹</Text>
@@ -1642,10 +1704,15 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
           </TouchableOpacity>
         ))}
         <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
-        <TouchableOpacity style={{ paddingHorizontal: 14, paddingVertical: 11, borderRadius: 20, backgroundColor: genreFilter ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: genreFilter ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)' }} onPress={() => setShowGenreDropdown(!showGenreDropdown)}>
+        <TouchableOpacity style={{ paddingHorizontal: 14, paddingVertical: 11, borderRadius: 20, backgroundColor: genreFilter ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: genreFilter ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)' }} onPress={() => { setShowGenreDropdown(v => !v); setShowLangDropdown(false); }}>
           <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '700' }}>{genreLabel} ▾</Text>
         </TouchableOpacity>
         {genreFilter && <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 11, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)' }} onPress={() => setGenreFilter(null)}><Text style={{ color: '#fff', fontSize: 13 }}>✕</Text></TouchableOpacity>}
+        <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
+        <TouchableOpacity style={{ paddingHorizontal: 14, paddingVertical: 11, borderRadius: 20, backgroundColor: langFilter ? 'rgba(100,210,255,0.18)' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: langFilter ? 'rgba(100,210,255,0.5)' : 'rgba(255,255,255,0.1)' }} onPress={() => { setShowLangDropdown(v => !v); setShowGenreDropdown(false); }}>
+          <Text style={{ color: langFilter ? '#64d2ff' : 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '700' }}>{langLabel} ▾</Text>
+        </TouchableOpacity>
+        {langFilter && <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 11, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)' }} onPress={() => setLangFilter(null)}><Text style={{ color: '#fff', fontSize: 13 }}>✕</Text></TouchableOpacity>}
         <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
         <View style={{ paddingHorizontal: 6, paddingVertical: 7, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: '#ffd43b', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>IMDb</Text>
@@ -1668,6 +1735,17 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
             {POPULAR_GENRES.map(g => (
               <TouchableOpacity key={g.en} style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: genreFilter === g.en ? 'rgba(255,255,255,0.12)' : 'transparent' }} onPress={() => { setGenreFilter(genreFilter === g.en ? null : g.en); setShowGenreDropdown(false); }}>
                 <Text style={{ color: genreFilter === g.en ? '#fff' : 'rgba(255,255,255,0.65)', fontSize: 15, fontWeight: genreFilter === g.en ? '700' : '400' }}>{g.tr}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+      {showLangDropdown && (
+        <View style={{ position: 'absolute', top: 178, left: 16, right: 16, backgroundColor: '#1c1c1e', borderRadius: 14, zIndex: 100, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.55, shadowRadius: 14 }}>
+          <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 8 }}>
+            {PROFILE_LANGUAGES.map(l => (
+              <TouchableOpacity key={l.code} style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: langFilter === l.code ? 'rgba(100,210,255,0.14)' : 'transparent' }} onPress={() => { setLangFilter(langFilter === l.code ? null : l.code); setShowLangDropdown(false); }}>
+                <Text style={{ color: langFilter === l.code ? '#64d2ff' : 'rgba(255,255,255,0.65)', fontSize: 15, fontWeight: langFilter === l.code ? '700' : '400' }}>{l.emoji} {l.label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -1723,7 +1801,7 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
 }
 
 // ── AppleTVMainScreen ──────────────────────────────────────────
-function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, isPremium, onWatchlist, onProfile }) {
+function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLanguages, isPremium, onWatchlist, onProfile }) {
   const [heroItems, setHeroItems] = useState([]);
   const [discoverItems, setDiscoverItems] = useState([]);
   const [popularItems, setPopularItems] = useState([]);
@@ -1753,12 +1831,13 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, isPremium,
 
   useEffect(() => {
     fetchPersonalizedHero().catch(() => {});
-  }, [selectedPlatforms.join(','), (favoriteGenres || []).join(',')]);
+  }, [selectedPlatforms.join(','), (favoriteGenres || []).join(','), (favoriteLanguages || []).join(',')]);
 
   async function fetchPersonalizedHero() {
     if (!isMounted.current || selectedPlatforms.length === 0) { setHeroItems([]); return; }
     const platforms = selectedPlatforms;
     const genres = favoriteGenres || [];
+    const langs = favoriteLanguages || [];
     const platformFilter = platforms.map(p => `platform_slug.eq.${p}`).join(',');
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const genreOr = genres.length > 0
@@ -1774,7 +1853,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, isPremium,
 
     let items = [];
 
-    // 1. Son 30 gün içinde eklenenler (genre varsa filtreli)
+    // 1. Son 30 gün içinde eklenenler (genre + dil varsa filtreli)
     const { data: recentAvail } = await supabasePublic
       .from('hub_availability')
       .select('content_id')
@@ -1784,18 +1863,33 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, isPremium,
 
     if (recentIds.length > 0) {
       let q = baseQ().in('id', recentIds);
+      if (langs.length > 0) q = q.in('original_language', langs);
       if (genreOr) q = q.or(genreOr);
       const { data } = await q;
       items = data || [];
     }
 
-    // 2. Yeterli içerik yoksa: tüm katalog + genre
+    // 2. Yeterli içerik yoksa: tüm katalog + dil + genre
+    if (items.length < 3 && langs.length > 0 && genreOr) {
+      let q = baseQ().in('original_language', langs);
+      if (genreOr) q = q.or(genreOr);
+      const { data } = await q;
+      items = data || [];
+    }
+
+    // 3. Yeterli yoksa: tüm katalog + dil (genre filtresi yok)
+    if (items.length < 3 && langs.length > 0) {
+      const { data } = await baseQ().in('original_language', langs);
+      items = data || [];
+    }
+
+    // 4. Yeterli içerik yoksa: tüm katalog + genre
     if (items.length < 3 && genreOr) {
       const { data } = await baseQ().or(genreOr);
       items = data || [];
     }
 
-    // 3. Hâlâ yeterli yoksa: tüm katalog, genre filtresi yok
+    // 5. Hâlâ yeterli yoksa: tüm katalog, hiç filtre yok
     if (items.length === 0) {
       const { data } = await baseQ();
       items = data || [];
@@ -1904,16 +1998,30 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, isPremium,
     if (item._rawPopular) {
       const raw = item._rawPopular;
       const base = { ...item, poster_url: raw.poster_w480 || raw.poster_w240 || item.poster_url };
+      setSelectedItem(base); // Modal hemen açılır
+      const ENRICH_SEL = 'id, title_tr, synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, genre, year, original_language, type, imdb_id';
+      const rawTitle = (item.title || item.show_name || '').trim();
+      let enriched = null;
       if (item.imdb_id) {
         const { data } = await supabasePublic.from('hub_contents')
-          .select('id, synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, genre, year, original_language')
-          .eq('imdb_id', item.imdb_id).single()
+          .select(ENRICH_SEL).eq('imdb_id', item.imdb_id).single()
           .catch(() => ({ data: null }));
-        if (!isMounted.current) return;
-        setSelectedItem(data ? { ...base, ...data, poster_url: data.poster_url || base.poster_url } : base);
-      } else {
-        setSelectedItem(base);
+        enriched = data;
       }
+      if (!enriched && rawTitle) {
+        const { data } = await supabasePublic.from('hub_contents')
+          .select(ENRICH_SEL).ilike('title', rawTitle).limit(1)
+          .catch(() => ({ data: null }));
+        enriched = Array.isArray(data) ? data[0] : data;
+      }
+      if (!enriched && rawTitle) {
+        const { data } = await supabasePublic.from('hub_contents')
+          .select(ENRICH_SEL).ilike('title', `%${rawTitle}%`).limit(1)
+          .catch(() => ({ data: null }));
+        enriched = Array.isArray(data) ? data[0] : data;
+      }
+      if (!isMounted.current) return;
+      if (enriched) setSelectedItem({ ...base, ...enriched, poster_url: enriched.poster_url || base.poster_url });
     } else {
       setSelectedItem(item);
     }
@@ -1929,13 +2037,13 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, isPremium,
     <View style={{ flex: 1, backgroundColor: '#000' }}>
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
-        <Text style={{ color: '#fff', fontSize: 28, fontWeight: '900', letterSpacing: -0.5 }}>İzlio</Text>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Bookmark size={24} color="#fff" strokeWidth={2} />
+        <Text style={{ color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: 3 }}>İZLİO</Text>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
+            <Bookmark size={26} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
-          <TouchableOpacity style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onProfile} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <User size={24} color="#fff" strokeWidth={2} />
+          <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onProfile} hitSlop={{ top: 24, bottom: 24, left: 12, right: 24 }}>
+            <User size={26} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1963,9 +2071,9 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, isPremium,
           )}
         </View>
         <TouchableOpacity
-          style={{ width: 54, height: 54, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: 60, height: 60, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center' }}
           onPress={() => setFullScreen('discover')}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          hitSlop={{ top: 24, bottom: 24, left: 24, right: 24 }}
         >
           <SlidersHorizontal size={20} color="rgba(255,255,255,0.65)" strokeWidth={2} />
         </TouchableOpacity>
@@ -1999,7 +2107,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, isPremium,
         <View style={{ height: 60 }} />
       </Animated.ScrollView>
 
-      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
+      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
     </View>
   );
 }
@@ -2166,9 +2274,10 @@ function FloatingBackBtn({ onPress }) {
 
 // ── Onboarding Screen ─────────────────────────────────────────
 function OnboardingScreen({ user, onComplete }) {
-  const [step, setStep] = useState(0); // 0=welcome 1=platforms 2=genres 3=profile
+  const [step, setStep] = useState(0); // 0=welcome 1=platforms 2=genres 3=languages 4=profile
   const [selPlatforms, setSelPlatforms] = useState(['netflix','amazon','disney','hbo']);
   const [selGenres, setSelGenres] = useState([]);
+  const [selLanguages, setSelLanguages] = useState([]);
   const [displayName, setDisplayName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [gender, setGender] = useState('');
@@ -2180,21 +2289,23 @@ function OnboardingScreen({ user, onComplete }) {
   function toggleGenre(id) {
     setSelGenres(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
   }
+  function toggleLanguage(code) {
+    setSelLanguages(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]);
+  }
 
   async function finish() {
     setLoading(true);
-    const save = supabase.from('profiles').upsert({
+    await dbXHR('profiles', 'POST', {
       id: user.id,
       selected_platforms: selPlatforms,
       favorite_genres: selGenres,
+      favorite_languages: selLanguages,
       display_name: displayName || null,
       birth_date: birthDate || null,
       gender: gender || null,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'id' }).catch(() => {});
-    const timeout = new Promise(r => setTimeout(r, 6000));
-    await Promise.race([save, timeout]);
-    onComplete({ platforms: selPlatforms, genres: selGenres });
+    });
+    onComplete({ platforms: selPlatforms, genres: selGenres, languages: selLanguages });
     setLoading(false);
   }
 
@@ -2203,7 +2314,7 @@ function OnboardingScreen({ user, onComplete }) {
       <StatusBar barStyle="light-content" />
       {/* Progress */}
       <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 24, paddingTop: 12, paddingBottom: 4 }}>
-        {[0,1,2,3].map(i => (
+        {[0,1,2,3,4].map(i => (
           <View key={i} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: i <= step ? '#fff' : 'rgba(255,255,255,0.15)' }} />
         ))}
       </View>
@@ -2261,6 +2372,25 @@ function OnboardingScreen({ user, onComplete }) {
 
         {step === 3 && (
           <View style={{ paddingTop: 32 }}>
+            <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', marginBottom: 6 }}>İçerik Dili Tercihi</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, marginBottom: 28 }}>Hangi dillerdeki içerikleri seversin? Birden fazla seçebilirsin.</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              {PROFILE_LANGUAGES.map(l => {
+                const sel = selLanguages.includes(l.code);
+                return (
+                  <TouchableOpacity key={l.code}
+                    style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, backgroundColor: sel ? '#64d2ff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: sel ? '#64d2ff' : 'rgba(255,255,255,0.12)' }}
+                    onPress={() => toggleLanguage(l.code)}>
+                    <Text style={{ color: sel ? '#000' : '#fff', fontWeight: sel ? '700' : '500', fontSize: 14 }}>{l.emoji} {l.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {step === 4 && (
+          <View style={{ paddingTop: 32 }}>
             <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', marginBottom: 6 }}>Profilini Tamamla</Text>
             <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, marginBottom: 28 }}>İsteğe bağlı — dilersen atlayabilirsin.</Text>
 
@@ -2268,9 +2398,7 @@ function OnboardingScreen({ user, onComplete }) {
               <View style={obStyles.inputRow}>
                 <TextInput style={obStyles.input} placeholder="İsmin (isteğe bağlı)" placeholderTextColor="rgba(255,255,255,0.3)" value={displayName} onChangeText={setDisplayName} />
               </View>
-              <View style={obStyles.inputRow}>
-                <TextInput style={obStyles.input} placeholder="Doğum tarihi (YYYY-AA-GG)" placeholderTextColor="rgba(255,255,255,0.3)" value={birthDate} onChangeText={setBirthDate} keyboardType="numbers-and-punctuation" />
-              </View>
+              <BirthDatePicker value={birthDate} onChange={setBirthDate} />
               <View style={{ gap: 8 }}>
                 <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 4 }}>Cinsiyet (isteğe bağlı)</Text>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -2291,7 +2419,7 @@ function OnboardingScreen({ user, onComplete }) {
 
       {/* Bottom buttons */}
       <View style={{ paddingHorizontal: 24, paddingBottom: 32, gap: 12 }}>
-        {step < 3 ? (
+        {step < 4 ? (
           <TouchableOpacity
             style={[obStyles.mainBtn, step === 1 && selPlatforms.length === 0 && { opacity: 0.4 }]}
             disabled={step === 1 && selPlatforms.length === 0}
@@ -2399,22 +2527,26 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
   const [editGender, setEditGender] = useState('');
   const [selPlatforms, setSelPlatforms] = useState(selectedPlatforms);
   const [selGenres, setSelGenres] = useState([]);
+  const [selLanguages, setSelLanguages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [openPersonal, setOpenPersonal] = useState(false);
   const [openPlatforms, setOpenPlatforms] = useState(true);
   const [openGenres, setOpenGenres] = useState(false);
+  const [openLanguages, setOpenLanguages] = useState(false);
 
   useEffect(() => {
     if (visible && user) {
-      supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data }) => {
-        if (data) {
-          setEditName(data.display_name || '');
-          setEditBirth(data.birth_date || '');
-          setEditGender(data.gender || '');
-          setSelPlatforms(data.selected_platforms?.length > 0 ? data.selected_platforms : selectedPlatforms);
-          setSelGenres(data.favorite_genres || []);
+      dbXHR('profiles?id=eq.' + user.id + '&select=*').then(({ data }) => {
+        const d = Array.isArray(data) ? data[0] : null;
+        if (d) {
+          setEditName(d.display_name || '');
+          setEditBirth(d.birth_date || '');
+          setEditGender(d.gender || '');
+          setSelPlatforms(d.selected_platforms?.length > 0 ? d.selected_platforms : selectedPlatforms);
+          setSelGenres(d.favorite_genres || []);
+          setSelLanguages(d.favorite_languages || []);
         }
       }).catch(() => {});
     }
@@ -2426,43 +2558,30 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
   function toggleGenre(id) {
     setSelGenres(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
   }
+  function toggleLanguage(code) {
+    setSelLanguages(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]);
+  }
 
   async function save() {
-    setLoading(true);
-    setSaveError('');
-    try {
-      const upsertPromise = supabase.from('profiles').upsert({
-        id: user.id,
-        display_name: editName || null,
-        birth_date: editBirth || null,
-        gender: editGender || null,
-        selected_platforms: selPlatforms,
-        favorite_genres: selGenres,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
-      const { error } = await Promise.race([
-        upsertPromise,
-        new Promise((_, rej) => setTimeout(() => rej(new Error('__timeout__')), 8000)),
-      ]);
-      if (error) {
-        setSaveError(error.message || 'Kayıt başarısız, tekrar deneyin.');
-      } else {
-        onSave(selPlatforms, selGenres);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-      }
-    } catch (e) {
-      if (e?.message === '__timeout__') {
-        // Ağ yavaş/kayıt devam ediyor — UI'ı optimistic olarak güncelle
-        onSave(selPlatforms, selGenres);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-      } else {
-        setSaveError(e?.message || 'Bir hata oluştu.');
-      }
-    } finally {
-      setLoading(false);
+    setLoading(true); setSaveError('');
+    const { error } = await dbXHR('profiles', 'POST', {
+      id: user.id,
+      display_name: editName || null,
+      birth_date: editBirth || null,
+      gender: editGender || null,
+      selected_platforms: selPlatforms,
+      favorite_genres: selGenres,
+      favorite_languages: selLanguages,
+      updated_at: new Date().toISOString(),
+    });
+    if (error && error.message !== 'timeout') {
+      setSaveError(error.message || 'Kayıt başarısız.');
+    } else {
+      onSave(selPlatforms, selGenres, selLanguages);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     }
+    setLoading(false);
   }
 
   return (
@@ -2504,7 +2623,7 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
 
           {/* Platformlar — accordion */}
           <AccordionSection title="Platformlar" isOpen={openPlatforms} onToggle={() => setOpenPlatforms(p => !p)}>
-            {[0, 1].map(row => (
+            {Array.from({ length: Math.ceil(PLATFORMS.length / 2) }, (_, i) => i).map(row => (
               <View key={row} style={{ flexDirection: 'row', gap: 10 }}>
                 {PLATFORMS.slice(row * 2, row * 2 + 2).map(p => {
                   const sel = selPlatforms.includes(p.slug);
@@ -2534,6 +2653,23 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
                     style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: sel ? '#fff' : 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: sel ? '#fff' : 'rgba(255,255,255,0.1)' }}
                     onPress={() => toggleGenre(g.id)}>
                     <Text style={{ color: sel ? '#000' : 'rgba(255,255,255,0.75)', fontWeight: sel ? '700' : '500', fontSize: 13 }}>{g.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </AccordionSection>
+
+          {/* İçerik Dilleri — accordion */}
+          <AccordionSection title={`İçerik Dili${selLanguages.length > 0 ? ` (${selLanguages.length})` : ''}`} isOpen={openLanguages} onToggle={() => setOpenLanguages(p => !p)}>
+            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, marginBottom: 10 }}>Hangi dillerdeki içerikleri seversin? Birden fazla seçebilirsin.</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {PROFILE_LANGUAGES.map(l => {
+                const sel = selLanguages.includes(l.code);
+                return (
+                  <TouchableOpacity key={l.code}
+                    style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: sel ? '#64d2ff' : 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: sel ? '#64d2ff' : 'rgba(255,255,255,0.1)' }}
+                    onPress={() => toggleLanguage(l.code)}>
+                    <Text style={{ color: sel ? '#000' : 'rgba(255,255,255,0.75)', fontWeight: sel ? '700' : '500', fontSize: 13 }}>{l.emoji} {l.label}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -2621,6 +2757,8 @@ function AuthScreen({ onAuth }) {
           setError(json.error_description || json.msg || json.error || 'Giriş başarısız');
         } else {
           if (json.access_token && json.refresh_token) {
+            _SUPA.token = json.access_token;
+            setStoredToken(json.access_token);
             await supabase.auth.setSession({ access_token: json.access_token, refresh_token: json.refresh_token }).catch(() => {});
           }
           onAuth(json.user);
@@ -2740,7 +2878,7 @@ function AuthScreen({ onAuth }) {
                   secureTextEntry={!showPass}
                   autoCapitalize="none"
                 />
-                <TouchableOpacity style={{ padding: 12 }} onPress={() => setShowPass(!showPass)}>
+                <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} onPress={() => setShowPass(!showPass)}>
                   {showPass
                     ? <Eye size={18} color="rgba(255,255,255,0.5)" strokeWidth={1.8} />
                     : <EyeOff size={18} color="rgba(255,255,255,0.3)" strokeWidth={1.8} />}
@@ -2820,6 +2958,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
   const [favoriteGenres, setFavoriteGenres] = useState([]);
+  const [favoriteLanguages, setFavoriteLanguages] = useState([]);
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -2829,35 +2968,40 @@ export default function App() {
   // Kullanıcı giriş yaptığında profil bilgilerini yükle
   useEffect(() => {
     if (!user) return;
-    supabase.from('profiles').select('selected_platforms, is_premium, favorite_genres').eq('id', user.id).single()
+    dbXHR('profiles?id=eq.' + user.id + '&select=selected_platforms,is_premium,favorite_genres,favorite_languages')
       .then(({ data }) => {
-        if (data?.selected_platforms && data.selected_platforms.length > 0) {
-          saveSelectedPlatforms(data.selected_platforms);
-          setSelectedPlatforms(data.selected_platforms);
+        const d = Array.isArray(data) ? data[0] : null;
+        if (d?.selected_platforms && d.selected_platforms.length > 0) {
+          saveSelectedPlatforms(d.selected_platforms);
+          setSelectedPlatforms(d.selected_platforms);
           setShowOnboarding(false);
         } else {
           setShowOnboarding(true);
         }
-        if (data?.is_premium) setIsPremium(true);
-        if (data?.favorite_genres?.length > 0) setFavoriteGenres(data.favorite_genres);
+        if (d?.is_premium) setIsPremium(true);
+        if (d?.favorite_genres?.length > 0) setFavoriteGenres(d.favorite_genres);
+        if (d?.favorite_languages?.length > 0) setFavoriteLanguages(d.favorite_languages);
       })
       .catch(() => { setShowOnboarding(true); });
   }, [user?.id]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.access_token) { _SUPA.token = session.access_token; setStoredToken(session.access_token); }
       setUser(session?.user ?? null);
       setAuthLoading(false);
     }).catch(e => { console.error('getSession catch:', e); setAuthLoading(false); });
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
+        if (session?.access_token) { _SUPA.token = session.access_token; setStoredToken(session.access_token); }
+        else if (_event === 'SIGNED_OUT') { _SUPA.token = null; setStoredToken(null); }
         const u = session?.user ?? null;
         setUser(u);
         if (u && _event === 'SIGNED_IN') {
-          // Onboarding kararı useEffect([user?.id])'de veriliyor — burada sadece cache'i güncelle
-          const { data } = await supabase.from('profiles').select('selected_platforms').eq('id', u.id).single();
-          if (data?.selected_platforms && data.selected_platforms.length > 0) {
-            saveSelectedPlatforms(data.selected_platforms);
+          const { data } = await dbXHR('profiles?id=eq.' + u.id + '&select=selected_platforms');
+          const d = Array.isArray(data) ? data[0] : null;
+          if (d?.selected_platforms && d.selected_platforms.length > 0) {
+            saveSelectedPlatforms(d.selected_platforms);
           }
         }
       } catch(e) { console.error('onAuthStateChange error:', e); }
@@ -2918,14 +3062,16 @@ export default function App() {
         onBack={() => { setShowWatchlist(false); setWatchlistItem(null); }}
         onItemPress={(item) => setWatchlistItem(item)}
       />
-      <DetailModal item={watchlistItem} onClose={() => setWatchlistItem(null)} user={user} />
+      <DetailModal key={watchlistItem?.id || 'wmodal'} item={watchlistItem} onClose={() => setWatchlistItem(null)} user={user} />
     </>
   );
 
-  if (showOnboarding) return <OnboardingScreen user={user} onComplete={({ platforms }) => {
+  if (showOnboarding) return <OnboardingScreen user={user} onComplete={({ platforms, genres, languages }) => {
     setSelectedPlatforms(platforms);
     saveSelectedPlatforms(platforms);
     savePlatformsToProfile(user.id, platforms).catch(() => {});
+    if (genres) setFavoriteGenres(genres);
+    if (languages) setFavoriteLanguages(languages);
     setShowOnboarding(false);
   }} />;
 
@@ -2937,8 +3083,8 @@ export default function App() {
         user={user}
         selectedPlatforms={selectedPlatforms}
         onClose={() => setShowProfile(false)}
-        onSave={(platforms, genres) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); if (genres) setFavoriteGenres(genres); }}
-        onSignOut={() => { supabase.auth.signOut().catch(() => {}); setUser(null); setShowProfile(false); }}
+        onSave={(platforms, genres, languages) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); if (genres) setFavoriteGenres(genres); if (languages) setFavoriteLanguages(languages); }}
+        onSignOut={() => { _SUPA.token = null; setStoredToken(null); supabase.auth.signOut().catch(() => {}); setUser(null); setShowProfile(false); }}
         isPremium={isPremium}
         onUpgrade={() => { setShowProfile(false); alert('Yakında! In-App Purchase entegrasyonu hazırlanıyor.'); }}
       />
@@ -2947,6 +3093,7 @@ export default function App() {
         user={user}
         selectedPlatforms={selectedPlatforms}
         favoriteGenres={favoriteGenres}
+        favoriteLanguages={favoriteLanguages}
         isPremium={isPremium}
         onWatchlist={() => setShowWatchlist(true)}
         onProfile={() => setShowProfile(true)}
