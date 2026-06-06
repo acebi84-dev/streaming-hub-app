@@ -2668,7 +2668,6 @@ function AuthScreen({ onAuth }) {
           {/* Logo */}
           <View style={authStyles.logoWrap}>
             <Image source={require('./assets/images/logo.png')} style={authStyles.logo} resizeMode="contain" />
-            <Text style={authStyles.title}>İzlio</Text>
             <Text style={authStyles.subtitle}>Bir sonraki favorini keşfet.</Text>
           </View>
 
@@ -2778,9 +2777,8 @@ function AuthScreen({ onAuth }) {
 const authStyles = StyleSheet.create({
   container: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 20, paddingBottom: 40, justifyContent: 'center' },
   logoWrap: { alignItems: 'center', marginBottom: 40 },
-  logo: { width: 72, height: 72, borderRadius: 18, marginBottom: 14 },
-  title: { color: '#fff', fontSize: 34, fontWeight: '800', letterSpacing: 1 },
-  subtitle: { color: 'rgba(255,255,255,0.45)', fontSize: 15, marginTop: 6 },
+  logo: { width: 220, height: 110, marginBottom: 10 },
+  subtitle: { color: 'rgba(255,255,255,0.45)', fontSize: 15, marginTop: 4 },
   socialWrap: { gap: 12, marginBottom: 24 },
   googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 14, paddingVertical: 15 },
   googleText: { fontSize: 16, fontWeight: '600', color: '#111', letterSpacing: 0.2 },
