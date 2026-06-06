@@ -283,7 +283,7 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
   useEffect(() => { fetchList().catch(() => {}); }, [tab]);
 
   async function fetchList() {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     const { data } = await supabase
       .from('watchlist')
@@ -476,8 +476,7 @@ function DetailModal({ item, onClose, user }) {
                       const p = PLATFORMS.find(x => x.slug === a.platform_slug);
                       if (!p) return null;
                       return (
-                        <TouchableOpacity key={a.platform_slug} style={[styles.modalPlatformBtn, { backgroundColor: p.color, flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => openPlatformUrl(a.platform_slug, a.platform_url)} disabled={!a.platform_url}>
-                          <Text style={{ color: '#fff', fontWeight: '900', fontSize: 16, letterSpacing: -0.5 }}>{p.mono}</Text>
+                        <TouchableOpacity key={a.platform_slug} style={[styles.modalPlatformBtn, { backgroundColor: p.color }]} onPress={() => openPlatformUrl(a.platform_slug, a.platform_url)} disabled={!a.platform_url}>
                           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>{p.name}</Text>
                         </TouchableOpacity>
                       );
@@ -868,8 +867,7 @@ function NewScreen({ selectedPlatforms, onBack, user }) {
             if (filtered.length === 0) return null;
             return (
               <View key={p.slug} style={styles.popularSection}>
-                <View style={[styles.popularPlatformLabel, { backgroundColor: p.color, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
-                  <Text style={{ color: '#fff', fontWeight: '900', fontSize: 16, letterSpacing: -0.5 }}>{p.mono}</Text>
+                <View style={[styles.popularPlatformLabel, { backgroundColor: p.color }]}>
                   <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{p.name}</Text>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularRow}>
@@ -1066,8 +1064,7 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
             if (!items || items.length === 0) return null;
             return (
               <View key={p.slug} style={styles.popularSection}>
-                <View style={[styles.popularPlatformLabel, { backgroundColor: p.color, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
-                  <Text style={{ color: '#fff', fontWeight: '900', fontSize: 16, letterSpacing: -0.5 }}>{p.mono}</Text>
+                <View style={[styles.popularPlatformLabel, { backgroundColor: p.color }]}>
                   <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{p.name}</Text>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularRow}>
@@ -1244,7 +1241,7 @@ function HeroSection({ item, scrollY, onPress }) {
           ? <Image source={{ uri: item.poster_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
           : <View style={{ flex: 1, backgroundColor: '#111' }} />}
       </Animated.View>
-      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HERO_H * 0.45, backgroundColor: 'rgba(0,0,0,0.88)' }} />
+      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HERO_H * 0.6, backgroundColor: 'rgba(0,0,0,0.5)' }} />
       <Animated.View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 26, opacity: contentOpacity }}>
         <Text style={{ color: '#fff', fontSize: 35, fontWeight: '900', letterSpacing: -0.8, marginBottom: 8, lineHeight: 41, textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }} numberOfLines={2}>{title}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -1554,10 +1551,10 @@ function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, on
   }
 
   // Tam ekran yönlendirme
-  if (fullScreen === 'discover') return <DiscoverScreen selectedPlatforms={selectedPlatforms} onBack={() => setFullScreen(null)} user={user} />;
-  if (fullScreen === 'popular') return <PopularScreen selectedPlatforms={selectedPlatforms} onBack={() => setFullScreen(null)} user={user} />;
-  if (fullScreen === 'new') return <NewScreen selectedPlatforms={selectedPlatforms} onBack={() => setFullScreen(null)} user={user} />;
-  if (fullScreen === 'collections') return <CollectionsScreen selectedPlatforms={selectedPlatforms} onBack={() => { setFullScreen(null); setSelectedCollectionId(null); }} user={user} initialCollectionId={selectedCollectionId} />;
+  if (fullScreen === 'discover') return <DiscoverScreen selectedPlatforms={selectedPlatforms} onBack={() => { scrollY.setValue(0); setFullScreen(null); }} user={user} />;
+  if (fullScreen === 'popular') return <PopularScreen selectedPlatforms={selectedPlatforms} onBack={() => { scrollY.setValue(0); setFullScreen(null); }} user={user} />;
+  if (fullScreen === 'new') return <NewScreen selectedPlatforms={selectedPlatforms} onBack={() => { scrollY.setValue(0); setFullScreen(null); }} user={user} />;
+  if (fullScreen === 'collections') return <CollectionsScreen selectedPlatforms={selectedPlatforms} onBack={() => { scrollY.setValue(0); setFullScreen(null); setSelectedCollectionId(null); }} user={user} initialCollectionId={selectedCollectionId} />;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -2131,7 +2128,6 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
               <View key={row} style={{ flexDirection: 'row', gap: 10 }}>
                 {PLATFORMS.slice(row * 2, row * 2 + 2).map(p => {
                   const sel = selPlatforms.includes(p.slug);
-                  const mono = p.mono;
                   return (
                     <TouchableOpacity key={p.slug} onPress={() => togglePlatform(p.slug)}
                       style={{ flex: 1, paddingVertical: 18, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: sel ? p.color : 'rgba(255,255,255,0.06)', borderWidth: 1.5, borderColor: sel ? p.color : 'rgba(255,255,255,0.1)', gap: 6, position: 'relative' }}>
@@ -2140,8 +2136,7 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
                           <Text style={{ color: '#fff', fontSize: 9, fontWeight: '900' }}>✓</Text>
                         </View>
                       )}
-                      <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900', letterSpacing: -0.5, opacity: sel ? 1 : 0.45 }}>{mono}</Text>
-                      <Text style={{ color: '#fff', fontSize: 11, fontWeight: sel ? '700' : '500', opacity: sel ? 1 : 0.5 }}>{p.name}</Text>
+                      <Text style={{ color: '#fff', fontSize: 13, fontWeight: sel ? '700' : '500', opacity: sel ? 1 : 0.5 }}>{p.name}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -2564,7 +2559,7 @@ export default function App() {
         selectedPlatforms={selectedPlatforms}
         onClose={() => setShowProfile(false)}
         onSave={(platforms) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); }}
-        onSignOut={async () => { await supabase.auth.signOut(); setUser(null); setShowProfile(false); }}
+        onSignOut={() => { supabase.auth.signOut().catch(() => {}); setUser(null); setShowProfile(false); }}
         isPremium={isPremium}
         onUpgrade={() => { setShowProfile(false); alert('Yakında! In-App Purchase entegrasyonu hazırlanıyor.'); }}
       />
