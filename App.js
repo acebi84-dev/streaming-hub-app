@@ -1538,15 +1538,35 @@ function AuthScreen({ onAuth }) {
     if (!email || !password) { setError('Email ve şifre gerekli'); return; }
     setLoading(true); setError(''); setMsg('');
     try {
-      let result;
       if (mode === 'login') {
-        result = await supabase.auth.signInWithPassword({ email, password });
+        // Raw fetch: Supabase JS client'ın signInWithPassword metodu iOS JSC'de crash yapıyor
+        const res = await fetch('https://bvggvperehlduxziaqfu.supabase.co/auth/v1/token?grant_type=password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': 'sb_publishable_Q3JqA0F8fU7vE6fQMZ_ZcA_-x5qLhnk' },
+          body: JSON.stringify({ email, password }),
+        });
+        const json = await res.json();
+        if (!res.ok || json.error) {
+          setError(json.error_description || json.msg || json.error || 'Giriş başarısız');
+        } else {
+          if (json.access_token) {
+            try { await supabase.auth.setSession({ access_token: json.access_token, refresh_token: json.refresh_token }); } catch(_) {}
+          }
+          onAuth(json.user);
+        }
       } else {
-        result = await supabase.auth.signUp({ email, password });
-        if (!result.error) setMsg('Doğrulama emaili gönderildi. Emailini kontrol et.');
+        const result = await supabase.auth.signUp({ email, password });
+        if (result.error) {
+          setError(result.error.message);
+        } else {
+          setMsg('Doğrulama emaili gönderildi. Emailini kontrol et.');
+          // 4 saniye sonra login moduna geç: kullanıcı emaili onaylayıp döndüğünde direkt giriş yapabilsin
+          setTimeout(() => {
+            setMode('login');
+            setMsg('Email onaylandıktan sonra giriş yapabilirsin.');
+          }, 4000);
+        }
       }
-      if (result.error) setError(result.error.message);
-      else if (mode === 'login' && result.data?.user) onAuth(result.data.user);
     } catch(e) { setError(e.message); }
     setLoading(false);
   }
@@ -1763,27 +1783,25 @@ export default function App() {
 
     // Email doğrulama deep link handler
     const handleUrl = async (url) => {
-      if (!url) return;
-      // Fragment (#) veya query (?) parametrelerini ayrıştır
-      const [base, fragment] = url.split('#');
-      const queryStr = (base.includes('?') ? base.split('?')[1] : '') || fragment || '';
-      const params = new URLSearchParams(queryStr);
+      try {
+        if (!url) return;
+        const [base, fragment] = url.split('#');
+        const queryStr = (base.includes('?') ? base.split('?')[1] : '') || fragment || '';
+        const params = new URLSearchParams(queryStr);
 
-      const token_hash = params.get('token_hash');
-      const type = params.get('type');
-      if (token_hash && type) {
-        // PKCE/OTP akışı: email doğrulama ve magic link
-        const { error } = await supabase.auth.verifyOtp({ token_hash, type });
-        if (error) console.error('verifyOtp error:', error.message);
-        return;
-      }
+        const token_hash = params.get('token_hash');
+        const type = params.get('type');
+        if (token_hash && type) {
+          try { await supabase.auth.verifyOtp({ token_hash, type }); } catch(e) { console.error('verifyOtp error:', e); }
+          return;
+        }
 
-      const access_token = params.get('access_token');
-      const refresh_token = params.get('refresh_token');
-      if (access_token && refresh_token) {
-        // Implicit akış: OAuth callback
-        await supabase.auth.setSession({ access_token, refresh_token });
-      }
+        const access_token = params.get('access_token');
+        const refresh_token = params.get('refresh_token');
+        if (access_token && refresh_token) {
+          try { await supabase.auth.setSession({ access_token, refresh_token }); } catch(e) {}
+        }
+      } catch(e) { console.error('handleUrl error:', e); }
     };
 
     Linking.getInitialURL().then(url => { if (url) handleUrl(url); });
