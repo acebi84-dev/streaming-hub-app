@@ -15,9 +15,10 @@ const inMemoryStorage = {
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     persistSession: true,
-    autoRefreshToken: true,
+    autoRefreshToken: false,
     detectSessionInUrl: false,
     storage: inMemoryStorage,
+    flowType: 'implicit',
   },
   realtime: {
     enabled: false,

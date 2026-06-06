@@ -13,7 +13,7 @@ import {
   Image, ActivityIndicator, SafeAreaView, StatusBar, ScrollView,
   Animated, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Linking, Share } from 'react-native';
+import { Linking, Share, AppState } from 'react-native';
 import { supabase } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -1534,6 +1534,22 @@ function AuthScreen({ onAuth }) {
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
 
+  // Kullanıcı email onaylayıp uygulamaya döndüğünde login moduna geç
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        setMsg(prev => {
+          if (prev.includes('gönderildi')) {
+            setMode('login');
+            return 'Email onaylandıktan sonra giriş yapabilirsin.';
+          }
+          return prev;
+        });
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   async function handleEmail() {
     if (!email || !password) { setError('Email ve şifre gerekli'); return; }
     setLoading(true); setError(''); setMsg('');
@@ -1549,9 +1565,6 @@ function AuthScreen({ onAuth }) {
         if (!res.ok || json.error) {
           setError(json.error_description || json.msg || json.error || 'Giriş başarısız');
         } else {
-          if (json.access_token) {
-            try { await supabase.auth.setSession({ access_token: json.access_token, refresh_token: json.refresh_token }); } catch(_) {}
-          }
           onAuth(json.user);
         }
       } else {
@@ -1759,26 +1772,30 @@ export default function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) {
-        const { data } = await supabase.from('profiles').select('selected_platforms, is_premium').eq('id', u.id).single();
-        if (!data?.selected_platforms || data.selected_platforms.length === 0) {
-          setShowOnboarding(true);
+      try {
+        const u = session?.user ?? null;
+        setUser(u);
+        if (u) {
+          const { data } = await supabase.from('profiles').select('selected_platforms, is_premium').eq('id', u.id).single();
+          if (!data?.selected_platforms || data.selected_platforms.length === 0) {
+            setShowOnboarding(true);
+          }
+          if (data?.is_premium) setIsPremium(true);
         }
-        if (data?.is_premium) setIsPremium(true);
-      }
+      } catch(e) { console.error('getSession error:', e); }
       setAuthLoading(false);
-    });
+    }).catch(e => { console.error('getSession catch:', e); setAuthLoading(false); });
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u && _event === 'SIGNED_IN') {
-        const { data } = await supabase.from('profiles').select('selected_platforms').eq('id', u.id).single();
-        if (!data?.selected_platforms || data.selected_platforms.length === 0) {
-          setShowOnboarding(true);
+      try {
+        const u = session?.user ?? null;
+        setUser(u);
+        if (u && _event === 'SIGNED_IN') {
+          const { data } = await supabase.from('profiles').select('selected_platforms').eq('id', u.id).single();
+          if (!data?.selected_platforms || data.selected_platforms.length === 0) {
+            setShowOnboarding(true);
+          }
         }
-      }
+      } catch(e) { console.error('onAuthStateChange error:', e); }
     });
 
     // Email doğrulama deep link handler
@@ -1804,7 +1821,7 @@ export default function App() {
       } catch(e) { console.error('handleUrl error:', e); }
     };
 
-    Linking.getInitialURL().then(url => { if (url) handleUrl(url); });
+    Linking.getInitialURL().then(url => { if (url) handleUrl(url); }).catch(e => console.error('Linking error:', e));
     const linkingSub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
 
     return () => { subscription.unsubscribe(); linkingSub.remove(); };
@@ -1977,9 +1994,11 @@ export default function App() {
 
   if (authLoading) return null;
   if (!user) return <AuthScreen onAuth={async (u) => {
-    setUser(u);
-    const { data } = await supabase.from('profiles').select('selected_platforms').eq('id', u.id).single();
-    if (!data?.selected_platforms || data.selected_platforms.length === 0) setShowOnboarding(true);
+    try {
+      setUser(u);
+      const { data } = await supabase.from('profiles').select('selected_platforms').eq('id', u.id).single();
+      if (!data?.selected_platforms || data.selected_platforms.length === 0) setShowOnboarding(true);
+    } catch(e) { console.error('onAuth error:', e); setShowOnboarding(true); }
   }} />;
   if (showWatchlist) return (
     <>
