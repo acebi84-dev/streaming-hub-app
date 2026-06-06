@@ -1555,17 +1555,25 @@ function AuthScreen({ onAuth }) {
     setLoading(true); setError(''); setMsg('');
     try {
       if (mode === 'login') {
-        // Raw fetch: Supabase JS client'ın signInWithPassword metodu iOS JSC'de crash yapıyor
+        setMsg('Bağlanıyor...');
         const res = await fetch('https://bvggvperehlduxziaqfu.supabase.co/auth/v1/token?grant_type=password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': 'sb_publishable_Q3JqA0F8fU7vE6fQMZ_ZcA_-x5qLhnk' },
           body: JSON.stringify({ email, password }),
         });
+        setMsg('Yanıt: ' + res.status);
         const json = await res.json();
         if (!res.ok || json.error) {
-          setError(json.error_description || json.msg || json.error || 'Giriş başarısız');
+          setError(json.error_description || json.msg || json.error || 'Giriş başarısız (' + res.status + ')');
+          setMsg('');
+        } else if (!json.user) {
+          setError('Kullanıcı bilgisi alınamadı');
+          setMsg('');
         } else {
-          onAuth(json.user);
+          setMsg('Giriş başarılı!');
+          setLoading(false);
+          setTimeout(() => onAuth(json.user), 300);
+          return;
         }
       } else {
         const result = await supabase.auth.signUp({ email, password });
@@ -1770,19 +1778,20 @@ export default function App() {
   const [showWatchlist, setShowWatchlist] = useState(false);
   const [watchlistItem, setWatchlistItem] = useState(null);
 
+  // Kullanıcı giriş yaptığında profil bilgilerini yükle
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      try {
-        const u = session?.user ?? null;
-        setUser(u);
-        if (u) {
-          const { data } = await supabase.from('profiles').select('selected_platforms, is_premium').eq('id', u.id).single();
-          if (!data?.selected_platforms || data.selected_platforms.length === 0) {
-            setShowOnboarding(true);
-          }
-          if (data?.is_premium) setIsPremium(true);
-        }
-      } catch(e) { console.error('getSession error:', e); }
+    if (!user) return;
+    supabase.from('profiles').select('selected_platforms, is_premium').eq('id', user.id).single()
+      .then(({ data }) => {
+        if (!data?.selected_platforms || data.selected_platforms.length === 0) setShowOnboarding(true);
+        if (data?.is_premium) setIsPremium(true);
+      })
+      .catch(e => { console.error('profile load error:', e); setShowOnboarding(true); });
+  }, [user?.id]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
       setAuthLoading(false);
     }).catch(e => { console.error('getSession catch:', e); setAuthLoading(false); });
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -1993,13 +2002,7 @@ export default function App() {
   }
 
   if (authLoading) return null;
-  if (!user) return <AuthScreen onAuth={async (u) => {
-    try {
-      setUser(u);
-      const { data } = await supabase.from('profiles').select('selected_platforms').eq('id', u.id).single();
-      if (!data?.selected_platforms || data.selected_platforms.length === 0) setShowOnboarding(true);
-    } catch(e) { console.error('onAuth error:', e); setShowOnboarding(true); }
-  }} />;
+  if (!user) return <AuthScreen onAuth={(u) => { setUser(u); }} />;
   if (showWatchlist) return (
     <>
       <WatchlistScreen
