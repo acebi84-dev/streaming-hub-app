@@ -14,6 +14,7 @@ import {
   Animated, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Linking, Share, AppState } from 'react-native';
+import ReAnimated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { supabase } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -437,7 +438,7 @@ function DetailModal({ item, onClose, user }) {
   }
 
   return (
-    <Modal transparent animationType="fade" onRequestClose={onClose}>
+    <Modal transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
         <View style={styles.detailModalContainer}>
           <TouchableOpacity activeOpacity={1}>
@@ -1043,6 +1044,326 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
 }
 
 
+// ── Apple TV UI Constants ──────────────────────────────────────
+const CARD_W = 112;
+const CARD_H = 168;
+const HERO_H = 500;
+
+// ── ContentCard (Reanimated scale press) ──────────────────────
+function ContentCard({ item, onPress }) {
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const title = (item.original_language === 'tr' && item.title_tr) ? item.title_tr : (item.title || '');
+  const firstAvail = item.availability?.[0];
+  const platform = firstAvail ? PLATFORMS.find(p => p.slug === firstAvail.platform_slug) : null;
+  return (
+    <ReAnimated.View style={[{ width: CARD_W, marginRight: 10 }, animStyle]}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPressIn={() => { scale.value = withSpring(0.91, { damping: 14, stiffness: 340 }); }}
+        onPressOut={() => { scale.value = withSpring(1.0, { damping: 14, stiffness: 340 }); }}
+        onPress={() => onPress(item)}
+      >
+        <View style={{ width: CARD_W, height: CARD_H, borderRadius: 10, overflow: 'hidden', backgroundColor: '#1a1a2e' }}>
+          {item.poster_url
+            ? <Image source={{ uri: item.poster_url }} style={{ width: CARD_W, height: CARD_H }} resizeMode="cover" />
+            : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 26, opacity: 0.25 }}>🎬</Text></View>}
+          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 72, backgroundColor: 'rgba(0,0,0,0.62)' }} />
+          {item.imdb_score != null && (
+            <View style={{ position: 'absolute', top: 6, left: 6, backgroundColor: 'rgba(0,0,0,0.78)', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+              <Text style={{ color: '#ffd43b', fontSize: 9, fontWeight: '800' }}>★</Text>
+              <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{item.imdb_score.toFixed(1)}</Text>
+            </View>
+          )}
+          {platform && (
+            <View style={{ position: 'absolute', bottom: 6, left: 6, backgroundColor: platform.color, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 }}>
+              <Text style={{ color: '#fff', fontSize: 8, fontWeight: '900' }}>{platform.name}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '500', marginTop: 5, width: CARD_W }} numberOfLines={1}>{title}</Text>
+      </TouchableOpacity>
+    </ReAnimated.View>
+  );
+}
+
+// ── ContentRow ─────────────────────────────────────────────────
+function ContentRow({ title, items, onPress, loading }) {
+  if (loading && (!items || items.length === 0)) {
+    return (
+      <View style={{ marginBottom: 28 }}>
+        <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.4, paddingHorizontal: 16, marginBottom: 12 }}>{title}</Text>
+        <View style={{ height: CARD_H + 24, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color="rgba(255,255,255,0.3)" />
+        </View>
+      </View>
+    );
+  }
+  if (!items || items.length === 0) return null;
+  return (
+    <View style={{ marginBottom: 28 }}>
+      <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.4, paddingHorizontal: 16, marginBottom: 12 }}>{title}</Text>
+      <FlatList
+        horizontal
+        data={items}
+        keyExtractor={(item) => String(item.id || item.imdb_id || Math.random())}
+        renderItem={({ item }) => <ContentCard item={item} onPress={onPress} />}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+        removeClippedSubviews
+      />
+    </View>
+  );
+}
+
+// ── HeroSection ────────────────────────────────────────────────
+function HeroSection({ item, scrollY, onPress }) {
+  if (!item) return <View style={{ height: HERO_H, backgroundColor: '#000' }} />;
+  const title = (item.original_language === 'tr' && item.title_tr) ? item.title_tr : (item.title || '');
+  const imgTranslate = scrollY.interpolate({
+    inputRange: [-HERO_H, 0, HERO_H],
+    outputRange: [-HERO_H * 0.25, 0, HERO_H * 0.35],
+    extrapolate: 'clamp',
+  });
+  const contentOpacity = scrollY.interpolate({
+    inputRange: [0, HERO_H * 0.55],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  return (
+    <View style={{ height: HERO_H, overflow: 'hidden' }}>
+      <Animated.View style={{ position: 'absolute', top: -40, left: 0, right: 0, height: HERO_H + 80, transform: [{ translateY: imgTranslate }] }}>
+        {item.poster_url
+          ? <Image source={{ uri: item.poster_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          : <View style={{ flex: 1, backgroundColor: '#111' }} />}
+      </Animated.View>
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 100, backgroundColor: 'rgba(0,0,0,0.45)' }} />
+      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HERO_H * 0.68, backgroundColor: 'rgba(0,0,0,0.82)' }} />
+      <Animated.View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 26, opacity: contentOpacity }}>
+        <Text style={{ color: '#fff', fontSize: 35, fontWeight: '900', letterSpacing: -0.8, marginBottom: 8, lineHeight: 41, textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }} numberOfLines={2}>{title}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+          {item.imdb_score != null && <Text style={{ color: '#ffd43b', fontWeight: '800', fontSize: 14 }}>★ {item.imdb_score.toFixed(1)}</Text>}
+          {item.year && <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{item.year}</Text>}
+          {item.type && <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{item.type === 'movie' ? 'Film' : 'Dizi'}</Text>}
+          {(item.availability || []).slice(0, 2).map(a => {
+            const p = PLATFORMS.find(x => x.slug === a.platform_slug);
+            if (!p) return null;
+            return <View key={a.platform_slug} style={{ backgroundColor: p.color, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 10 }}>{p.name}</Text></View>;
+          })}
+        </View>
+        {item.synopsis_tr && <Text style={{ color: 'rgba(255,255,255,0.58)', fontSize: 12, lineHeight: 17, marginBottom: 14 }} numberOfLines={2}>{item.synopsis_tr}</Text>}
+        <TouchableOpacity style={{ backgroundColor: '#fff', borderRadius: 12, paddingVertical: 13, paddingHorizontal: 22, alignSelf: 'flex-start' }} onPress={() => onPress(item)} activeOpacity={0.85}>
+          <Text style={{ color: '#000', fontWeight: '800', fontSize: 14 }}>▶  Detayları Gör</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
+  );
+}
+
+// ── AppleTVMainScreen ──────────────────────────────────────────
+function AppleTVMainScreen({ user, selectedPlatforms, onPlatformToggle, isPremium, onWatchlist, onProfile }) {
+  const [heroItem, setHeroItem] = useState(null);
+  const [discoverItems, setDiscoverItems] = useState([]);
+  const [popularItems, setPopularItems] = useState([]);
+  const [newItems, setNewItems] = useState([]);
+  const [searchInput, setSearchInput] = useState('');
+  const [activeSearch, setActiveSearch] = useState('');
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [loadingDiscover, setLoadingDiscover] = useState(true);
+  const [loadingPopular, setLoadingPopular] = useState(true);
+  const [loadingNew, setLoadingNew] = useState(true);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const isMounted = useRef(true);
+  useEffect(() => { return () => { isMounted.current = false; }; }, []);
+
+  useEffect(() => {
+    fetchDiscover().catch(() => {});
+    fetchPopularItems().catch(() => {});
+    fetchNewItems().catch(() => {});
+  }, [selectedPlatforms]);
+
+  useEffect(() => {
+    fetchDiscover().catch(() => {});
+  }, [activeSearch]);
+
+  async function fetchDiscover() {
+    if (!isMounted.current) return;
+    if (selectedPlatforms.length === 0) { setDiscoverItems([]); setHeroItem(null); setLoadingDiscover(false); return; }
+    setLoadingDiscover(true);
+    const platformFilter = selectedPlatforms.map(p => `platform_slug.eq.${p}`).join(',');
+    const sel = `*, availability:hub_availability!inner(platform_slug, platform_url)`;
+    let q;
+    if (activeSearch.trim().length > 0) {
+      const s = activeSearch.trim().replace(/[%_\\]/g, '\\$&');
+      q = supabase.from('hub_contents').select(sel)
+        .not('imdb_score', 'is', null).not('imdb_id', 'is', null)
+        .or(platformFilter, { referencedTable: 'hub_availability' })
+        .or(`title.ilike.%${s}%,original_title.ilike.%${s}%,title_tr.ilike.%${s}%,cast_list.ilike.%${s}%,director.ilike.%${s}%`)
+        .order('imdb_score', { ascending: false }).limit(40);
+    } else {
+      q = supabase.from('hub_contents').select(sel)
+        .not('imdb_score', 'is', null).not('imdb_id', 'is', null)
+        .or(platformFilter, { referencedTable: 'hub_availability' })
+        .order('imdb_score', { ascending: false }).range(0, 29);
+    }
+    const { data, error } = await q;
+    if (!isMounted.current) return;
+    if (error) { console.error(error); setLoadingDiscover(false); return; }
+    const enriched = (data || []).map(item => ({ ...item, availability: (item.availability || []).filter(a => selectedPlatforms.includes(a.platform_slug)) }));
+    setDiscoverItems(enriched);
+    if (enriched.length > 0 && activeSearch.trim().length === 0) {
+      setHeroItem(enriched[Math.floor(Math.random() * Math.min(5, enriched.length))]);
+    }
+    setLoadingDiscover(false);
+  }
+
+  async function fetchPopularItems() {
+    if (!isMounted.current) return;
+    if (selectedPlatforms.length === 0) { setPopularItems([]); setLoadingPopular(false); return; }
+    setLoadingPopular(true);
+    const { data, error } = await supabase
+      .from('hub_popular').select('*')
+      .in('platform', selectedPlatforms)
+      .order('rating', { ascending: false }).limit(25);
+    if (!isMounted.current) return;
+    if (error || !data) { setLoadingPopular(false); return; }
+    const seen = new Set();
+    const items = data.filter(item => {
+      const k = item.imdb_id || item.show_name;
+      if (!k || seen.has(k)) return false;
+      seen.add(k); return true;
+    }).map(item => ({
+      id: item.id, title: item.show_name || '', title_tr: null, original_language: null,
+      poster_url: item.poster_w480 || item.poster_w240,
+      imdb_score: item.rating ? item.rating / 10 : null,
+      year: null, type: item.show_type,
+      availability: [{ platform_slug: item.platform, platform_url: item.streaming_link }],
+      imdb_id: item.imdb_id, _rawPopular: item,
+    }));
+    setPopularItems(items);
+    setLoadingPopular(false);
+  }
+
+  async function fetchNewItems() {
+    if (!isMounted.current) return;
+    if (selectedPlatforms.length === 0) { setNewItems([]); setLoadingNew(false); return; }
+    setLoadingNew(true);
+    const threeWeeksAgo = new Date(); threeWeeksAgo.setDate(threeWeeksAgo.getDate() - 21);
+    const fromStr = threeWeeksAgo.toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('hub_availability')
+      .select('platform_slug, platform_url, available_since, content:hub_contents(id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, type, year, synopsis_tr, director, cast_list, trailer_url, genre)')
+      .in('platform_slug', selectedPlatforms)
+      .gte('available_since', fromStr)
+      .order('available_since', { ascending: false }).limit(30);
+    if (!isMounted.current) return;
+    if (error || !data) { setLoadingNew(false); return; }
+    const seen = new Set();
+    const items = (data || []).map(row => ({ ...row.content, availability: [{ platform_slug: row.platform_slug, platform_url: row.platform_url }], available_since: row.available_since }))
+      .filter(item => { if (!item.id || seen.has(item.id)) return false; seen.add(item.id); return true; });
+    setNewItems(items);
+    setLoadingNew(false);
+  }
+
+  async function handleItemPress(item) {
+    if (item._rawPopular) {
+      const raw = item._rawPopular;
+      const base = { ...item, poster_url: raw.poster_w480 || raw.poster_w240 || item.poster_url };
+      setSelectedItem(base);
+      if (item.imdb_id) {
+        const { data } = await supabase.from('hub_contents').select('synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, genre, year, original_language').eq('imdb_id', item.imdb_id).single().catch(() => ({ data: null }));
+        if (data && isMounted.current) setSelectedItem(prev => prev ? { ...prev, ...data, poster_url: data.poster_url || prev.poster_url } : prev);
+      }
+    } else {
+      setSelectedItem(item);
+    }
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#000' }}>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
+        <Text style={{ color: '#fff', fontSize: 28, fontWeight: '900', letterSpacing: -0.5 }}>İzlio</Text>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist}>
+            <Text style={{ fontSize: 17 }}>🔖</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onProfile}>
+            <Text style={{ fontSize: 17 }}>👤</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Search bar */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }}>
+        <Text style={{ color: '#555', fontSize: 13, marginRight: 8 }}>🔍</Text>
+        <TextInput
+          style={{ flex: 1, color: '#fff', fontSize: 15 }}
+          placeholder="Film, dizi, oyuncu ara..."
+          placeholderTextColor="#444"
+          value={searchInput}
+          onChangeText={setSearchInput}
+          onSubmitEditing={() => setActiveSearch(searchInput)}
+          returnKeyType="search"
+          maxFontSizeMultiplier={1}
+        />
+        {searchInput.length > 0 && (
+          <TouchableOpacity onPress={() => { setSearchInput(''); setActiveSearch(''); }}>
+            <Text style={{ color: '#555', fontSize: 16, fontWeight: '700', paddingLeft: 8 }}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Platform filter chips */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 6, paddingBottom: 10 }}>
+        {PLATFORMS.map(p => {
+          const active = selectedPlatforms.includes(p.slug);
+          return (
+            <TouchableOpacity key={p.slug}
+              style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, backgroundColor: active ? p.color : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: active ? p.color : 'rgba(255,255,255,0.1)' }}
+              onPress={() => onPlatformToggle(p.slug)}
+            >
+              <Text style={{ color: active ? '#fff' : 'rgba(255,255,255,0.38)', fontSize: 12, fontWeight: '700' }}>{p.name}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      {/* Main content */}
+      <Animated.ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        scrollEventThrottle={16}
+      >
+        {activeSearch.trim().length === 0 && (
+          <HeroSection item={heroItem} scrollY={scrollY} onPress={handleItemPress} />
+        )}
+        <View style={{ paddingTop: 20 }}>
+          {activeSearch.trim().length > 0 ? (
+            <>
+              <ContentRow title={`"${activeSearch}" sonuçları`} items={discoverItems} onPress={handleItemPress} loading={loadingDiscover} />
+              {discoverItems.length === 0 && !loadingDiscover && (
+                <Text style={{ color: 'rgba(255,255,255,0.25)', textAlign: 'center', marginTop: 60, fontSize: 16 }}>Sonuç bulunamadı</Text>
+              )}
+            </>
+          ) : (
+            <>
+              <ContentRow title="En İyi Puanlılar" items={discoverItems} onPress={handleItemPress} loading={loadingDiscover} />
+              <ContentRow title="Şu An Popüler" items={popularItems} onPress={handleItemPress} loading={loadingPopular} />
+              <ContentRow title="Yeni Eklenenler" items={newItems} onPress={handleItemPress} loading={loadingNew} />
+            </>
+          )}
+        </View>
+        <View style={{ height: 50 }} />
+      </Animated.ScrollView>
+
+      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
+    </View>
+  );
+}
+
+// ── Legacy HomeScreen (artık kullanılmıyor) ────────────────────
 function HomeScreen({ selectedPlatforms, onPlatformToggle, onNavigate, isPremium, onWatchlist, onProfile }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -1831,97 +2152,8 @@ export default function App() {
     if (!authLoading) setTimeout(() => SplashScreen.hideAsync(), 2000);
   }, [authLoading]);
 
-  const [activeTab, setActiveTab] = useState('discover');
-  const [showHome, setShowHome] = useState(true);
-  const [contents, setContents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchInput, setSearchInput] = useState('');
-  const [activeSearch, setActiveSearch] = useState('');
-  const [selectedType, setSelectedType] = useState('all');
-  const [selectedGenre, setSelectedGenre] = useState(null);
-  const [selectedLanguage, setSelectedLanguage] = useState(null);
-  const [sortBy, setSortBy] = useState('imdb_score');
-  const [sortAsc, setSortAsc] = useState(false);
-  const [minImdb, setMinImdb] = useState(0);
-  const [minYear, setMinYear] = useState(1950);
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [showPlatformModal, setShowPlatformModal] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState(getSelectedPlatforms);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const flatListRef = React.useRef(null);
-  const isLoadingMoreRef = React.useRef(false);
-  const currentPageRef = React.useRef(0);
-  const PAGE_SIZE = 30;
-
-  useEffect(() => { fetchContents().catch(e => { console.error('fetchContents error:', e); setLoading(false); }); }, [activeSearch, selectedType, selectedGenre, selectedLanguage, sortBy, sortAsc, minImdb, minYear, selectedPlatforms]);
-
-  async function fetchContents(loadMore = false) {
-    if (selectedPlatforms.length === 0) { setContents([]); setLoading(false); return; }
-    if (loadMore) {
-      if (isLoadingMoreRef.current) return;
-      isLoadingMoreRef.current = true;
-      setLoadingMore(true);
-    } else {
-      setLoading(true);
-      setPage(0);
-      currentPageRef.current = 0;
-    }
-    const currentPage = loadMore ? currentPageRef.current + 1 : 0;
-    const from = currentPage * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-
-    const platformFilter = selectedPlatforms.map(p => `platform_slug.eq.${p}`).join(',');
-    const availabilitySelect = `*, availability:hub_availability!inner(platform_slug, platform_url)`;
-
-    let query = supabase.from('hub_contents')
-      .select(availabilitySelect)
-      .not('imdb_score', 'is', null)
-      .not('imdb_id', 'is', null)
-      .or(platformFilter, { referencedTable: 'hub_availability' })
-      .order(sortBy, { ascending: sortAsc })
-      .range(from, to);
-
-    if (activeSearch.length > 0) {
-      const s = activeSearch.replace(/[%_\\]/g, '\\$&');
-      query = supabase.from('hub_contents')
-        .select(availabilitySelect)
-        .not('imdb_score', 'is', null)
-        .not('imdb_id', 'is', null)
-        .or(platformFilter, { referencedTable: 'hub_availability' })
-        .or(`title.ilike.%${s}%,original_title.ilike.%${s}%,title_tr.ilike.%${s}%,cast_list.ilike.%${s}%,director.ilike.%${s}%`)
-        .order(sortBy, { ascending: sortAsc })
-        .limit(500);
-    }
-    if (selectedType !== 'all') query = query.eq('type', selectedType);
-    if (selectedGenre) query = query.ilike('genre', '%' + selectedGenre + '%');
-    if (selectedLanguage) query = query.eq('original_language', selectedLanguage);
-    if (minImdb > 0) query = query.gte('imdb_score', minImdb);
-    if (minYear > 1950) query = query.gte('year', minYear);
-
-    const { data, error } = await query;
-    if (error) { console.error(error); setLoading(false); setLoadingMore(false); return; }
-    const enriched = (data || []).map(item => ({ ...item, availability: item.availability.filter(a => selectedPlatforms.includes(a.platform_slug)) }));
-
-    if (loadMore) {
-      setContents(prev => {
-        const existingIds = new Set(prev.map(i => i.id));
-        const unique = enriched.filter(i => !existingIds.has(i.id));
-        return [...prev, ...unique];
-      });
-      setPage(currentPage);
-      currentPageRef.current = currentPage;
-    } else {
-      setContents(enriched);
-    }
-    setHasMore(enriched.length >= PAGE_SIZE);
-    setLoading(false);
-    setLoadingMore(false);
-    isLoadingMoreRef.current = false;
-  }
+  const [showPlatformModal, setShowPlatformModal] = useState(false);
 
   function handlePlatformToggle(slug) {
     setSelectedPlatforms(prev => {
@@ -1932,65 +2164,6 @@ export default function App() {
   }
 
   function handlePlatformSave(slugs) { setSelectedPlatforms(slugs); saveSelectedPlatforms(slugs); if (user) savePlatformsToProfile(user.id, slugs).catch(() => {}); }
-  function handleSearch() { setActiveSearch(searchInput); setShowFilters(false); }
-  function clearSearch() { setSearchInput(''); setActiveSearch(''); }
-  function toggleSort(field) { if (sortBy === field) setSortAsc(!sortAsc); else { setSortBy(field); setSortAsc(false); } }
-  function getSortIcon(field) { if (sortBy !== field) return ''; return sortAsc ? ' ↑' : ' ↓'; }
-  function formatRuntime(minutes) {
-    if (!minutes) return null;
-    const h = Math.floor(minutes / 60), m = minutes % 60;
-    if (h > 0 && m > 0) return h + 's ' + m + 'dk';
-    if (h > 0) return h + 's';
-    return m + 'dk';
-  }
-
-  const hasActiveFilters = minImdb > 0 || minYear > 1950 || selectedLanguage || selectedGenre || selectedType !== 'all';
-
-  function renderItem({ item }) {
-    const typeLabel = item.type === 'movie' ? '🎬 Film' : '📺 Dizi';
-    const langLabel = item.original_language ? LANGUAGE_MAP[item.original_language] : null;
-    const genreMap = Object.fromEntries(GENRES.map(g => [g.en, g.tr]));
-    const genres = item.genre ? item.genre.split(',').slice(0, 2).map(g => genreMap[g.trim()] || g.trim()).join(', ') : '';
-    const runtime = formatRuntime(item.runtime);
-    const hasDetails = item.synopsis_tr || item.director || item.cast_list || item.tagline;
-    return (
-      <TouchableOpacity style={styles.card} onPress={() => setSelectedItem(item)} activeOpacity={0.85}>
-        <View style={styles.cardPosterWrap}>
-          {item.poster_url ? <Image source={{ uri: item.poster_url }} style={styles.poster} /> : <View style={styles.posterPlaceholder}><Text style={styles.posterPlaceholderText}>?</Text></View>}
-          <View style={styles.cardImdbOverlay}>
-            <View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View>
-            <Text style={styles.cardImdbScore}>{item.imdb_score ? item.imdb_score.toFixed(1) : '—'}</Text>
-          </View>
-        </View>
-        <View style={styles.info}>
-          <Text style={styles.title} numberOfLines={2}>{item.original_language === 'tr' && item.title_tr ? item.title_tr : item.title}</Text>
-          {item.original_title && item.original_title !== item.title && <Text style={styles.originalTitle} numberOfLines={1}>{item.original_title}</Text>}
-          <Text style={styles.cardMeta} numberOfLines={1}>
-            {[typeLabel, genres, item.year].filter(Boolean).join(' · ')}
-          </Text>
-          {item.availability && item.availability.length > 0 && (
-            <View style={styles.platformRow}>
-              {item.availability.map(a => {
-                const p = PLATFORMS.find(x => x.slug === a.platform_slug);
-                if (!p) return null;
-                return (
-                  <TouchableOpacity key={a.platform_slug} style={[styles.platformPill, { backgroundColor: p.color }]} onPress={(e) => { e.stopPropagation?.(); openPlatformUrl(a.platform_slug, a.platform_url); }} disabled={!a.platform_url}>
-                    <Text style={{ color: "#fff", fontWeight: "700", fontSize: 11 }}>{p.name}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-          <View style={styles.bottomRow}>
-            {item.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={(e) => { e.stopPropagation?.(); Linking.openURL(item.trailer_url); }}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
-            <TouchableOpacity style={styles.imdbBtn} onPress={(e) => { e.stopPropagation?.(); item.imdb_id && Linking.openURL('https://www.imdb.com/title/' + item.imdb_id + '/'); }}>
-              <Text style={styles.imdbArrow}>IMDb ↗</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  }
 
   if (authLoading) return null;
   if (!user) return <AuthScreen onAuth={(u) => { setUser(u); }} />;
@@ -2012,9 +2185,8 @@ export default function App() {
   }} />;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000000" />
-      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+      <StatusBar barStyle="light-content" />
       <ProfileModal
         visible={showProfile}
         user={user}
@@ -2026,183 +2198,14 @@ export default function App() {
         onUpgrade={() => { setShowProfile(false); alert('Yakında! In-App Purchase entegrasyonu hazırlanıyor.'); }}
       />
       <PlatformModal visible={showPlatformModal} selected={selectedPlatforms} onSave={handlePlatformSave} onClose={() => setShowPlatformModal(false)} />
-
-      {showHome ? (
-        <>
-          <HomeScreen
-            selectedPlatforms={selectedPlatforms}
-            onPlatformToggle={handlePlatformToggle}
-            onNavigate={(tab) => { setActiveTab(tab); setShowHome(false); }}
-            isPremium={isPremium}
-            onWatchlist={() => setShowWatchlist(true)}
-            onProfile={() => setShowProfile(true)}
-          />
-
-        </>
-      ) : activeTab === 'popular' ? (
-        <View style={{ flex: 1 }}>
-          <PopularScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} user={user} />
-          <FloatingBackBtn onPress={() => setShowHome(true)} />
-        </View>
-      ) : activeTab === 'new' ? (
-        <View style={{ flex: 1 }}>
-          <NewScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} user={user} />
-          <FloatingBackBtn onPress={() => setShowHome(true)} />
-        </View>
-      ) : activeTab === 'collections' ? (
-        <View style={{ flex: 1 }}>
-          <CollectionsScreen selectedPlatforms={selectedPlatforms} onBack={() => setShowHome(true)} user={user} />
-          <FloatingBackBtn onPress={() => setShowHome(true)} />
-        </View>
-      ) : (
-        <View style={{ flex: 1 }}>
-
-      {/* Header - Apple TV minimal */}
-      {/* Mini Header */}
-      <View style={styles.miniHeader}>
-        <Text style={styles.miniHeaderTitle}>Keşfet</Text>
-      </View>
-
-      {/* Arama */}
-      <View style={styles.searchRow}>
-        <TextInput maxFontSizeMultiplier={1}
-          style={styles.searchInput}
-          placeholder="Film, dizi, oyuncu veya yönetmen ara..."
-          placeholderTextColor="#3a3a4a"
-          value={searchInput}
-          onChangeText={setSearchInput}
-          onSubmitEditing={handleSearch}
-          returnKeyType="search"
-        />
-        {searchInput.length > 0 && <TouchableOpacity style={styles.clearBtn} onPress={clearSearch}><Text style={styles.clearBtnText}>✕</Text></TouchableOpacity>}
-        <TouchableOpacity style={styles.searchBtn} onPress={handleSearch}><Text style={styles.searchBtnText}>Ara</Text></TouchableOpacity>
-      </View>
-
-      {/* Filtreler toggle */}
-      <View style={styles.filterBar}>
-        <TouchableOpacity style={[styles.filterToggle, showFilters && styles.filterToggleActive]} onPress={() => setShowFilters(!showFilters)}>
-          <Text style={[styles.filterToggleText, showFilters && styles.filterToggleTextActive]}>
-            {showFilters ? '▲ Gizle' : '▼ Filtreler & Sıralama'}
-            {hasActiveFilters && !showFilters ? ' ●' : ''}
-          </Text>
-        </TouchableOpacity>
-        {hasActiveFilters && (
-          <TouchableOpacity style={styles.resetBtnInline} onPress={() => { setMinImdb(0); setMinYear(1950); setSelectedLanguage(null); setSelectedGenre(null); setSelectedType('all'); }}>
-            <Text style={styles.resetBtnInlineText}>Sıfırla</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {showFilters && (
-        <View style={[styles.filtersBox, { zIndex: 10 }]}>
-
-          {/* Tür */}
-          <Text style={styles.filterSectionTitle}>İçerik Türü</Text>
-          <View style={styles.typeRow}>
-            {[['all', 'Tümü'], ['movie', 'Filmler'], ['series', 'Diziler']].map(([val, label]) => (
-              <TouchableOpacity key={val} style={[styles.typeBtn, selectedType === val && styles.typeBtnActive]} onPress={() => setSelectedType(val)}>
-                <Text style={[styles.typeBtnText, selectedType === val && styles.typeBtnTextActive]}>{label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Sıralama */}
-          <Text style={styles.filterSectionTitle}>Sıralama</Text>
-          <View style={styles.sortRow}>
-            {[['imdb_score', 'IMDb Puanı'], ['year', 'Yıl']].map(([val, label]) => (
-              <TouchableOpacity key={val} style={[styles.sortBtn, sortBy === val && styles.sortBtnActive]} onPress={() => toggleSort(val)}>
-                <Text style={[styles.sortBtnText, sortBy === val && styles.sortBtnTextActive]}>{label}{getSortIcon(val)}</Text>
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity style={[styles.sortBtn, styles.sortDirBtn]} onPress={() => setSortAsc(!sortAsc)}>
-              <Text style={styles.sortBtnText}>{sortAsc ? '↑ Artan' : '↓ Azalan'}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* IMDb */}
-          <Text style={styles.filterLabel}>IMDb Puanı: <Text style={styles.filterValue}>{minImdb > 0 ? minImdb + '+' : 'Tümü'}</Text></Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-            {IMDB_VALUES.map(val => (
-              <TouchableOpacity key={val} style={[styles.sliderBtn, minImdb === val && styles.sliderBtnActive]} onPress={() => setMinImdb(val)}>
-                <Text style={[styles.sliderBtnText, minImdb === val && styles.sliderBtnTextActive]}>{val === 0 ? 'Tümü' : val + '+'}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Yıl */}
-          <Text style={styles.filterLabel}>Yıl: <Text style={styles.filterValue}>{minYear > 1950 ? minYear + '+' : 'Tümü'}</Text></Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-            {YEAR_VALUES.map(val => (
-              <TouchableOpacity key={val} style={[styles.sliderBtn, minYear === val && styles.sliderBtnActive]} onPress={() => setMinYear(val)}>
-                <Text style={[styles.sliderBtnText, minYear === val && styles.sliderBtnTextActive]}>{val === 1950 ? 'Tümü' : val + '+'}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Dil */}
-          <Text style={styles.filterLabel}>Dil: <Text style={styles.filterValue}>{selectedLanguage ? LANGUAGES.find(l => l.code === selectedLanguage)?.label : 'Tümü'}</Text></Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-            <TouchableOpacity style={[styles.sliderBtn, selectedLanguage === null && styles.sliderBtnActive]} onPress={() => setSelectedLanguage(null)}>
-              <Text style={[styles.sliderBtnText, selectedLanguage === null && styles.sliderBtnTextActive]}>Tümü</Text>
-            </TouchableOpacity>
-            {LANGUAGES.map(lang => (
-              <TouchableOpacity key={lang.code} style={[styles.sliderBtn, selectedLanguage === lang.code && styles.sliderBtnActive]} onPress={() => setSelectedLanguage(lang.code)}>
-                <Text style={[styles.sliderBtnText, selectedLanguage === lang.code && styles.sliderBtnTextActive]}>{lang.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Tür (genre) */}
-          <Text style={styles.filterLabel}>Tür: <Text style={styles.filterValue}>{selectedGenre ? (GENRES.find(g => g.en === selectedGenre)?.tr || selectedGenre) : 'Tümü'}</Text></Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
-            <TouchableOpacity style={[styles.sliderBtn, selectedGenre === null && styles.sliderBtnActive]} onPress={() => setSelectedGenre(null)}>
-              <Text style={[styles.sliderBtnText, selectedGenre === null && styles.sliderBtnTextActive]}>Tümü</Text>
-            </TouchableOpacity>
-            {GENRES.map(g => (
-              <TouchableOpacity key={g.en} style={[styles.sliderBtn, selectedGenre === g.en && styles.sliderBtnActive]} onPress={() => setSelectedGenre(selectedGenre === g.en ? null : g.en)}>
-                <Text style={[styles.sliderBtnText, selectedGenre === g.en && styles.sliderBtnTextActive]}>{g.tr}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#ffffff" />
-        </View>
-      ) : (
-        <View style={{ flex: 1 }}>
-          <FlatList
-            ref={flatListRef}
-            data={contents}
-            keyExtractor={item => item.id ? item.id.toString() : item.imdb_id}
-            renderItem={renderItem}
-            contentContainerStyle={styles.list}
-            onEndReached={() => { if (hasMore && !loadingMore && !loading) fetchContents(true); }}
-            onEndReachedThreshold={0.3}
-            onScroll={e => setShowScrollTop(e.nativeEvent.contentOffset.y > 400)}
-            scrollEventThrottle={16}
-            ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#ffffff" style={{ marginVertical: 16 }} /> : null}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyEmoji}>🎬</Text>
-                <Text style={styles.emptyText}>İçerik bulunamadı</Text>
-                <Text style={styles.emptySubText}>Seçili platformlarda bu kriterlere uygun içerik yok</Text>
-              </View>
-            }
-          />
-          {showScrollTop && (
-            <TouchableOpacity style={styles.scrollTopBtn} onPress={() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true })}>
-              <Text style={styles.scrollTopIcon}>↑</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-
-        <FloatingBackBtn onPress={() => setShowHome(true)} />
-        </View>
-      )}
+      <AppleTVMainScreen
+        user={user}
+        selectedPlatforms={selectedPlatforms}
+        onPlatformToggle={handlePlatformToggle}
+        isPremium={isPremium}
+        onWatchlist={() => setShowWatchlist(true)}
+        onProfile={() => setShowProfile(true)}
+      />
     </SafeAreaView>
   );
 }
