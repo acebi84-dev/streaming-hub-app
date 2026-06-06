@@ -1,6 +1,10 @@
 {
   "buildCommand": "npx expo export --platform web --output-dir dist && mkdir -p dist/.well-known && cp public/.well-known/apple-app-site-association dist/.well-known/apple-app-site-association",
   "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/.well-known/apple-app-site-association", "destination": "/.well-known/apple-app-site-association" },
+    { "source": "/((?!\\.well-known).*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/.well-known/apple-app-site-association",

@@ -14,19 +14,22 @@ export default function AuthCallback() {
       const { token_hash, type } = params;
 
       if (token_hash && type) {
-        const { error } = await supabase.auth.verifyOtp({ token_hash, type: type as any });
-        if (error) {
-          console.error('verifyOtp error:', error.message);
+        try {
+          const { error } = await supabase.auth.verifyOtp({ token_hash, type: type as any });
+          if (error) {
+            setStatus('error');
+            if (!isWeb) setTimeout(() => router.replace('/'), 2000);
+            return;
+          }
+          setStatus('success');
+          if (!isWeb) setTimeout(() => router.replace('/'), 1500);
+        } catch {
           setStatus('error');
           if (!isWeb) setTimeout(() => router.replace('/'), 2000);
-          return;
         }
-        setStatus('success');
-        if (!isWeb) setTimeout(() => router.replace('/'), 1500);
         return;
       }
 
-      // Params yok — mobile'da ana sayfaya gönder
       if (!isWeb) router.replace('/');
       else setStatus('error');
     };
