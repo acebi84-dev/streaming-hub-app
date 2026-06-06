@@ -711,7 +711,7 @@ function NewScreen({ selectedPlatforms, onBack, user }) {
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  useEffect(() => { fetchNew(); }, [selectedPlatforms, period]);
+  useEffect(() => { fetchNew().catch(e => { console.error('fetchNew error:', e); setLoading(false); }); }, [selectedPlatforms, period]);
 
   async function fetchNew() {
     if (!isMountedNew.current) return;
@@ -882,7 +882,7 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
   const [genreFilter, setGenreFilter] = useState(null);
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
 
-  useEffect(() => { fetchPopular(); }, [selectedPlatforms]);
+  useEffect(() => { fetchPopular().catch(e => { console.error('fetchPopular error:', e); setLoading(false); }); }, [selectedPlatforms]);
 
   async function fetchPopular() {
     if (!isMountedPop.current) return;
@@ -1043,7 +1043,7 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
 }
 
 
-function HomeScreen({ selectedPlatforms, onPlatformToggle, onNavigate }) {
+function HomeScreen({ selectedPlatforms, onPlatformToggle, onNavigate, isPremium, onWatchlist, onProfile }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -1093,10 +1093,10 @@ function HomeScreen({ selectedPlatforms, onPlatformToggle, onNavigate }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8 }}>
           <View style={{ flex: 1 }} />
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity onPress={() => setShowWatchlist(true)} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
+            <TouchableOpacity onPress={onWatchlist} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
               <Text style={{ fontSize: 18 }}>🔖</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowProfile(true)} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
+            <TouchableOpacity onPress={onProfile} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
               <Text style={{ fontSize: 18 }}>👤</Text>
             </TouchableOpacity>
           </View>
@@ -1857,7 +1857,7 @@ export default function App() {
   const currentPageRef = React.useRef(0);
   const PAGE_SIZE = 30;
 
-  useEffect(() => { fetchContents(); }, [activeSearch, selectedType, selectedGenre, selectedLanguage, sortBy, sortAsc, minImdb, minYear, selectedPlatforms]);
+  useEffect(() => { fetchContents().catch(e => { console.error('fetchContents error:', e); setLoading(false); }); }, [activeSearch, selectedType, selectedGenre, selectedLanguage, sortBy, sortAsc, minImdb, minYear, selectedPlatforms]);
 
   async function fetchContents(loadMore = false) {
     if (selectedPlatforms.length === 0) { setContents([]); setLoading(false); return; }
@@ -1931,7 +1931,7 @@ export default function App() {
     });
   }
 
-  function handlePlatformSave(slugs) { setSelectedPlatforms(slugs); saveSelectedPlatforms(slugs); if (user) savePlatformsToProfile(user.id, slugs); }
+  function handlePlatformSave(slugs) { setSelectedPlatforms(slugs); saveSelectedPlatforms(slugs); if (user) savePlatformsToProfile(user.id, slugs).catch(() => {}); }
   function handleSearch() { setActiveSearch(searchInput); setShowFilters(false); }
   function clearSearch() { setSearchInput(''); setActiveSearch(''); }
   function toggleSort(field) { if (sortBy === field) setSortAsc(!sortAsc); else { setSortBy(field); setSortAsc(false); } }
@@ -2033,6 +2033,9 @@ export default function App() {
             selectedPlatforms={selectedPlatforms}
             onPlatformToggle={handlePlatformToggle}
             onNavigate={(tab) => { setActiveTab(tab); setShowHome(false); }}
+            isPremium={isPremium}
+            onWatchlist={() => setShowWatchlist(true)}
+            onProfile={() => setShowProfile(true)}
           />
 
         </>
