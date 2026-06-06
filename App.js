@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Linking, Share, AppState } from 'react-native';
 import ReAnimated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { supabase } from './supabase';
+import { supabase, supabasePublic } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Play, Star, Share2, Trash2 } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 const GoogleSignin = null;
@@ -422,7 +422,7 @@ function DetailModal({ item, onClose, user }) {
   async function fetchSimilar(item) {
     try {
       // Get similar_tmdb_ids from DB
-      const { data: contentData } = await supabase
+      const { data: contentData } = await supabasePublic
         .from('hub_contents')
         .select('similar_tmdb_ids')
         .eq('imdb_id', cur.imdb_id)
@@ -432,7 +432,7 @@ function DetailModal({ item, onClose, user }) {
       if (!tmdbIds || tmdbIds.length === 0) return;
 
       // Find matching contents directly by tmdb_id — no TMDB API calls needed
-      const { data } = await supabase
+      const { data } = await supabasePublic
         .from('hub_contents')
         .select('id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, availability:hub_availability(platform_slug, platform_url)')
         .in('tmdb_id', tmdbIds)
@@ -558,7 +558,7 @@ function CollectionsScreen({ selectedPlatforms, onBack, user }) {
   async function fetchCollections() {
     if (!isMounted.current) return;
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await supabasePublic
       .from('hub_collections')
       .select('*, items:hub_collection_items(content_id, imdb_score, content:hub_contents(id, title, title_tr, original_language, poster_url, imdb_score, imdb_id, availability:hub_availability(platform_slug, platform_url)))')
       .order(sortBy, { ascending: sortAscCol, nullsFirst: false });
@@ -742,7 +742,7 @@ function NewScreen({ selectedPlatforms, onBack, user }) {
     }
     const fromStr = fromDate.toISOString().split('T')[0];
     const platforms = selectedPlatforms.length > 0 ? selectedPlatforms : PLATFORMS.map(p => p.slug);
-    const { data, error } = await supabase
+    const { data, error } = await supabasePublic
       .from('hub_availability')
       .select('platform_slug, platform_url, available_since, content:hub_contents(id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, type, year, synopsis_tr, director, cast_list, trailer_url, tagline, genre)')
       .in('platform_slug', platforms)
@@ -910,7 +910,7 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
     if (!isMountedPop.current) return;
     setLoading(true);
     const platforms = selectedPlatforms.length > 0 ? selectedPlatforms : PLATFORMS.map(p => p.slug);
-    const { data, error } = await supabase
+    const { data, error } = await supabasePublic
       .from('hub_popular')
       .select('*')
       .in('platform', platforms)
@@ -1276,7 +1276,7 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
     if (selectedPlatforms.length === 0) { setItems([]); setLoading(false); return; }
     setLoading(true);
     const platformFilter = selectedPlatforms.map(p => `platform_slug.eq.${p}`).join(',');
-    let q = supabase.from('hub_contents')
+    let q = supabasePublic.from('hub_contents')
       .select('*, availability:hub_availability!inner(platform_slug, platform_url)')
       .not('imdb_score', 'is', null).not('imdb_id', 'is', null)
       .or(platformFilter, { referencedTable: 'hub_availability' });
@@ -1432,7 +1432,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, on
     if (selectedPlatforms.length === 0) { setDiscoverItems([]); setHeroItem(null); setLoadingDiscover(false); return; }
     setLoadingDiscover(true);
     const platformFilter = selectedPlatforms.map(p => `platform_slug.eq.${p}`).join(',');
-    let q = supabase.from('hub_contents')
+    let q = supabasePublic.from('hub_contents')
       .select('*, availability:hub_availability!inner(platform_slug, platform_url)')
       .not('imdb_score', 'is', null).not('imdb_id', 'is', null)
       .or(platformFilter, { referencedTable: 'hub_availability' });
@@ -1456,7 +1456,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, on
     if (!isMounted.current) return;
     if (selectedPlatforms.length === 0) { setPopularItems([]); setLoadingPopular(false); return; }
     setLoadingPopular(true);
-    const { data, error } = await supabase
+    const { data, error } = await supabasePublic
       .from('hub_popular').select('*')
       .in('platform', selectedPlatforms)
       .order('rating', { ascending: false }).limit(25);
@@ -1488,7 +1488,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, on
     setLoadingNew(true);
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 21);
     const fromStr = cutoff.toISOString().split('T')[0];
-    const { data, error } = await supabase
+    const { data, error } = await supabasePublic
       .from('hub_availability')
       .select('platform_slug, platform_url, available_since, content:hub_contents(id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, type, year, synopsis_tr, director, cast_list, trailer_url, genre)')
       .in('platform_slug', selectedPlatforms)
@@ -1508,7 +1508,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, on
     if (!isMounted.current) return;
     if (selectedPlatforms.length === 0) { setCollections([]); setLoadingCollections(false); return; }
     setLoadingCollections(true);
-    const { data, error } = await supabase
+    const { data, error } = await supabasePublic
       .from('hub_collections')
       .select('id, name, name_tr, avg_imdb_score, items:hub_collection_items(content_id, imdb_score, content:hub_contents(id, poster_url, availability:hub_availability(platform_slug)))')
       .order('avg_votes', { ascending: false, nullsFirst: false })
@@ -1527,7 +1527,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, on
       const raw = item._rawPopular;
       const base = { ...item, poster_url: raw.poster_w480 || raw.poster_w240 || item.poster_url };
       if (item.imdb_id) {
-        const { data } = await supabase.from('hub_contents')
+        const { data } = await supabasePublic.from('hub_contents')
           .select('id, synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, genre, year, original_language')
           .eq('imdb_id', item.imdb_id).single()
           .catch(() => ({ data: null }));

@@ -24,3 +24,18 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     enabled: false,
   },
 });
+
+// Public (anon) client for content queries — never carries JWT session,
+// so hub_contents / hub_availability / hub_popular / hub_collections queries
+// are unaffected by the authenticated session set after login.
+const _noStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+export const supabasePublic = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+    storage: _noStorage,
+    flowType: 'implicit',
+  },
+  realtime: { enabled: false },
+});
