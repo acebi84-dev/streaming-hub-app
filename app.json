@@ -45,7 +45,7 @@
       }
     },
     "plugins": [
-      "expo-router",
+      ["expo-router", { "origin": "https://streaming-hub-app-tan.vercel.app" }],
       "expo-font",
       "expo-web-browser",
       [
