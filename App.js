@@ -1943,6 +1943,58 @@ const obStyles = StyleSheet.create({
   mainBtnText: { color: '#000', fontSize: 16, fontWeight: '800' },
 });
 
+// ── Birth Date Picker ──────────────────────────────────────────
+function BirthDatePicker({ value, onChange }) {
+  const parsed = value && value.length === 10 ? value.split('-') : ['', '', ''];
+  const [year, setYear] = useState(parsed[0]);
+  const [month, setMonth] = useState(parsed[1]);
+  const [day, setDay] = useState(parsed[2]);
+  const monthRef = useRef(null);
+  const yearRef = useRef(null);
+
+  useEffect(() => {
+    if (value && value.length === 10) {
+      setYear(value.slice(0, 4));
+      setMonth(value.slice(5, 7));
+      setDay(value.slice(8, 10));
+    } else if (!value) {
+      setYear(''); setMonth(''); setDay('');
+    }
+  }, [value]);
+
+  function emit(y, m, d) {
+    if (y.length === 4 && m.length >= 1 && d.length >= 1) {
+      onChange(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`);
+    } else {
+      onChange('');
+    }
+  }
+
+  const cell = { flex: 1, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 6, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' };
+  const lbl = { color: 'rgba(255,255,255,0.35)', fontSize: 10, fontWeight: '600', letterSpacing: 0.5, marginBottom: 4 };
+  const inp = { color: '#fff', fontSize: 18, fontWeight: '600', textAlign: 'center', width: '100%' };
+
+  return (
+    <View>
+      <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 10 }}>Doğum Tarihi</Text>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={cell}>
+          <Text style={lbl}>GÜN</Text>
+          <TextInput style={inp} value={day} onChangeText={v => { const c = v.replace(/\D/g,'').slice(0,2); setDay(c); emit(year,month,c); if(c.length===2) monthRef.current?.focus(); }} keyboardType="number-pad" maxLength={2} placeholder="GG" placeholderTextColor="rgba(255,255,255,0.2)" />
+        </View>
+        <View style={cell}>
+          <Text style={lbl}>AY</Text>
+          <TextInput ref={monthRef} style={inp} value={month} onChangeText={v => { const c = v.replace(/\D/g,'').slice(0,2); setMonth(c); emit(year,c,day); if(c.length===2) yearRef.current?.focus(); }} keyboardType="number-pad" maxLength={2} placeholder="AA" placeholderTextColor="rgba(255,255,255,0.2)" />
+        </View>
+        <View style={[cell, { flex: 1.6 }]}>
+          <Text style={lbl}>YIL</Text>
+          <TextInput ref={yearRef} style={inp} value={year} onChangeText={v => { const c = v.replace(/\D/g,'').slice(0,4); setYear(c); emit(c,month,day); }} keyboardType="number-pad" maxLength={4} placeholder="YYYY" placeholderTextColor="rgba(255,255,255,0.2)" returnKeyType="done" />
+        </View>
+      </View>
+    </View>
+  );
+}
+
 // ── Profile Modal ──────────────────────────────────────────────
 function AccordionSection({ title, isOpen, onToggle, children }) {
   return (
@@ -2001,23 +2053,28 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
   async function save() {
     setLoading(true);
     setSaveError('');
-    const { error } = await supabase.from('profiles').upsert({
-      id: user.id,
-      display_name: editName || null,
-      birth_date: editBirth || null,
-      gender: editGender || null,
-      selected_platforms: selPlatforms,
-      favorite_genres: selGenres,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'id' });
-    if (error) {
-      setSaveError('Kayıt başarısız, tekrar deneyin.');
-    } else {
-      onSave(selPlatforms);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+    try {
+      const { error } = await supabase.from('profiles').upsert({
+        id: user.id,
+        display_name: editName || null,
+        birth_date: editBirth || null,
+        gender: editGender || null,
+        selected_platforms: selPlatforms,
+        favorite_genres: selGenres,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+      if (error) {
+        setSaveError(error.message || 'Kayıt başarısız, tekrar deneyin.');
+      } else {
+        onSave(selPlatforms);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
+    } catch (e) {
+      setSaveError(e?.message || 'Bir hata oluştu.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (
@@ -2045,9 +2102,7 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
             <View style={pmStyles.inputRow}>
               <TextInput style={pmStyles.input} placeholder="İsim" placeholderTextColor="rgba(255,255,255,0.3)" value={editName} onChangeText={setEditName} />
             </View>
-            <View style={pmStyles.inputRow}>
-              <TextInput style={pmStyles.input} placeholder="Doğum tarihi (YYYY-AA-GG)" placeholderTextColor="rgba(255,255,255,0.3)" value={editBirth} onChangeText={setEditBirth} keyboardType="numbers-and-punctuation" />
-            </View>
+            <BirthDatePicker value={editBirth} onChange={setEditBirth} />
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {[['male','Erkek'],['female','Kadın'],['other','Diğer']].map(([val, label]) => (
                 <TouchableOpacity key={val}
@@ -2061,18 +2116,26 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
 
           {/* Platformlar — accordion */}
           <AccordionSection title="Platformlar" isOpen={openPlatforms} onToggle={() => setOpenPlatforms(p => !p)}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              {PLATFORMS.map(p => {
-                const sel = selPlatforms.includes(p.slug);
-                return (
-                  <TouchableOpacity key={p.slug}
-                    style={{ paddingHorizontal: 18, paddingVertical: 10, borderRadius: 24, backgroundColor: sel ? p.color : 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: sel ? p.color : 'rgba(255,255,255,0.1)' }}
-                    onPress={() => togglePlatform(p.slug)}>
-                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{p.name}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            {[0, 1].map(row => (
+              <View key={row} style={{ flexDirection: 'row', gap: 10 }}>
+                {PLATFORMS.slice(row * 2, row * 2 + 2).map(p => {
+                  const sel = selPlatforms.includes(p.slug);
+                  const mono = { netflix: 'N', amazon: 'P', disney: 'D+', hbo: 'HBO' }[p.slug];
+                  return (
+                    <TouchableOpacity key={p.slug} onPress={() => togglePlatform(p.slug)}
+                      style={{ flex: 1, paddingVertical: 18, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: sel ? p.color : 'rgba(255,255,255,0.06)', borderWidth: 1.5, borderColor: sel ? p.color : 'rgba(255,255,255,0.1)', gap: 6, position: 'relative' }}>
+                      {sel && (
+                        <View style={{ position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ color: '#fff', fontSize: 9, fontWeight: '900' }}>✓</Text>
+                        </View>
+                      )}
+                      <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900', letterSpacing: -0.5, opacity: sel ? 1 : 0.45 }}>{mono}</Text>
+                      <Text style={{ color: '#fff', fontSize: 11, fontWeight: sel ? '700' : '500', opacity: sel ? 1 : 0.5 }}>{p.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
           </AccordionSection>
 
           {/* Favori Türler — accordion */}
