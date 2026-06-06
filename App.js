@@ -129,8 +129,13 @@ function CarouselComments() {
 
 // ── Watchlist Helpers ─────────────────────────────────────────
 async function getWatchlistEntry(userId, contentId) {
-  const { data } = await supabase.from('watchlist').select('*').eq('user_id', userId).eq('content_id', contentId).single();
-  return data;
+  try {
+    const { data } = await Promise.race([
+      supabase.from('watchlist').select('*').eq('user_id', userId).eq('content_id', contentId).single(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
+    ]);
+    return data;
+  } catch { return null; }
 }
 async function upsertWatchlist(userId, contentId, status, rating = null) {
   try {
@@ -320,13 +325,20 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
   async function fetchList() {
     if (!user) { setLoading(false); return; }
     setLoading(true);
-    const { data } = await supabase
-      .from('watchlist')
-      .select('*, content:hub_contents(id, title, title_tr, type, year, imdb_score, poster_url, imdb_id, original_language, availability:hub_availability(platform_slug, platform_url))')
-      .eq('user_id', user.id)
-      .eq('status', tab)
-      .order('updated_at', { ascending: false });
-    if (isMounted.current) { setItems(data || []); setLoading(false); }
+    try {
+      const { data } = await Promise.race([
+        supabase
+          .from('watchlist')
+          .select('*, content:hub_contents(id, title, title_tr, type, year, imdb_score, poster_url, imdb_id, original_language, availability:hub_availability(platform_slug, platform_url))')
+          .eq('user_id', user.id)
+          .eq('status', tab)
+          .order('updated_at', { ascending: false }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
+      ]);
+      if (isMounted.current) { setItems(data || []); setLoading(false); }
+    } catch {
+      if (isMounted.current) { setItems([]); setLoading(false); }
+    }
   }
 
   const tabs = [
@@ -450,6 +462,8 @@ function DetailModal({ item, onClose, user }) {
   const cur = itemStack[itemStack.length - 1];
   const [similarItems, setSimilarItems] = React.useState([]);
 
+  const videoH = Math.round(SCREEN_W * 9 / 16); // 16:9 doğal yükseklik
+
   const title = cur.original_language === 'tr' && cur.title_tr ? cur.title_tr : cur.title;
   const typeLabel = cur.type === 'movie' ? 'Film' : 'Dizi';
   const langLabel = cur.original_language ? LANGUAGE_MAP[cur.original_language] : null;
@@ -492,15 +506,16 @@ function DetailModal({ item, onClose, user }) {
         <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
 
           {/* ── Media hero ── */}
-          <View style={{ height: HEADER_H, overflow: 'hidden', backgroundColor: '#111' }}>
+          <View style={{ height: youtubeId ? videoH : HEADER_H, overflow: 'hidden', backgroundColor: '#000' }}>
             {youtubeId ? (
               <YoutubeIframe
-                height={HEADER_H}
+                height={videoH}
                 width={SCREEN_W}
                 videoId={youtubeId}
                 play
                 mute
-                initialPlayerParams={{ preventFullScreen: true, rel: 0 }}
+                initialPlayerParams={{ preventFullScreen: false, rel: 0, autoplay: 1 }}
+                webViewProps={{ allowsInlineMediaPlayback: true, mediaPlaybackRequiresUserAction: false }}
               />
             ) : cur.poster_url ? (
               <Image source={{ uri: cur.poster_url }} style={{ width: SCREEN_W, height: HEADER_H }} resizeMode="cover" />
@@ -1916,11 +1931,11 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, isPremium,
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
         <Text style={{ color: '#fff', fontSize: 28, fontWeight: '900', letterSpacing: -0.5 }}>İzlio</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Bookmark size={22} color="#fff" strokeWidth={2} />
+          <TouchableOpacity style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <Bookmark size={24} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
-          <TouchableOpacity style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onProfile} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <User size={22} color="#fff" strokeWidth={2} />
+          <TouchableOpacity style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onProfile} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <User size={24} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1948,9 +1963,9 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, isPremium,
           )}
         </View>
         <TouchableOpacity
-          style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: 54, height: 54, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center' }}
           onPress={() => setFullScreen('discover')}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <SlidersHorizontal size={20} color="rgba(255,255,255,0.65)" strokeWidth={2} />
         </TouchableOpacity>

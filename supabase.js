@@ -3,13 +3,43 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = 'https://bvggvperehlduxziaqfu.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Q3JqA0F8fU7vE6fQMZ_ZcA_-x5qLhnk';
 
-// React Native iOS'ta Supabase client async operasyonları bazen hang eder.
-// fetchWithTimeout her isteği 12 saniyede keser ve hata döndürür.
+// React Native iOS JSC'de AbortController bazen çalışmaz.
+// XHR'ın native timeout özelliği kullanılıyor — platform seviyesinde çalışır.
 function fetchWithTimeout(url, options = {}) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), 12000);
-  return fetch(url, { ...options, signal: controller.signal })
-    .finally(() => clearTimeout(id));
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.timeout = 10000;
+    xhr.ontimeout = () => reject(new Error('Network timeout'));
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.onload = () => {
+      const status = xhr.status;
+      const responseText = xhr.responseText;
+      const getHeader = (h) => xhr.getResponseHeader(h);
+      const body = {
+        text: () => Promise.resolve(responseText),
+        json: () => {
+          try { return Promise.resolve(JSON.parse(responseText)); }
+          catch (e) { return Promise.reject(e); }
+        },
+      };
+      resolve({
+        ok: status >= 200 && status < 300,
+        status,
+        statusText: xhr.statusText || '',
+        headers: { get: getHeader },
+        ...body,
+        clone: () => ({ ok: status >= 200 && status < 300, status, statusText: xhr.statusText || '', headers: { get: getHeader }, ...body }),
+      });
+    };
+    xhr.open(options.method || 'GET', url);
+    const hdrs = options.headers || {};
+    if (typeof hdrs.forEach === 'function') {
+      hdrs.forEach((v, k) => xhr.setRequestHeader(k, v));
+    } else {
+      Object.keys(hdrs).forEach(k => xhr.setRequestHeader(k, String(hdrs[k])));
+    }
+    xhr.send(options.body !== undefined ? options.body : null);
+  });
 }
 
 // AsyncStorage kurulu olmadığından in-memory storage kullanıyoruz.
