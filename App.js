@@ -12,6 +12,7 @@ import {
   StyleSheet, Text, View, FlatList, TextInput, TouchableOpacity,
   Image, ActivityIndicator, SafeAreaView, StatusBar, ScrollView,
   Animated, Modal, KeyboardAvoidingView, Platform, useWindowDimensions,
+  PanResponder,
 } from 'react-native';
 import YoutubeIframe from 'react-native-youtube-iframe';
 import { Linking, Share, AppState } from 'react-native';
@@ -132,14 +133,23 @@ async function getWatchlistEntry(userId, contentId) {
   return data;
 }
 async function upsertWatchlist(userId, contentId, status, rating = null) {
-  const { data, error } = await supabase.from('watchlist').upsert({
-    user_id: userId, content_id: contentId, status, rating,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'user_id,content_id' }).select().single();
-  return { data, error };
+  try {
+    return await Promise.race([
+      supabase.from('watchlist').upsert({
+        user_id: userId, content_id: contentId, status, rating,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,content_id' }).select().single(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
+    ]);
+  } catch {
+    return { data: null, error: null };
+  }
 }
 async function removeWatchlist(userId, contentId) {
-  await supabase.from('watchlist').delete().eq('user_id', userId).eq('content_id', contentId);
+  await Promise.race([
+    supabase.from('watchlist').delete().eq('user_id', userId).eq('content_id', contentId),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
+  ]).catch(() => {});
 }
 
 function extractYouTubeId(url) {
@@ -163,27 +173,34 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
     }
   }, [user, item?.id]);
 
-  async function setStatus(status) {
+  function setStatus(status) {
     if (!user) return;
-    const { data } = await upsertWatchlist(user.id, item.id, status, entry?.rating || null);
-    if (isMounted.current) {
-      setEntry(data);
-      setShowMenu(false);
-      if (status === 'watched') setShowRating(true);
-      onUpdate?.();
-    }
+    // Optimistic update — UI responds instantly
+    setEntry({ user_id: user.id, content_id: item.id, status, rating: entry?.rating || null });
+    setShowMenu(false);
+    if (status === 'watched') setShowRating(true);
+    onUpdate?.();
+    upsertWatchlist(user.id, item.id, status, entry?.rating || null)
+      .then(({ data }) => { if (data && isMounted.current) setEntry(data); })
+      .catch(() => {});
   }
 
-  async function setRating(rating) {
+  function setRating(rating) {
     if (!user || !entry) return;
-    const { data } = await upsertWatchlist(user.id, item.id, entry.status, rating);
-    if (isMounted.current) { setEntry(data); setShowRating(false); onUpdate?.(); }
+    const prevStatus = entry.status;
+    setEntry({ ...entry, rating });
+    setShowRating(false);
+    upsertWatchlist(user.id, item.id, prevStatus, rating)
+      .then(({ data }) => { if (data && isMounted.current) setEntry(data); })
+      .catch(() => {});
   }
 
-  async function remove() {
+  function remove() {
     if (!user) return;
-    await removeWatchlist(user.id, item.id);
-    if (isMounted.current) { setEntry(null); setShowMenu(false); onUpdate?.(); }
+    setEntry(null);
+    setShowMenu(false);
+    onUpdate?.();
+    removeWatchlist(user.id, item.id);
   }
 
   async function share() {
@@ -1394,7 +1411,8 @@ function HeroSection({ item, scrollY, onPress }) {
           ? <Image source={{ uri: item.poster_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
           : <View style={{ flex: 1, backgroundColor: '#111' }} />}
       </Animated.View>
-      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HERO_H * 0.6, backgroundColor: 'rgba(0,0,0,0.5)' }} />
+      <View style={{ position: 'absolute', bottom: HERO_H * 0.4, left: 0, right: 0, height: HERO_H * 0.1, backgroundColor: 'rgba(0,0,0,0.2)' }} />
+      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HERO_H * 0.42, backgroundColor: 'rgba(0,0,0,0.72)' }} />
       <Animated.View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 26, opacity: contentOpacity }}>
         <Text style={{ color: '#fff', fontSize: 35, fontWeight: '900', letterSpacing: -0.8, marginBottom: 8, lineHeight: 41, textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }} numberOfLines={2}>{title}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -1422,6 +1440,8 @@ function PersonalizedHeroSection({ items, scrollY, onPress }) {
   const idxRef = useRef(0);
   const opacity = useSharedValue(1);
   const slideX = useSharedValue(0);
+  const nextFnRef = useRef(null);
+  const prevFnRef = useRef(null);
 
   const animStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -1435,17 +1455,18 @@ function PersonalizedHeroSection({ items, scrollY, onPress }) {
     slideX.value = 0;
   }, [items.map(i => i.id).join(',')]);
 
+  // Auto-advance timer — restarts after each swipe (currentIdx dep resets it)
   useEffect(() => {
     if (items.length <= 1) return;
-    const id = setInterval(() => {
+    const id = setTimeout(() => {
       opacity.value = withTiming(0, { duration: 350 }, (finished) => {
         if (!finished) return;
         runOnJS(doSwitch)();
       });
       slideX.value = withTiming(-18, { duration: 350 });
     }, 5000);
-    return () => clearInterval(id);
-  }, [items.length]);
+    return () => clearTimeout(id);
+  }, [currentIdx, items.length]);
 
   function doSwitch() {
     const next = (idxRef.current + 1) % items.length;
@@ -1455,6 +1476,37 @@ function PersonalizedHeroSection({ items, scrollY, onPress }) {
     opacity.value = withTiming(1, { duration: 420 });
     slideX.value = withTiming(0, { duration: 420 });
   }
+
+  function doPrev() {
+    const prev = (idxRef.current - 1 + items.length) % items.length;
+    idxRef.current = prev;
+    setCurrentIdx(prev);
+    slideX.value = -18;
+    opacity.value = withTiming(1, { duration: 420 });
+    slideX.value = withTiming(0, { duration: 420 });
+  }
+
+  // Update refs each render so PanResponder always calls latest closures
+  nextFnRef.current = () => {
+    opacity.value = withTiming(0, { duration: 280 }, (f) => { if (f) runOnJS(doSwitch)(); });
+    slideX.value = withTiming(-18, { duration: 280 });
+  };
+  prevFnRef.current = () => {
+    opacity.value = withTiming(0, { duration: 280 }, (f) => { if (f) runOnJS(doPrev)(); });
+    slideX.value = withTiming(18, { duration: 280 });
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy),
+      onPanResponderRelease: (_, gs) => {
+        if (Math.abs(gs.dx) < 50) return;
+        if (gs.dx < 0) nextFnRef.current?.();
+        else prevFnRef.current?.();
+      },
+    })
+  ).current;
 
   const item = items[currentIdx];
   if (!item) return null;
@@ -1472,14 +1524,16 @@ function PersonalizedHeroSection({ items, scrollY, onPress }) {
   });
 
   return (
-    <View style={{ height: HERO_H, overflow: 'hidden' }}>
+    <View style={{ height: HERO_H, overflow: 'hidden' }} {...panResponder.panHandlers}>
       <ReAnimated.View style={[StyleSheet.absoluteFill, animStyle]}>
         <Animated.View style={{ position: 'absolute', top: -40, left: 0, right: 0, height: HERO_H + 80, transform: [{ translateY: imgTranslate }] }}>
           {item.poster_url
             ? <Image source={{ uri: item.poster_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
             : <View style={{ flex: 1, backgroundColor: '#111' }} />}
         </Animated.View>
-        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HERO_H * 0.6, backgroundColor: 'rgba(0,0,0,0.5)' }} />
+        {/* Two-layer gradient: soft transition + solid text backing */}
+        <View style={{ position: 'absolute', bottom: HERO_H * 0.4, left: 0, right: 0, height: HERO_H * 0.1, backgroundColor: 'rgba(0,0,0,0.2)' }} />
+        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HERO_H * 0.42, backgroundColor: 'rgba(0,0,0,0.72)' }} />
         <Animated.View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: items.length > 1 ? 38 : 26, opacity: contentOpacity }}>
           <Text style={{ color: '#fff', fontSize: 35, fontWeight: '900', letterSpacing: -0.8, marginBottom: 8, lineHeight: 41, textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }} numberOfLines={2}>{title}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -2362,7 +2416,7 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
     setLoading(true);
     setSaveError('');
     try {
-      const { error } = await supabase.from('profiles').upsert({
+      const upsertPromise = supabase.from('profiles').upsert({
         id: user.id,
         display_name: editName || null,
         birth_date: editBirth || null,
@@ -2371,6 +2425,10 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
         favorite_genres: selGenres,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
+      const { error } = await Promise.race([
+        upsertPromise,
+        new Promise((_, rej) => setTimeout(() => rej(new Error('__timeout__')), 8000)),
+      ]);
       if (error) {
         setSaveError(error.message || 'Kayıt başarısız, tekrar deneyin.');
       } else {
@@ -2379,7 +2437,14 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
         setTimeout(() => setSaved(false), 2000);
       }
     } catch (e) {
-      setSaveError(e?.message || 'Bir hata oluştu.');
+      if (e?.message === '__timeout__') {
+        // Ağ yavaş/kayıt devam ediyor — UI'ı optimistic olarak güncelle
+        onSave(selPlatforms, selGenres);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } else {
+        setSaveError(e?.message || 'Bir hata oluştu.');
+      }
     } finally {
       setLoading(false);
     }
