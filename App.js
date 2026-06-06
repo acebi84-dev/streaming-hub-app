@@ -1805,7 +1805,7 @@ function OnboardingScreen({ user, onComplete }) {
 
   async function finish() {
     setLoading(true);
-    const { error } = await supabase.from('profiles').upsert({
+    const save = supabase.from('profiles').upsert({
       id: user.id,
       selected_platforms: selPlatforms,
       favorite_genres: selGenres,
@@ -1813,15 +1813,9 @@ function OnboardingScreen({ user, onComplete }) {
       birth_date: birthDate || null,
       gender: gender || null,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'id' });
-    if (error) {
-      // Hata durumunda yeniden dene
-      await supabase.from('profiles').upsert({
-        id: user.id,
-        selected_platforms: selPlatforms,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' }).catch(() => {});
-    }
+    }, { onConflict: 'id' }).catch(() => {});
+    const timeout = new Promise(r => setTimeout(r, 6000));
+    await Promise.race([save, timeout]);
     onComplete({ platforms: selPlatforms, genres: selGenres });
     setLoading(false);
   }
@@ -2176,6 +2170,9 @@ function AuthScreen({ onAuth }) {
         if (!res.ok || json.error) {
           setError(json.error_description || json.msg || json.error || 'Giriş başarısız');
         } else {
+          if (json.access_token && json.refresh_token) {
+            await supabase.auth.setSession({ access_token: json.access_token, refresh_token: json.refresh_token }).catch(() => {});
+          }
           onAuth(json.user);
         }
       } else {
