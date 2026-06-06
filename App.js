@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
+import * as SecureStore from 'expo-secure-store';
 
 SplashScreen.preventAutoHideAsync();
 
 async function checkForOTAUpdate() {
   try {
-    if (!Updates.isEmbeddedLaunch) {
-      const update = await Updates.checkForUpdateAsync();
-      if (update.isAvailable) {
-        await Updates.fetchUpdateAsync();
-        await Updates.reloadAsync();
-      }
+    const update = await Updates.checkForUpdateAsync();
+    if (update.isAvailable) {
+      await Updates.fetchUpdateAsync();
+      await Updates.reloadAsync();
     }
   } catch (_) {}
 }
@@ -217,7 +216,7 @@ function extractYouTubeId(url) {
 }
 
 // ── Watchlist Button (içerik kartı için) ─────────────────────
-function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVariant }) {
+function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVariant, compact }) {
   const [entry, setEntry] = useState(initialEntry ?? null);
   const [showMenu, setShowMenu] = useState(false);
   const [showRating, setShowRating] = useState(false);
@@ -278,6 +277,18 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
 
   return (
     <View style={[{ position: 'relative' }, modalVariant && { alignSelf: 'stretch' }, style]}>
+      {compact ? (
+        <TouchableOpacity
+          style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: entry ? statusConfig[entry.status]?.color + '18' : 'rgba(255,255,255,0.06)' }}
+          onPress={() => setShowMenu(true)}
+          hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+        >
+          {entry ? React.cloneElement(statusConfig[entry.status]?.icon, { size: 13 }) : <Star size={13} color="rgba(255,255,255,0.5)" strokeWidth={2} />}
+          <Text style={{ color: entry ? statusConfig[entry.status]?.color : 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '600' }}>
+            {entry ? statusConfig[entry.status]?.label : 'Listeye Ekle'}
+          </Text>
+        </TouchableOpacity>
+      ) : (
       <TouchableOpacity
         style={[
           wlStyles.btn,
@@ -293,6 +304,7 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
         </Text>
         {entry?.rating && <Text style={[wlStyles.ratingText, { color: statusConfig[entry.status]?.color }]}>★{entry.rating}</Text>}
       </TouchableOpacity>
+      )}
 
       {/* Status menu */}
       <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
@@ -434,18 +446,15 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
             return (
               <TouchableOpacity style={{ flexDirection: 'row', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 10 }} onPress={() => onItemPress(c)}>
                 {c.poster_url ? <Image source={{ uri: c.poster_url }} style={{ width: 60, height: 90, borderRadius: 8 }} resizeMode="cover" /> : <View style={{ width: 60, height: 90, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' }} />}
-                <View style={{ flex: 1, justifyContent: 'space-between' }}>
-                  <View>
-                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }} numberOfLines={2}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
-                    <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, marginTop: 2 }}>{c.type === 'movie' ? 'Film' : 'Dizi'} · {c.year}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                      <View style={{ backgroundColor: '#f5c518', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 }}><Text style={{ color: '#000', fontSize: 10, fontWeight: '800' }}>IMDb</Text></View>
-                      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{c.imdb_score?.toFixed(1)}</Text>
-                      {row.rating && <><Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>·</Text><Text style={{ color: '#ffd43b', fontSize: 13, fontWeight: '700' }}>★{row.rating}/10</Text></>}
-                      {p && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.color }} />}
-                    </View>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }} numberOfLines={2}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>{c.type === 'movie' ? 'Film' : 'Dizi'}{c.year ? ` · ${c.year}` : ''}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    {c.imdb_score && <><View style={{ backgroundColor: '#f5c518', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 }}><Text style={{ color: '#000', fontSize: 10, fontWeight: '800' }}>IMDb</Text></View><Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{c.imdb_score.toFixed(1)}</Text></>}
+                    {row.rating && <><Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 12 }}>|</Text><Text style={{ color: '#ffd43b', fontSize: 13, fontWeight: '700' }}>★ {row.rating}/10</Text></>}
+                    {p && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: p.color }} />}
                   </View>
-                  <WatchlistButton item={c} user={user} initialEntry={{ status: row.status, rating: row.rating }} onUpdate={fetchList} />
+                  <WatchlistButton item={c} user={user} initialEntry={{ status: row.status, rating: row.rating }} onUpdate={fetchList} compact />
                 </View>
               </TouchableOpacity>
             );
@@ -500,11 +509,11 @@ function DetailModal({ item, onClose, user }) {
   const { width: SCREEN_W, height: SCREEN_H } = useWindowDimensions();
   const HEADER_H = Math.round(SCREEN_H * 0.45);
 
-  const [itemStack, setItemStack] = React.useState([item]);
-  const cur = itemStack[itemStack.length - 1];
+  const [navStack, setNavStack] = React.useState([]);
+  const cur = navStack.length > 0 ? navStack[navStack.length - 1] : item;
   const [similarItems, setSimilarItems] = React.useState([]);
 
-  const videoH = Math.round(SCREEN_W * 9 / 16); // 16:9 doğal yükseklik
+  const videoH = Math.round(SCREEN_W * 9 / 16);
 
   const title = cur.original_language === 'tr' && cur.title_tr ? cur.title_tr : cur.title;
   const typeLabel = cur.type === 'movie' ? 'Film' : 'Dizi';
@@ -581,10 +590,10 @@ function DetailModal({ item, onClose, user }) {
             </TouchableOpacity>
 
             {/* Back button */}
-            {itemStack.length > 1 && (
+            {navStack.length > 0 && (
               <TouchableOpacity
                 style={{ position: 'absolute', top: 16, left: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', zIndex: 20 }}
-                onPress={() => setItemStack(prev => prev.slice(0, -1))}
+                onPress={() => setNavStack(prev => prev.slice(0, -1))}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <ChevronLeft size={20} color="#fff" strokeWidth={2.5} />
@@ -726,7 +735,7 @@ function DetailModal({ item, onClose, user }) {
                     const p = PLATFORMS.find(x => x.slug === s.availability?.[0]?.platform_slug);
                     return (
                       <TouchableOpacity key={s.imdb_id} style={{ width: 96 }}
-                        onPress={() => { setSimilarItems([]); setItemStack(prev => [...prev, s]); }}>
+                        onPress={() => { setSimilarItems([]); setNavStack(prev => [...prev, s]); }}>
                         {s.poster_url
                           ? <Image source={{ uri: s.poster_url }} style={{ width: 96, height: 140, borderRadius: 12, marginBottom: 6 }} resizeMode="cover" />
                           : <View style={{ width: 96, height: 140, borderRadius: 12, backgroundColor: SURFACE, marginBottom: 6 }} />}
@@ -2759,6 +2768,8 @@ function AuthScreen({ onAuth }) {
           if (json.access_token && json.refresh_token) {
             _SUPA.token = json.access_token;
             setStoredToken(json.access_token);
+            await SecureStore.setItemAsync('izlio_access_token', json.access_token).catch(() => {});
+            await SecureStore.setItemAsync('izlio_refresh_token', json.refresh_token).catch(() => {});
             await supabase.auth.setSession({ access_token: json.access_token, refresh_token: json.refresh_token }).catch(() => {});
           }
           onAuth(json.user);
@@ -2986,15 +2997,32 @@ export default function App() {
   }, [user?.id]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.access_token) { _SUPA.token = session.access_token; setStoredToken(session.access_token); }
-      setUser(session?.user ?? null);
-      setAuthLoading(false);
-    }).catch(e => { console.error('getSession catch:', e); setAuthLoading(false); });
+    async function initSession() {
+      try {
+        const accessToken = await SecureStore.getItemAsync('izlio_access_token').catch(() => null);
+        const refreshToken = await SecureStore.getItemAsync('izlio_refresh_token').catch(() => null);
+        if (accessToken && refreshToken) {
+          await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).catch(() => {});
+        }
+      } catch (_) {}
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.access_token) { _SUPA.token = session.access_token; setStoredToken(session.access_token); }
+        setUser(session?.user ?? null);
+        setAuthLoading(false);
+      }).catch(e => { console.error('getSession catch:', e); setAuthLoading(false); });
+    }
+    initSession();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
-        if (session?.access_token) { _SUPA.token = session.access_token; setStoredToken(session.access_token); }
-        else if (_event === 'SIGNED_OUT') { _SUPA.token = null; setStoredToken(null); }
+        if (session?.access_token) {
+          _SUPA.token = session.access_token; setStoredToken(session.access_token);
+          await SecureStore.setItemAsync('izlio_access_token', session.access_token).catch(() => {});
+          if (session.refresh_token) await SecureStore.setItemAsync('izlio_refresh_token', session.refresh_token).catch(() => {});
+        } else if (_event === 'SIGNED_OUT') {
+          _SUPA.token = null; setStoredToken(null);
+          SecureStore.deleteItemAsync('izlio_access_token').catch(() => {});
+          SecureStore.deleteItemAsync('izlio_refresh_token').catch(() => {});
+        }
         const u = session?.user ?? null;
         setUser(u);
         if (u && _event === 'SIGNED_IN') {
@@ -3084,7 +3112,7 @@ export default function App() {
         selectedPlatforms={selectedPlatforms}
         onClose={() => setShowProfile(false)}
         onSave={(platforms, genres, languages) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); if (genres) setFavoriteGenres(genres); if (languages) setFavoriteLanguages(languages); }}
-        onSignOut={() => { _SUPA.token = null; setStoredToken(null); supabase.auth.signOut().catch(() => {}); setUser(null); setShowProfile(false); }}
+        onSignOut={() => { _SUPA.token = null; setStoredToken(null); SecureStore.deleteItemAsync('izlio_access_token').catch(() => {}); SecureStore.deleteItemAsync('izlio_refresh_token').catch(() => {}); supabase.auth.signOut().catch(() => {}); setUser(null); setShowProfile(false); }}
         isPremium={isPremium}
         onUpgrade={() => { setShowProfile(false); alert('Yakında! In-App Purchase entegrasyonu hazırlanıyor.'); }}
       />
