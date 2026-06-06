@@ -38,10 +38,10 @@ const PROFILE_GENRES = [
   { id: 'history',   label: 'Tarih',         emoji: '⚔️' },
 ];
 const PLATFORMS = [
-  { slug: 'netflix',  name: 'Netflix',      color: '#E50914', darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
-  { slug: 'amazon',   name: 'Prime Video',  color: '#00A8E1', darkLogo: 'https://media.movieofthenight.com/services/prime/logo-white.svg' },
-  { slug: 'disney',   name: 'Disney+',      color: '#0063E5', darkLogo: 'https://media.movieofthenight.com/services/disney/logo-white.svg' },
-  { slug: 'hbo',      name: 'HBO Max',      color: '#8B4FBE', darkLogo: 'https://media.movieofthenight.com/services/hbo/logo-white.svg' },
+  { slug: 'netflix',  name: 'Netflix',      color: '#E50914', mono: 'N',   darkLogo: 'https://media.movieofthenight.com/services/netflix/logo-white.svg' },
+  { slug: 'amazon',   name: 'Prime Video',  color: '#00A8E1', mono: 'P',   darkLogo: 'https://media.movieofthenight.com/services/prime/logo-white.svg' },
+  { slug: 'disney',   name: 'Disney+',      color: '#0063E5', mono: 'D+',  darkLogo: 'https://media.movieofthenight.com/services/disney/logo-white.svg' },
+  { slug: 'hbo',      name: 'HBO Max',      color: '#8B4FBE', mono: 'HBO', darkLogo: 'https://media.movieofthenight.com/services/hbo/logo-white.svg' },
 ];
 
 const GENRES = [
@@ -476,8 +476,9 @@ function DetailModal({ item, onClose, user }) {
                       const p = PLATFORMS.find(x => x.slug === a.platform_slug);
                       if (!p) return null;
                       return (
-                        <TouchableOpacity key={a.platform_slug} style={[styles.modalPlatformBtn, { backgroundColor: p.color }]} onPress={() => openPlatformUrl(a.platform_slug, a.platform_url)} disabled={!a.platform_url}>
-                          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>{p.name}</Text>
+                        <TouchableOpacity key={a.platform_slug} style={[styles.modalPlatformBtn, { backgroundColor: p.color, flexDirection: 'row', alignItems: 'center', gap: 8 }]} onPress={() => openPlatformUrl(a.platform_slug, a.platform_url)} disabled={!a.platform_url}>
+                          <Text style={{ color: '#fff', fontWeight: '900', fontSize: 16, letterSpacing: -0.5 }}>{p.mono}</Text>
+                          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>{p.name}</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -537,9 +538,10 @@ const POPULAR_GENRES = [
 ];
 
 
-function CollectionsScreen({ selectedPlatforms, onBack, user }) {
+function CollectionsScreen({ selectedPlatforms, onBack, user, initialCollectionId }) {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeCollectionId, setActiveCollectionId] = useState(initialCollectionId || null);
   const isMounted = useRef(true);
   useEffect(() => { return () => { isMounted.current = false; }; }, []);
   const [selectedGenre, setSelectedGenre] = useState(null);
@@ -588,6 +590,7 @@ function CollectionsScreen({ selectedPlatforms, onBack, user }) {
 
   const genreMap = Object.fromEntries(GENRES.map(g => [g.en, g.tr]));
   const hasColActiveFilters = selectedGenre || minImdb > 0 || sortBy !== 'avg_votes' || sortAscCol || colActiveSearch;
+  const displayedCollections = activeCollectionId ? filteredCollections.filter(c => c.id === activeCollectionId) : filteredCollections;
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -607,6 +610,11 @@ function CollectionsScreen({ selectedPlatforms, onBack, user }) {
           <Text style={styles.searchIconText}>⌕</Text>
         </TouchableOpacity>
       </View>
+      {activeCollectionId && (
+        <TouchableOpacity style={{ marginHorizontal: 16, marginBottom: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }} onPress={() => setActiveCollectionId(null)}>
+          <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13 }}>‹ Tüm Koleksiyonlar</Text>
+        </TouchableOpacity>
+      )}
       {/* Filter button */}
       <TouchableOpacity style={[styles.filtersBtn, (selectedGenre || minImdb > 0) && styles.filtersBtnActive]} onPress={() => setShowFilters(!showFilters)}>
         <Text style={[styles.filtersBtnText, (selectedGenre || minImdb > 0) && styles.filtersBtnTextActive]}>
@@ -663,7 +671,7 @@ function CollectionsScreen({ selectedPlatforms, onBack, user }) {
         {loading ? (
           <ActivityIndicator size="large" color={ACCENT} style={{ marginTop: 60 }} />
         ) : (
-          filteredCollections.map(col => {
+          displayedCollections.map(col => {
             const items = col.items
               .filter(i => i.content?.availability?.some(a => selectedPlatforms.includes(a.platform_slug)))
               .sort((a, b) => (b.imdb_score || 0) - (a.imdb_score || 0));
@@ -860,8 +868,9 @@ function NewScreen({ selectedPlatforms, onBack, user }) {
             if (filtered.length === 0) return null;
             return (
               <View key={p.slug} style={styles.popularSection}>
-                <View style={[styles.popularPlatformLabel, { backgroundColor: p.color }]}>
-                  <Text style={{ color: "#fff", fontWeight: "800", fontSize: 15, letterSpacing: 0.5 }}>{p.name}</Text>
+                <View style={[styles.popularPlatformLabel, { backgroundColor: p.color, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+                  <Text style={{ color: '#fff', fontWeight: '900', fontSize: 16, letterSpacing: -0.5 }}>{p.mono}</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{p.name}</Text>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularRow}>
                   {filtered.map(item => (
@@ -1057,8 +1066,9 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
             if (!items || items.length === 0) return null;
             return (
               <View key={p.slug} style={styles.popularSection}>
-                <View style={[styles.popularPlatformLabel, { backgroundColor: p.color }]}>
-                  <Text style={{ color: "#fff", fontWeight: "800", fontSize: 15, letterSpacing: 0.5 }}>{p.name}</Text>
+                <View style={[styles.popularPlatformLabel, { backgroundColor: p.color, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+                  <Text style={{ color: '#fff', fontWeight: '900', fontSize: 16, letterSpacing: -0.5 }}>{p.mono}</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{p.name}</Text>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularRow}>
                   {items.map(item => renderPopularCard(item))}
@@ -1155,9 +1165,9 @@ function ContentRow({ title, items, onPress, loading, onSeeAll }) {
 }
 
 // ── CollectionRow ──────────────────────────────────────────────
-const COLL_W = 158;
-const COLL_H = 106;
-function CollectionRow({ collections, selectedPlatforms, onSeeAll, loading }) {
+const COLL_W = 128;
+const COLL_H = 185;
+function CollectionRow({ collections, selectedPlatforms, onSeeAll, onCollectionPress, loading }) {
   const header = (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 12 }}>
       <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800', letterSpacing: -0.4 }}>Koleksiyonlar</Text>
@@ -1195,16 +1205,16 @@ function CollectionRow({ collections, selectedPlatforms, onSeeAll, loading }) {
             .sort((a, b) => (b.imdb_score || 0) - (a.imdb_score || 0));
           const posters = availItems.slice(0, 4).map(i => i.content?.poster_url).filter(Boolean);
           return (
-            <TouchableOpacity style={{ width: COLL_W, marginRight: 12 }} onPress={onSeeAll} activeOpacity={0.8}>
-              <View style={{ width: COLL_W, height: COLL_H, borderRadius: 10, overflow: 'hidden', backgroundColor: '#1a1a2e', flexDirection: 'row', flexWrap: 'wrap' }}>
-                {posters.length > 0
-                  ? posters.map((uri, idx) => (
-                    <Image key={idx} source={{ uri }} style={{ width: COLL_W / 2, height: COLL_H / 2 }} resizeMode="cover" />
-                  ))
-                  : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 28, opacity: 0.2 }}>🎬</Text></View>}
+            <TouchableOpacity style={{ width: COLL_W, marginRight: 12 }} onPress={() => onCollectionPress ? onCollectionPress(col) : onSeeAll?.()} activeOpacity={0.8}>
+              <View style={{ width: COLL_W, height: COLL_H, borderRadius: 12, overflow: 'hidden', backgroundColor: '#1a1a2e' }}>
+                {posters[0]
+                  ? <Image source={{ uri: posters[0] }} style={{ width: COLL_W, height: COLL_H }} resizeMode="cover" />
+                  : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 32, opacity: 0.2 }}>🎬</Text></View>}
+                <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.75)', padding: 8, borderBottomLeftRadius: 12, borderBottomRightRadius: 12 }}>
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', marginBottom: 2 }} numberOfLines={2}>{col.name_tr || col.name}</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10 }}>★ {col.avg_imdb_score?.toFixed(1)} · {availItems.length} içerik</Text>
+                </View>
               </View>
-              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', marginTop: 6, width: COLL_W }} numberOfLines={1}>{col.name_tr || col.name}</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.38)', fontSize: 10, marginTop: 2 }}>{availItems.length} film · ★ {col.avg_imdb_score?.toFixed(1)}</Text>
             </TouchableOpacity>
           );
         }}
@@ -1411,6 +1421,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, on
   const [activeSearch, setActiveSearch] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
   const [fullScreen, setFullScreen] = useState(null);
+  const [selectedCollectionId, setSelectedCollectionId] = useState(null);
   const [loadingDiscover, setLoadingDiscover] = useState(true);
   const [loadingPopular, setLoadingPopular] = useState(true);
   const [loadingNew, setLoadingNew] = useState(true);
@@ -1546,7 +1557,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, on
   if (fullScreen === 'discover') return <DiscoverScreen selectedPlatforms={selectedPlatforms} onBack={() => setFullScreen(null)} user={user} />;
   if (fullScreen === 'popular') return <PopularScreen selectedPlatforms={selectedPlatforms} onBack={() => setFullScreen(null)} user={user} />;
   if (fullScreen === 'new') return <NewScreen selectedPlatforms={selectedPlatforms} onBack={() => setFullScreen(null)} user={user} />;
-  if (fullScreen === 'collections') return <CollectionsScreen selectedPlatforms={selectedPlatforms} onBack={() => setFullScreen(null)} user={user} />;
+  if (fullScreen === 'collections') return <CollectionsScreen selectedPlatforms={selectedPlatforms} onBack={() => { setFullScreen(null); setSelectedCollectionId(null); }} user={user} initialCollectionId={selectedCollectionId} />;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -1615,7 +1626,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, on
               <ContentRow title="En İyi Puanlılar" items={discoverItems} onPress={handleItemPress} loading={loadingDiscover} onSeeAll={() => setFullScreen('discover')} />
               <ContentRow title="Şu An Popüler" items={popularItems} onPress={handleItemPress} loading={loadingPopular} onSeeAll={() => setFullScreen('popular')} />
               <ContentRow title="Yeni Eklenenler" items={newItems} onPress={handleItemPress} loading={loadingNew} onSeeAll={() => setFullScreen('new')} />
-              <CollectionRow collections={collections} selectedPlatforms={selectedPlatforms} onSeeAll={() => setFullScreen('collections')} loading={loadingCollections} />
+              <CollectionRow collections={collections} selectedPlatforms={selectedPlatforms} onSeeAll={() => { setSelectedCollectionId(null); setFullScreen('collections'); }} onCollectionPress={col => { setSelectedCollectionId(col.id); setFullScreen('collections'); }} loading={loadingCollections} />
             </>
           )}
         </View>
@@ -2120,7 +2131,7 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
               <View key={row} style={{ flexDirection: 'row', gap: 10 }}>
                 {PLATFORMS.slice(row * 2, row * 2 + 2).map(p => {
                   const sel = selPlatforms.includes(p.slug);
-                  const mono = { netflix: 'N', amazon: 'P', disney: 'D+', hbo: 'HBO' }[p.slug];
+                  const mono = p.mono;
                   return (
                     <TouchableOpacity key={p.slug} onPress={() => togglePlatform(p.slug)}
                       style={{ flex: 1, paddingVertical: 18, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: sel ? p.color : 'rgba(255,255,255,0.06)', borderWidth: 1.5, borderColor: sel ? p.color : 'rgba(255,255,255,0.1)', gap: 6, position: 'relative' }}>
