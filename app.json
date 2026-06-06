@@ -26,8 +26,7 @@
         ]
       },
       "googleServicesFile": "./GoogleService-Info.plist",
-      "buildNumber": "2",
-      "associatedDomains": ["applinks:streaming-hub-app-tan.vercel.app"]
+      "buildNumber": "3"
     },
     "android": {
       "jsEngine": "jsc",
@@ -45,7 +44,7 @@
       }
     },
     "plugins": [
-      ["expo-router", { "origin": "https://streaming-hub-app-tan.vercel.app" }],
+      "expo-router",
       "expo-font",
       "expo-web-browser",
       [
