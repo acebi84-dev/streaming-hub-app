@@ -14,7 +14,7 @@ import {
   Animated, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Linking, Share, AppState } from 'react-native';
-import ReAnimated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import ReAnimated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
 import { supabase, supabasePublic } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Play, Star, Share2, Trash2 } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -43,6 +43,13 @@ const PLATFORMS = [
   { slug: 'disney',   name: 'Disney+',      color: '#0063E5', mono: 'D+',  darkLogo: 'https://media.movieofthenight.com/services/disney/logo-white.svg' },
   { slug: 'hbo',      name: 'HBO Max',      color: '#8B4FBE', mono: 'HBO', darkLogo: 'https://media.movieofthenight.com/services/hbo/logo-white.svg' },
 ];
+
+const GENRE_API_TERM = {
+  action: 'Action', comedy: 'Comedy', drama: 'Drama', crime: 'Crime',
+  scifi: 'Science', horror: 'Horror', documentary: 'Documentary',
+  animation: 'Animation', romance: 'Romance', thriller: 'Thriller',
+  fantasy: 'Fantasy', history: 'History',
+};
 
 const GENRES = [
   { en: 'Action', tr: 'Aksiyon' }, { en: 'Adventure', tr: 'Macera' },
@@ -1263,6 +1270,99 @@ function HeroSection({ item, scrollY, onPress }) {
   );
 }
 
+// ── PersonalizedHeroSection ─────────────────────────────────────
+function PersonalizedHeroSection({ items, scrollY, onPress }) {
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const idxRef = useRef(0);
+  const opacity = useSharedValue(1);
+  const slideX = useSharedValue(0);
+
+  const animStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateX: slideX.value }],
+  }));
+
+  useEffect(() => {
+    idxRef.current = 0;
+    setCurrentIdx(0);
+    opacity.value = 1;
+    slideX.value = 0;
+  }, [items.map(i => i.id).join(',')]);
+
+  useEffect(() => {
+    if (items.length <= 1) return;
+    const id = setInterval(() => {
+      opacity.value = withTiming(0, { duration: 350 }, (finished) => {
+        if (!finished) return;
+        runOnJS(doSwitch)();
+      });
+      slideX.value = withTiming(-18, { duration: 350 });
+    }, 5000);
+    return () => clearInterval(id);
+  }, [items.length]);
+
+  function doSwitch() {
+    const next = (idxRef.current + 1) % items.length;
+    idxRef.current = next;
+    setCurrentIdx(next);
+    slideX.value = 18;
+    opacity.value = withTiming(1, { duration: 420 });
+    slideX.value = withTiming(0, { duration: 420 });
+  }
+
+  const item = items[currentIdx];
+  if (!item) return null;
+
+  const title = (item.original_language === 'tr' && item.title_tr) ? item.title_tr : (item.title || '');
+  const imgTranslate = scrollY.interpolate({
+    inputRange: [-HERO_H, 0, HERO_H],
+    outputRange: [-HERO_H * 0.25, 0, HERO_H * 0.35],
+    extrapolate: 'clamp',
+  });
+  const contentOpacity = scrollY.interpolate({
+    inputRange: [0, HERO_H * 0.55],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    <View style={{ height: HERO_H, overflow: 'hidden' }}>
+      <ReAnimated.View style={[StyleSheet.absoluteFill, animStyle]}>
+        <Animated.View style={{ position: 'absolute', top: -40, left: 0, right: 0, height: HERO_H + 80, transform: [{ translateY: imgTranslate }] }}>
+          {item.poster_url
+            ? <Image source={{ uri: item.poster_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+            : <View style={{ flex: 1, backgroundColor: '#111' }} />}
+        </Animated.View>
+        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HERO_H * 0.6, backgroundColor: 'rgba(0,0,0,0.5)' }} />
+        <Animated.View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: items.length > 1 ? 38 : 26, opacity: contentOpacity }}>
+          <Text style={{ color: '#fff', fontSize: 35, fontWeight: '900', letterSpacing: -0.8, marginBottom: 8, lineHeight: 41, textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }} numberOfLines={2}>{title}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+            {item.imdb_score != null && <Text style={{ color: '#ffd43b', fontWeight: '800', fontSize: 14 }}>★ {item.imdb_score.toFixed(1)}</Text>}
+            {item.year && <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{item.year}</Text>}
+            {item.type && <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{item.type === 'movie' ? 'Film' : 'Dizi'}</Text>}
+            {(item.availability || []).slice(0, 2).map(a => {
+              const p = PLATFORMS.find(x => x.slug === a.platform_slug);
+              if (!p) return null;
+              return <View key={a.platform_slug} style={{ backgroundColor: p.color, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 10 }}>{p.name}</Text></View>;
+            })}
+          </View>
+          {item.synopsis_tr && <Text style={{ color: 'rgba(255,255,255,0.58)', fontSize: 12, lineHeight: 17, marginBottom: 14 }} numberOfLines={2}>{item.synopsis_tr}</Text>}
+          <TouchableOpacity style={{ backgroundColor: '#fff', borderRadius: 12, paddingVertical: 13, paddingHorizontal: 22, alignSelf: 'flex-start' }} onPress={() => onPress(item)} activeOpacity={0.85}>
+            <Text style={{ color: '#000', fontWeight: '800', fontSize: 14 }}>▶  Detayları Gör</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </ReAnimated.View>
+      {items.length > 1 && (
+        <View style={{ position: 'absolute', bottom: 14, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 5 }}>
+          {items.map((_, i) => (
+            <View key={i} style={{ height: 4, width: i === currentIdx ? 20 : 6, borderRadius: 2, backgroundColor: i === currentIdx ? '#fff' : 'rgba(255,255,255,0.3)' }} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 // ── DiscoverScreen (Tümünü Gör → Keşfet) ──────────────────────
 function DiscoverScreen({ selectedPlatforms, onBack, user }) {
   const [items, setItems] = useState([]);
@@ -1408,8 +1508,8 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
 }
 
 // ── AppleTVMainScreen ──────────────────────────────────────────
-function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, onProfile }) {
-  const [heroItem, setHeroItem] = useState(null);
+function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, isPremium, onWatchlist, onProfile }) {
+  const [heroItems, setHeroItems] = useState([]);
   const [discoverItems, setDiscoverItems] = useState([]);
   const [popularItems, setPopularItems] = useState([]);
   const [newItems, setNewItems] = useState([]);
@@ -1436,9 +1536,66 @@ function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, on
 
   useEffect(() => { fetchDiscover().catch(() => {}); }, [activeSearch]);
 
+  useEffect(() => {
+    fetchPersonalizedHero().catch(() => {});
+  }, [selectedPlatforms.join(','), (favoriteGenres || []).join(',')]);
+
+  async function fetchPersonalizedHero() {
+    if (!isMounted.current || selectedPlatforms.length === 0) { setHeroItems([]); return; }
+    const platforms = selectedPlatforms;
+    const genres = favoriteGenres || [];
+    const platformFilter = platforms.map(p => `platform_slug.eq.${p}`).join(',');
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const genreOr = genres.length > 0
+      ? genres.map(g => `genre.ilike.%${GENRE_API_TERM[g] || g}%`).join(',')
+      : null;
+
+    const baseQ = () => supabasePublic.from('hub_contents')
+      .select('*, availability:hub_availability!inner(platform_slug, platform_url)')
+      .gte('imdb_score', 7).not('imdb_id', 'is', null)
+      .or(platformFilter, { referencedTable: 'hub_availability' })
+      .order('imdb_score', { ascending: false })
+      .limit(10);
+
+    let items = [];
+
+    // 1. Son 30 gün içinde eklenenler (genre varsa filtreli)
+    const { data: recentAvail } = await supabasePublic
+      .from('hub_availability')
+      .select('content_id')
+      .in('platform_slug', platforms)
+      .gte('available_since', thirtyDaysAgo);
+    const recentIds = [...new Set((recentAvail || []).map(a => a.content_id))];
+
+    if (recentIds.length > 0) {
+      let q = baseQ().in('id', recentIds);
+      if (genreOr) q = q.or(genreOr);
+      const { data } = await q;
+      items = data || [];
+    }
+
+    // 2. Yeterli içerik yoksa: tüm katalog + genre
+    if (items.length < 3 && genreOr) {
+      const { data } = await baseQ().or(genreOr);
+      items = data || [];
+    }
+
+    // 3. Hâlâ yeterli yoksa: tüm katalog, genre filtresi yok
+    if (items.length === 0) {
+      const { data } = await baseQ();
+      items = data || [];
+    }
+
+    if (!isMounted.current) return;
+    setHeroItems(items.map(item => ({
+      ...item,
+      availability: (item.availability || []).filter(a => platforms.includes(a.platform_slug)),
+    })));
+  }
+
   async function fetchDiscover() {
     if (!isMounted.current) return;
-    if (selectedPlatforms.length === 0) { setDiscoverItems([]); setHeroItem(null); setLoadingDiscover(false); return; }
+    if (selectedPlatforms.length === 0) { setDiscoverItems([]); setLoadingDiscover(false); return; }
     setLoadingDiscover(true);
     const platformFilter = selectedPlatforms.map(p => `platform_slug.eq.${p}`).join(',');
     let q = supabasePublic.from('hub_contents')
@@ -1455,9 +1612,6 @@ function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, on
     if (error) { setLoadingDiscover(false); return; }
     const enriched = (data || []).map(item => ({ ...item, availability: (item.availability || []).filter(a => selectedPlatforms.includes(a.platform_slug)) }));
     setDiscoverItems(enriched);
-    if (enriched.length > 0 && !activeSearch.trim()) {
-      setHeroItem(enriched[Math.floor(Math.random() * Math.min(5, enriched.length))]);
-    }
     setLoadingDiscover(false);
   }
 
@@ -1609,7 +1763,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, on
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         scrollEventThrottle={16}
       >
-        {!activeSearch.trim() && <HeroSection item={heroItem} scrollY={scrollY} onPress={handleItemPress} />}
+        {!activeSearch.trim() && <PersonalizedHeroSection items={heroItems} scrollY={scrollY} onPress={handleItemPress} />}
         <View style={{ paddingTop: 22 }}>
           {activeSearch.trim() ? (
             <>
@@ -2074,7 +2228,7 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
       if (error) {
         setSaveError(error.message || 'Kayıt başarısız, tekrar deneyin.');
       } else {
-        onSave(selPlatforms);
+        onSave(selPlatforms, selGenres);
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       }
@@ -2441,7 +2595,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
-
+  const [favoriteGenres, setFavoriteGenres] = useState([]);
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -2451,7 +2605,7 @@ export default function App() {
   // Kullanıcı giriş yaptığında profil bilgilerini yükle
   useEffect(() => {
     if (!user) return;
-    supabase.from('profiles').select('selected_platforms, is_premium').eq('id', user.id).single()
+    supabase.from('profiles').select('selected_platforms, is_premium, favorite_genres').eq('id', user.id).single()
       .then(({ data }) => {
         if (data?.selected_platforms && data.selected_platforms.length > 0) {
           saveSelectedPlatforms(data.selected_platforms);
@@ -2461,6 +2615,7 @@ export default function App() {
           setShowOnboarding(true);
         }
         if (data?.is_premium) setIsPremium(true);
+        if (data?.favorite_genres?.length > 0) setFavoriteGenres(data.favorite_genres);
       })
       .catch(() => { setShowOnboarding(true); });
   }, [user?.id]);
@@ -2558,7 +2713,7 @@ export default function App() {
         user={user}
         selectedPlatforms={selectedPlatforms}
         onClose={() => setShowProfile(false)}
-        onSave={(platforms) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); }}
+        onSave={(platforms, genres) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); if (genres) setFavoriteGenres(genres); }}
         onSignOut={() => { supabase.auth.signOut().catch(() => {}); setUser(null); setShowProfile(false); }}
         isPremium={isPremium}
         onUpgrade={() => { setShowProfile(false); alert('Yakında! In-App Purchase entegrasyonu hazırlanıyor.'); }}
@@ -2567,6 +2722,7 @@ export default function App() {
       <AppleTVMainScreen
         user={user}
         selectedPlatforms={selectedPlatforms}
+        favoriteGenres={favoriteGenres}
         isPremium={isPremium}
         onWatchlist={() => setShowWatchlist(true)}
         onProfile={() => setShowProfile(true)}
