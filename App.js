@@ -192,6 +192,7 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate }) {
       <TouchableOpacity
         style={[wlStyles.btn, entry && { backgroundColor: statusConfig[entry.status]?.color + '22', borderColor: statusConfig[entry.status]?.color }]}
         onPress={() => setShowMenu(true)}
+        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
       >
         {entry ? statusConfig[entry.status]?.icon : <Star size={14} color="rgba(255,255,255,0.7)" strokeWidth={2} />}
         <Text style={[wlStyles.btnText, entry && { color: statusConfig[entry.status]?.color }]}>
@@ -245,7 +246,7 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate }) {
               ))}
             </View>
             {entry?.rating && (
-              <TouchableOpacity style={{ marginTop: 16, alignItems: 'center' }} onPress={() => setRating(null)}>
+              <TouchableOpacity style={{ marginTop: 16, alignItems: 'center', paddingVertical: 12, paddingHorizontal: 20 }} onPress={() => setRating(null)}>
                 <Text style={{ color: '#ff6b6b', fontSize: 13 }}>Puanı Kaldır</Text>
               </TouchableOpacity>
             )}
@@ -308,7 +309,7 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
           {tabs.map(t => (
             <TouchableOpacity key={t.key}
-              style={{ paddingHorizontal: 18, paddingVertical: 9, borderRadius: 20, backgroundColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.12)' }}
+              style={{ paddingHorizontal: 18, paddingVertical: 12, borderRadius: 20, backgroundColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.12)' }}
               onPress={() => setTab(t.key)}>
               <Text style={{ color: tab === t.key ? '#000' : 'rgba(255,255,255,0.75)', fontWeight: '700', fontSize: 14 }}>{t.label}</Text>
             </TouchableOpacity>
@@ -593,7 +594,7 @@ function CollectionsScreen({ selectedPlatforms, onBack, user }) {
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
       <View style={[styles.header, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
         {onBack && (
-          <TouchableOpacity onPress={onBack} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity onPress={onBack} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 26 }}>‹</Text>
           </TouchableOpacity>
         )}
@@ -779,7 +780,7 @@ function NewScreen({ selectedPlatforms, onBack, user }) {
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
       <View style={[styles.popularHeader, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
         {onBack && (
-          <TouchableOpacity onPress={onBack} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity onPress={onBack} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 26 }}>‹</Text>
           </TouchableOpacity>
         )}
@@ -991,7 +992,7 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
       <View style={[styles.popularHeader, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
         {onBack && (
-          <TouchableOpacity onPress={onBack} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity onPress={onBack} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 26 }}>‹</Text>
           </TouchableOpacity>
         )}
@@ -1302,7 +1303,7 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
     <View style={{ flex: 1, backgroundColor: '#000' }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 }}>
-        <TouchableOpacity onPress={onBack} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+        <TouchableOpacity onPress={onBack} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 26 }}>‹</Text>
         </TouchableOpacity>
         <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>Keşfet</Text>
@@ -1310,31 +1311,31 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
       <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
         <Text style={{ color: '#555', fontSize: 13, marginRight: 8 }}>🔍</Text>
         <TextInput style={{ flex: 1, color: '#fff', fontSize: 15 }} placeholder="Film, dizi, oyuncu ara..." placeholderTextColor="#444" value={searchInput} onChangeText={setSearchInput} onSubmitEditing={() => setActiveSearch(searchInput)} returnKeyType="search" maxFontSizeMultiplier={1} />
-        {searchInput.length > 0 && <TouchableOpacity onPress={() => { setSearchInput(''); setActiveSearch(''); }}><Text style={{ color: '#555', fontSize: 16, paddingLeft: 8 }}>✕</Text></TouchableOpacity>}
+        {searchInput.length > 0 && <TouchableOpacity style={{ padding: 8 }} hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} onPress={() => { setSearchInput(''); setActiveSearch(''); }}><Text style={{ color: '#555', fontSize: 16, paddingLeft: 8 }}>✕</Text></TouchableOpacity>}
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingVertical: 8, alignItems: 'center' }}>
         {[['all','Tümü'],['movie','Filmler'],['series','Diziler']].map(([val, label]) => (
-          <TouchableOpacity key={val} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: typeFilter === val ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: typeFilter === val ? '#fff' : 'rgba(255,255,255,0.1)' }} onPress={() => setTypeFilter(val)}>
+          <TouchableOpacity key={val} style={{ paddingHorizontal: 14, paddingVertical: 11, borderRadius: 20, backgroundColor: typeFilter === val ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: typeFilter === val ? '#fff' : 'rgba(255,255,255,0.1)' }} onPress={() => setTypeFilter(val)}>
             <Text style={{ color: typeFilter === val ? '#000' : 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '700' }}>{label}</Text>
           </TouchableOpacity>
         ))}
         <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
-        <TouchableOpacity style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: genreFilter ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: genreFilter ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)' }} onPress={() => setShowGenreDropdown(!showGenreDropdown)}>
+        <TouchableOpacity style={{ paddingHorizontal: 14, paddingVertical: 11, borderRadius: 20, backgroundColor: genreFilter ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: genreFilter ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)' }} onPress={() => setShowGenreDropdown(!showGenreDropdown)}>
           <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '700' }}>{genreLabel} ▾</Text>
         </TouchableOpacity>
-        {genreFilter && <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)' }} onPress={() => setGenreFilter(null)}><Text style={{ color: '#fff', fontSize: 13 }}>✕</Text></TouchableOpacity>}
+        {genreFilter && <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 11, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)' }} onPress={() => setGenreFilter(null)}><Text style={{ color: '#fff', fontSize: 13 }}>✕</Text></TouchableOpacity>}
         <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
         <View style={{ paddingHorizontal: 6, paddingVertical: 7, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: '#ffd43b', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>IMDb</Text>
         </View>
         {[0, 6, 7, 7.5, 8].map(val => (
-          <TouchableOpacity key={val} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: minImdb === val ? '#ffd43b' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: minImdb === val ? '#ffd43b' : 'rgba(255,255,255,0.1)' }} onPress={() => setMinImdb(val)}>
+          <TouchableOpacity key={val} style={{ paddingHorizontal: 14, paddingVertical: 11, borderRadius: 20, backgroundColor: minImdb === val ? '#ffd43b' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: minImdb === val ? '#ffd43b' : 'rgba(255,255,255,0.1)' }} onPress={() => setMinImdb(val)}>
             <Text style={{ color: minImdb === val ? '#000' : 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '700' }}>{val === 0 ? 'Tümü' : `${val}+`}</Text>
           </TouchableOpacity>
         ))}
         <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
         {[['imdb_score','IMDb ↓'],['year','Yıl ↓']].map(([val, label]) => (
-          <TouchableOpacity key={val} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: sortBy === val ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: sortBy === val ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)' }} onPress={() => setSortBy(val)}>
+          <TouchableOpacity key={val} style={{ paddingHorizontal: 14, paddingVertical: 11, borderRadius: 20, backgroundColor: sortBy === val ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: sortBy === val ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)' }} onPress={() => setSortBy(val)}>
             <Text style={{ color: sortBy === val ? '#fff' : 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '700' }}>{label}</Text>
           </TouchableOpacity>
         ))}
@@ -1871,7 +1872,7 @@ function OnboardingScreen({ user, onComplete }) {
                 const sel = selGenres.includes(g.id);
                 return (
                   <TouchableOpacity key={g.id}
-                    style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24, backgroundColor: sel ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: sel ? '#fff' : 'rgba(255,255,255,0.12)' }}
+                    style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, backgroundColor: sel ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: sel ? '#fff' : 'rgba(255,255,255,0.12)' }}
                     onPress={() => toggleGenre(g.id)}>
                     <Text style={{ color: sel ? '#000' : '#fff', fontWeight: sel ? '700' : '500', fontSize: 14 }}>{g.emoji} {g.label}</Text>
                   </TouchableOpacity>
@@ -1926,7 +1927,7 @@ function OnboardingScreen({ user, onComplete }) {
           </TouchableOpacity>
         )}
         {step > 0 && (
-          <TouchableOpacity onPress={() => setStep(s => s - 1)} style={{ alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => setStep(s => s - 1)} style={{ alignItems: 'center', paddingVertical: 12 }}>
             <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>← Geri</Text>
           </TouchableOpacity>
         )}
@@ -2291,7 +2292,7 @@ function AuthScreen({ onAuth }) {
                   secureTextEntry={!showPass}
                   autoCapitalize="none"
                 />
-                <TouchableOpacity onPress={() => setShowPass(!showPass)}>
+                <TouchableOpacity style={{ padding: 12 }} onPress={() => setShowPass(!showPass)}>
                   {showPass
                     ? <Eye size={18} color="rgba(255,255,255,0.5)" strokeWidth={1.8} />
                     : <EyeOff size={18} color="rgba(255,255,255,0.3)" strokeWidth={1.8} />}
@@ -2319,16 +2320,16 @@ function AuthScreen({ onAuth }) {
           {/* Mode Switch */}
           <View style={authStyles.switchRow}>
             {mode === 'login' && <>
-              <TouchableOpacity onPress={() => { setMode('signup'); setError(''); setMsg(''); }}>
+              <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} onPress={() => { setMode('signup'); setError(''); setMsg(''); }}>
                 <Text style={authStyles.linkText}>Hesap oluştur</Text>
               </TouchableOpacity>
               <Text style={authStyles.dot}> · </Text>
-              <TouchableOpacity onPress={() => { setMode('forgot'); setError(''); setMsg(''); }}>
+              <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} onPress={() => { setMode('forgot'); setError(''); setMsg(''); }}>
                 <Text style={authStyles.linkText}>Şifremi unuttum</Text>
               </TouchableOpacity>
             </>}
             {mode !== 'login' && (
-              <TouchableOpacity onPress={() => { setMode('login'); setError(''); setMsg(''); }}>
+              <TouchableOpacity hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} onPress={() => { setMode('login'); setError(''); setMsg(''); }}>
                 <Text style={authStyles.linkText}>Zaten hesabım var</Text>
               </TouchableOpacity>
             )}
@@ -2538,7 +2539,7 @@ const styles = StyleSheet.create({
   searchRow: { flexDirection: 'row', paddingHorizontal: 16, marginVertical: 10, gap: 8, alignItems: 'center' },
   searchContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   searchInput: { flex: 1, backgroundColor: 'rgba(118,118,128,0.18)', color: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 16 },
-  clearBtn: { backgroundColor: 'rgba(118,118,128,0.18)', width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  clearBtn: { backgroundColor: 'rgba(118,118,128,0.18)', width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   clearBtnText: { color: 'rgba(255,255,255,0.4)', fontSize: 14 },
   searchBtn: { backgroundColor: 'rgba(255,255,255,0.12)', paddingHorizontal: 16, paddingVertical: 11, borderRadius: 12 },
   searchIconBtn: { backgroundColor: 'rgba(255,255,255,0.12)', width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
@@ -2561,14 +2562,14 @@ const styles = StyleSheet.create({
   typeBtnText: { color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: '600' },
   typeBtnTextActive: { color: '#fff' },
   sortRow: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
-  sortBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(118,118,128,0.18)' },
+  sortBtn: { paddingHorizontal: 14, paddingVertical: 11, borderRadius: 10, backgroundColor: 'rgba(118,118,128,0.18)' },
   sortBtnActive: { backgroundColor: 'rgba(255,255,255,0.15)' },
   sortDirBtn: { marginLeft: 'auto' },
   sortBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 13 },
   sortBtnTextActive: { color: '#ffffff', fontWeight: '600' },
   filterLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 12, marginBottom: 6 },
   filterValue: { color: '#ffffff', fontWeight: '600' },
-  sliderBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(118,118,128,0.18)', marginRight: 6 },
+  sliderBtn: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 16, backgroundColor: 'rgba(118,118,128,0.18)', marginRight: 6 },
   sliderBtnActive: { backgroundColor: 'rgba(255,255,255,0.2)' },
   sliderBtnText: { color: 'rgba(255,255,255,0.45)', fontSize: 12 },
   sliderBtnTextActive: { color: '#fff', fontWeight: '600' },
@@ -2601,11 +2602,11 @@ const styles = StyleSheet.create({
   imdbBadgeText: { color: '#000', fontSize: 9, fontWeight: '900' },
   imdbScore: { color: '#fff', fontSize: 13, fontWeight: '700' },
   imdbArrow: { color: 'rgba(255,255,255,0.35)', fontSize: 11 },
-  trailerBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.15)' },
+  trailerBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.15)' },
   trailerBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   detailBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: 'rgba(118,118,128,0.2)' },
   detailBtnText: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
-  scrollTopBtn: { position: 'absolute', right: 16, bottom: 80, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: {width:0,height:2}, shadowOpacity: 0.4, shadowRadius: 8 },
+  scrollTopBtn: { position: 'absolute', right: 16, bottom: 80, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: {width:0,height:2}, shadowOpacity: 0.4, shadowRadius: 8 },
   scrollTopIcon: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
 
   // ── Modal ────────────────────────────────────────
@@ -2622,7 +2623,7 @@ const styles = StyleSheet.create({
   modalImdbRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
   imdbScoreLarge: { color: '#fff', fontSize: 18, fontWeight: '700' },
   modalPlatformRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 6 },
-  modalPlatformBtn: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+  modalPlatformBtn: { borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10 },
   modalPlatformLogo: { width: 48, height: 14 },
   modalTagline: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontStyle: 'italic', marginBottom: 12, paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: 'rgba(255,255,255,0.3)' },
   modalDetail: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginBottom: 6, lineHeight: 18 },
@@ -2630,9 +2631,9 @@ const styles = StyleSheet.create({
   modalSynopsisTitle: { color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '700', marginTop: 8, marginBottom: 4, letterSpacing: 0.5 },
   modalSynopsis: { color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 20 },
   modalButtons: { flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap' },
-  closeBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(118,118,128,0.2)' },
+  closeBtn: { paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, backgroundColor: 'rgba(118,118,128,0.2)' },
   closeBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 13 },
-  imdbLinkBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(245,197,24,0.12)' },
+  imdbLinkBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 10, backgroundColor: 'rgba(245,197,24,0.12)' },
   imdbLinkText: { color: '#F5C518', fontSize: 13, fontWeight: '600' },
   similarSection: { marginTop: 16 },
   similarTitle: { color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: '700', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 },
@@ -2663,7 +2664,7 @@ const styles = StyleSheet.create({
   popularHeaderSub: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 2 },
   popularTopBar: { borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.08)', backgroundColor: BG },
   popularTopBarRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, flexDirection: 'row' },
-  popularTopBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: 'rgba(118,118,128,0.18)' },
+  popularTopBtn: { paddingHorizontal: 14, paddingVertical: 11, borderRadius: 20, backgroundColor: 'rgba(118,118,128,0.18)' },
   popularTopBtnActive: { backgroundColor: 'rgba(255,255,255,0.2)' },
   popularTopBtnGenreActive: { backgroundColor: 'rgba(255,255,255,0.15)' },
   popularTopBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '500' },
