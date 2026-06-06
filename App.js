@@ -15,8 +15,6 @@ async function checkForOTAUpdate() {
   } catch (_) {}
 }
 
-checkForOTAUpdate();
-
 
 
 
@@ -247,6 +245,7 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
     const prevStatus = entry.status;
     setEntry({ ...entry, rating });
     setShowRating(false);
+    onUpdate?.();
     upsertWatchlist(user.id, item.id, prevStatus, rating)
       .then(({ data }) => { if (data && isMounted.current) setEntry(data); })
       .catch(() => {});
@@ -1146,6 +1145,7 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
   const isMountedPop = useRef(true);
   useEffect(() => { return () => { isMountedPop.current = false; }; }, []);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [itemLoading, setItemLoading] = useState(false);
   const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'movie', 'series'
   const [genreFilter, setGenreFilter] = useState(null);
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
@@ -1181,7 +1181,8 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
   const selectedGenreLabel = POPULAR_GENRES.find(g => g.en === genreFilter)?.tr || 'Tür';
 
   async function openPopularItem(item) {
-    const itemTitle = (item.title || item.show_name || '').trim();
+    setItemLoading(true);
+    const itemTitle = (item.title || '').trim();
     const base = {
       ...item,
       title: itemTitle,
@@ -1191,7 +1192,6 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
       imdb_score: item.rating ? item.rating / 10 : null,
       availability: item.streaming_link ? [{ platform_slug: item.platform, platform_url: item.streaming_link }] : [],
     };
-    setSelectedItem(base); // Modal hemen açılır
     const ENRICH_SELECT = 'synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, type, year, title_tr, original_language, imdb_id';
     let enriched = null;
     if (item.imdb_id) {
@@ -1206,24 +1206,25 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
         .catch(() => ({ data: null }));
       enriched = Array.isArray(data) ? data[0] : data;
     }
-    // İngilizce tam eşleşme olmadıysa kısmi arama dene
     if (!enriched && itemTitle) {
       const { data } = await supabasePublic.from('hub_contents')
         .select(ENRICH_SELECT).ilike('title', `%${itemTitle}%`).limit(1)
         .catch(() => ({ data: null }));
       enriched = Array.isArray(data) ? data[0] : data;
     }
-    if (enriched) setSelectedItem({ ...base, ...enriched, poster_url: enriched.poster_url || base.poster_url });
+    setItemLoading(false);
+    setSelectedItem(enriched ? { ...base, ...enriched, poster_url: enriched.poster_url || base.poster_url } : base);
   }
 
   function renderPopularCard(item) {
     const p = PLATFORMS.find(x => x.slug === item.platform);
     return (
-      <TouchableOpacity key={item.id} style={styles.popularCard} onPress={() => openPopularItem(item)}>
+      <TouchableOpacity key={item.id} style={styles.popularCard} onPress={() => openPopularItem(item)} disabled={itemLoading}>
         <View style={styles.cardPosterWrap}>
           {item.poster_w240
             ? <Image source={{ uri: item.poster_w240 }} style={styles.popularCardImg} resizeMode="cover" />
             : <View style={[styles.popularCardImg, { backgroundColor: SURFACE, alignItems: 'center', justifyContent: 'center' }]}><Text style={{ color: '#ffffff22', fontSize: 20 }}>?</Text></View>}
+          {itemLoading && <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', borderRadius: 10 }}><ActivityIndicator color="#fff" size="small" /></View>}
           {item.rating && <View style={styles.cardImdbOverlay}>
             <View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View>
             <Text style={styles.cardImdbScore}>{(item.rating / 10).toFixed(1)}</Text>
@@ -2046,7 +2047,10 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
     <View style={{ flex: 1, backgroundColor: '#000' }}>
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
-        <Text style={{ color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: 3 }}>İZLİO</Text>
+        <View>
+          <Text style={{ color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: 3 }}>İZLİO</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v8</Text>
+        </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
             <Bookmark size={26} color="#fff" strokeWidth={2} />
@@ -2965,6 +2969,8 @@ const authStyles = StyleSheet.create({
 });
 
 export default function App() {
+  useEffect(() => { checkForOTAUpdate(); }, []);
+
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
