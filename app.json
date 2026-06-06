@@ -26,7 +26,8 @@
         ]
       },
       "googleServicesFile": "./GoogleService-Info.plist",
-      "buildNumber": "2"
+      "buildNumber": "2",
+      "associatedDomains": ["applinks:streaming-hub-app-tan.vercel.app"]
     },
     "android": {
       "jsEngine": "jsc",

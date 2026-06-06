@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["B26TQCTZT2.com.acebi.izlio"],
+        "components": [
+          {
+            "/": "/auth/callback",
+            "comment": "Email dogrulama"
+          }
+        ]
+      }
+    ]
+  }
+}

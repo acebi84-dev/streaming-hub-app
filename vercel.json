@@ -1,4 +1,13 @@
 {
-  "buildCommand": "npx expo export --platform web --output-dir dist",
-  "outputDirectory": "dist"
+  "buildCommand": "npx expo export --platform web --output-dir dist && mkdir -p dist/.well-known && cp public/.well-known/apple-app-site-association dist/.well-known/apple-app-site-association",
+  "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/.well-known/apple-app-site-association",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    }
+  ]
 }
