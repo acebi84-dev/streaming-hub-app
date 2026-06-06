@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, Text, TouchableOpacity, Linking, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { supabase } from '../../../supabase';
+
+const SUPABASE_URL = 'https://bvggvperehlduxziaqfu.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Q3JqA0F8fU7vE6fQMZ_ZcA_-x5qLhnk';
 
 export default function AuthCallback() {
   const params = useLocalSearchParams<{ token_hash?: string; type?: string }>();
@@ -10,20 +12,28 @@ export default function AuthCallback() {
   const isWeb = Platform.OS === 'web';
 
   useEffect(() => {
+    let active = true;
     const verify = async () => {
       const { token_hash, type } = params;
 
       if (token_hash && type) {
         try {
-          const { error } = await supabase.auth.verifyOtp({ token_hash, type: type as any });
-          if (error) {
+          const res = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+            body: JSON.stringify({ token_hash, type }),
+          });
+          const data = await res.json();
+          if (!active) return;
+          if (data.error || !res.ok) {
             setStatus('error');
             if (!isWeb) setTimeout(() => router.replace('/'), 2000);
-            return;
+          } else {
+            setStatus('success');
+            if (!isWeb) setTimeout(() => router.replace('/'), 1500);
           }
-          setStatus('success');
-          if (!isWeb) setTimeout(() => router.replace('/'), 1500);
         } catch {
+          if (!active) return;
           setStatus('error');
           if (!isWeb) setTimeout(() => router.replace('/'), 2000);
         }
@@ -35,6 +45,7 @@ export default function AuthCallback() {
     };
 
     verify();
+    return () => { active = false; };
   }, []);
 
   if (status === 'loading') {
