@@ -582,7 +582,12 @@ function CollectionsScreen({ selectedPlatforms, onBack, user }) {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
-      <View style={styles.header}>
+      <View style={[styles.header, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+        {onBack && (
+          <TouchableOpacity onPress={onBack} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 26 }}>‹</Text>
+          </TouchableOpacity>
+        )}
         <Text style={styles.sectionTitle}>Koleksiyonlar</Text>
       </View>
       <View style={[styles.searchContainer, { marginHorizontal: 16, marginVertical: 8 }]}>
@@ -763,9 +768,16 @@ function NewScreen({ selectedPlatforms, onBack, user }) {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
-      <View style={styles.popularHeader}>
-        <Text style={styles.sectionTitle}>En Yeniler</Text>
-        <Text style={styles.popularHeaderSub}>Platforma yeni eklenenler</Text>
+      <View style={[styles.popularHeader, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+        {onBack && (
+          <TouchableOpacity onPress={onBack} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 26 }}>‹</Text>
+          </TouchableOpacity>
+        )}
+        <View>
+          <Text style={styles.sectionTitle}>En Yeniler</Text>
+          <Text style={styles.popularHeaderSub}>Platforma yeni eklenenler</Text>
+        </View>
       </View>
       <View style={styles.popularTopBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularTopBarRow}>
@@ -968,9 +980,16 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
-      <View style={styles.popularHeader}>
-        <Text style={styles.sectionTitle}>Popüler</Text>
-        <Text style={styles.popularHeaderSub}>Türkiye kataloğunda izlenebilir</Text>
+      <View style={[styles.popularHeader, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+        {onBack && (
+          <TouchableOpacity onPress={onBack} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 26 }}>‹</Text>
+          </TouchableOpacity>
+        )}
+        <View>
+          <Text style={styles.sectionTitle}>Popüler</Text>
+          <Text style={styles.popularHeaderSub}>Türkiye kataloğunda izlenebilir</Text>
+        </View>
       </View>
       {/* Netflix-style top filter bar */}
       <View style={styles.popularTopBar}>
@@ -1088,11 +1107,21 @@ function ContentCard({ item, onPress }) {
 }
 
 // ── ContentRow ─────────────────────────────────────────────────
-function ContentRow({ title, items, onPress, loading }) {
+function ContentRow({ title, items, onPress, loading, onSeeAll }) {
+  const header = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 12 }}>
+      <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800', letterSpacing: -0.4 }}>{title}</Text>
+      {onSeeAll && (
+        <TouchableOpacity onPress={onSeeAll} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontWeight: '600' }}>Tümünü Gör ›</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
   if (loading && (!items || items.length === 0)) {
     return (
       <View style={{ marginBottom: 28 }}>
-        <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.4, paddingHorizontal: 16, marginBottom: 12 }}>{title}</Text>
+        {header}
         <View style={{ height: CARD_H + 24, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color="rgba(255,255,255,0.3)" />
         </View>
@@ -1102,15 +1131,75 @@ function ContentRow({ title, items, onPress, loading }) {
   if (!items || items.length === 0) return null;
   return (
     <View style={{ marginBottom: 28 }}>
-      <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.4, paddingHorizontal: 16, marginBottom: 12 }}>{title}</Text>
+      {header}
       <FlatList
         horizontal
         data={items}
-        keyExtractor={(item) => String(item.id || item.imdb_id || Math.random())}
+        keyExtractor={(item, i) => String(item.id || item.imdb_id || i)}
         renderItem={({ item }) => <ContentCard item={item} onPress={onPress} />}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16 }}
-        removeClippedSubviews
+        removeClippedSubviews={false}
+      />
+    </View>
+  );
+}
+
+// ── CollectionRow ──────────────────────────────────────────────
+const COLL_W = 158;
+const COLL_H = 106;
+function CollectionRow({ collections, selectedPlatforms, onSeeAll, loading }) {
+  const header = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 12 }}>
+      <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800', letterSpacing: -0.4 }}>Koleksiyonlar</Text>
+      {onSeeAll && (
+        <TouchableOpacity onPress={onSeeAll} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontWeight: '600' }}>Tümünü Gör ›</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+  if (loading && (!collections || collections.length === 0)) {
+    return (
+      <View style={{ marginBottom: 28 }}>
+        {header}
+        <View style={{ height: COLL_H + 36, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color="rgba(255,255,255,0.3)" />
+        </View>
+      </View>
+    );
+  }
+  if (!collections || collections.length === 0) return null;
+  return (
+    <View style={{ marginBottom: 28 }}>
+      {header}
+      <FlatList
+        horizontal
+        data={collections}
+        keyExtractor={col => String(col.id)}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+        removeClippedSubviews={false}
+        renderItem={({ item: col }) => {
+          const availItems = (col.items || [])
+            .filter(i => i.content?.availability?.some(a => selectedPlatforms.includes(a.platform_slug)))
+            .sort((a, b) => (b.imdb_score || 0) - (a.imdb_score || 0));
+          const posters = availItems.slice(0, 4).map(i => i.content?.poster_url).filter(Boolean);
+          return (
+            <TouchableOpacity style={{ width: COLL_W, marginRight: 12 }} onPress={onSeeAll} activeOpacity={0.8}>
+              <View style={{ width: COLL_W, height: COLL_H, borderRadius: 10, overflow: 'hidden', backgroundColor: '#1a1a2e', flexDirection: 'row', flexWrap: 'wrap' }}>
+                {posters.length > 0
+                  ? posters.map((uri, idx) => (
+                    <Image key={idx} source={{ uri }} style={{ width: COLL_W / 2, height: COLL_H / 2 }} resizeMode="cover" />
+                  ))
+                  : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 28, opacity: 0.2 }}>🎬</Text></View>}
+                <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 36, backgroundColor: 'rgba(0,0,0,0.65)' }} />
+              </View>
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', marginTop: 6, width: COLL_W }} numberOfLines={1}>{col.name_tr || col.name}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.38)', fontSize: 10, marginTop: 2 }}>{availItems.length} film · ★ {col.avg_imdb_score?.toFixed(1)}</Text>
+            </TouchableOpacity>
+          );
+        }}
       />
     </View>
   );
@@ -1160,18 +1249,151 @@ function HeroSection({ item, scrollY, onPress }) {
   );
 }
 
+// ── DiscoverScreen (Tümünü Gör → Keşfet) ──────────────────────
+function DiscoverScreen({ selectedPlatforms, onBack, user }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchInput, setSearchInput] = useState('');
+  const [activeSearch, setActiveSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [genreFilter, setGenreFilter] = useState(null);
+  const [minImdb, setMinImdb] = useState(0);
+  const [sortBy, setSortBy] = useState('imdb_score');
+  const [showGenreDropdown, setShowGenreDropdown] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const isMounted = useRef(true);
+  useEffect(() => { return () => { isMounted.current = false; }; }, []);
+  useEffect(() => { fetchItems().catch(() => {}); }, [selectedPlatforms, activeSearch, typeFilter, genreFilter, minImdb, sortBy]);
+
+  async function fetchItems() {
+    if (!isMounted.current) return;
+    if (selectedPlatforms.length === 0) { setItems([]); setLoading(false); return; }
+    setLoading(true);
+    const platformFilter = selectedPlatforms.map(p => `platform_slug.eq.${p}`).join(',');
+    let q = supabase.from('hub_contents')
+      .select('*, availability:hub_availability!inner(platform_slug, platform_url)')
+      .not('imdb_score', 'is', null).not('imdb_id', 'is', null)
+      .or(platformFilter, { referencedTable: 'hub_availability' });
+    if (activeSearch.trim()) {
+      const s = activeSearch.trim().replace(/[%_\\]/g, '\\$&');
+      q = q.or(`title.ilike.%${s}%,original_title.ilike.%${s}%,title_tr.ilike.%${s}%,cast_list.ilike.%${s}%,director.ilike.%${s}%`);
+    }
+    if (typeFilter !== 'all') q = q.eq('type', typeFilter);
+    if (genreFilter) q = q.ilike('genre', `%${genreFilter}%`);
+    if (minImdb > 0) q = q.gte('imdb_score', minImdb);
+    q = q.order(sortBy, { ascending: false, nullsFirst: false }).limit(90);
+    const { data, error } = await q;
+    if (!isMounted.current) return;
+    if (error) { setLoading(false); return; }
+    const enriched = (data || []).map(item => ({ ...item, availability: (item.availability || []).filter(a => selectedPlatforms.includes(a.platform_slug)) }));
+    setItems(enriched);
+    setLoading(false);
+  }
+
+  const genreLabel = POPULAR_GENRES.find(g => g.en === genreFilter)?.tr || 'Tür';
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#000' }}>
+      <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 }}>
+        <TouchableOpacity onPress={onBack} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 26 }}>‹</Text>
+        </TouchableOpacity>
+        <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>Keşfet</Text>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
+        <Text style={{ color: '#555', fontSize: 13, marginRight: 8 }}>🔍</Text>
+        <TextInput style={{ flex: 1, color: '#fff', fontSize: 15 }} placeholder="Film, dizi, oyuncu ara..." placeholderTextColor="#444" value={searchInput} onChangeText={setSearchInput} onSubmitEditing={() => setActiveSearch(searchInput)} returnKeyType="search" maxFontSizeMultiplier={1} />
+        {searchInput.length > 0 && <TouchableOpacity onPress={() => { setSearchInput(''); setActiveSearch(''); }}><Text style={{ color: '#555', fontSize: 16, paddingLeft: 8 }}>✕</Text></TouchableOpacity>}
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 10 }}>
+        {[['all','Tümü'],['movie','Filmler'],['series','Diziler']].map(([val, label]) => (
+          <TouchableOpacity key={val} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: typeFilter === val ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: typeFilter === val ? '#fff' : 'rgba(255,255,255,0.1)' }} onPress={() => setTypeFilter(val)}>
+            <Text style={{ color: typeFilter === val ? '#000' : 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '700' }}>{label}</Text>
+          </TouchableOpacity>
+        ))}
+        <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
+        <TouchableOpacity style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: genreFilter ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: genreFilter ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)' }} onPress={() => setShowGenreDropdown(!showGenreDropdown)}>
+          <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '700' }}>{genreLabel} ▾</Text>
+        </TouchableOpacity>
+        {genreFilter && <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)' }} onPress={() => setGenreFilter(null)}><Text style={{ color: '#fff', fontSize: 13 }}>✕</Text></TouchableOpacity>}
+        <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
+        {[0, 6, 7, 7.5, 8].map(val => (
+          <TouchableOpacity key={val} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: minImdb === val ? '#ffd43b' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: minImdb === val ? '#ffd43b' : 'rgba(255,255,255,0.1)' }} onPress={() => setMinImdb(val)}>
+            <Text style={{ color: minImdb === val ? '#000' : 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '700' }}>{val === 0 ? '★ Tümü' : `★ ${val}+`}</Text>
+          </TouchableOpacity>
+        ))}
+        <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
+        {[['imdb_score','IMDb ↓'],['year','Yıl ↓']].map(([val, label]) => (
+          <TouchableOpacity key={val} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: sortBy === val ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: sortBy === val ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)' }} onPress={() => setSortBy(val)}>
+            <Text style={{ color: sortBy === val ? '#fff' : 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '700' }}>{label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      {showGenreDropdown && (
+        <View style={{ position: 'absolute', top: 178, left: 16, right: 16, backgroundColor: '#1c1c1e', borderRadius: 14, zIndex: 100, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.55, shadowRadius: 14 }}>
+          <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 8 }}>
+            {POPULAR_GENRES.map(g => (
+              <TouchableOpacity key={g.en} style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: genreFilter === g.en ? 'rgba(255,255,255,0.12)' : 'transparent' }} onPress={() => { setGenreFilter(genreFilter === g.en ? null : g.en); setShowGenreDropdown(false); }}>
+                <Text style={{ color: genreFilter === g.en ? '#fff' : 'rgba(255,255,255,0.65)', fontSize: 15, fontWeight: genreFilter === g.en ? '700' : '400' }}>{g.tr}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+      {loading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color="#fff" size="large" /></View>
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(item, i) => String(item.id || i)}
+          numColumns={3}
+          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 80 }}
+          columnWrapperStyle={{ gap: 10, marginBottom: 10 }}
+          renderItem={({ item }) => {
+            const avail = (item.availability || []).filter(a => selectedPlatforms.includes(a.platform_slug));
+            const p = avail[0] ? PLATFORMS.find(x => x.slug === avail[0].platform_slug) : null;
+            const title = item.original_language === 'tr' && item.title_tr ? item.title_tr : (item.title || '');
+            return (
+              <TouchableOpacity style={{ flex: 1 }} onPress={() => setSelectedItem({ ...item, availability: avail })} activeOpacity={0.8}>
+                <View style={{ borderRadius: 10, overflow: 'hidden', backgroundColor: '#1a1a2e', aspectRatio: 2 / 3 }}>
+                  {item.poster_url
+                    ? <Image source={{ uri: item.poster_url }} style={{ flex: 1 }} resizeMode="cover" />
+                    : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ opacity: 0.2, fontSize: 22 }}>🎬</Text></View>}
+                  {item.imdb_score != null && (
+                    <View style={{ position: 'absolute', top: 5, left: 5, backgroundColor: 'rgba(0,0,0,0.78)', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                      <Text style={{ color: '#ffd43b', fontSize: 8, fontWeight: '800' }}>★</Text>
+                      <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>{item.imdb_score.toFixed(1)}</Text>
+                    </View>
+                  )}
+                  {p && <View style={{ position: 'absolute', bottom: 5, left: 5, backgroundColor: p.color, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 }}><Text style={{ color: '#fff', fontSize: 7, fontWeight: '900' }}>{p.name}</Text></View>}
+                </View>
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 5 }} numberOfLines={1}>{title}</Text>
+              </TouchableOpacity>
+            );
+          }}
+          ListEmptyComponent={<View style={{ alignItems: 'center', paddingTop: 80 }}><Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 15 }}>Sonuç bulunamadı</Text></View>}
+        />
+      )}
+    </View>
+  );
+}
+
 // ── AppleTVMainScreen ──────────────────────────────────────────
-function AppleTVMainScreen({ user, selectedPlatforms, onPlatformToggle, isPremium, onWatchlist, onProfile }) {
+function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, onProfile }) {
   const [heroItem, setHeroItem] = useState(null);
   const [discoverItems, setDiscoverItems] = useState([]);
   const [popularItems, setPopularItems] = useState([]);
   const [newItems, setNewItems] = useState([]);
+  const [collections, setCollections] = useState([]);
   const [searchInput, setSearchInput] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
+  const [fullScreen, setFullScreen] = useState(null);
   const [loadingDiscover, setLoadingDiscover] = useState(true);
   const [loadingPopular, setLoadingPopular] = useState(true);
   const [loadingNew, setLoadingNew] = useState(true);
+  const [loadingCollections, setLoadingCollections] = useState(true);
   const scrollY = useRef(new Animated.Value(0)).current;
   const isMounted = useRef(true);
   useEffect(() => { return () => { isMounted.current = false; }; }, []);
@@ -1180,38 +1402,31 @@ function AppleTVMainScreen({ user, selectedPlatforms, onPlatformToggle, isPremiu
     fetchDiscover().catch(() => {});
     fetchPopularItems().catch(() => {});
     fetchNewItems().catch(() => {});
+    fetchCollectionItems().catch(() => {});
   }, [selectedPlatforms]);
 
-  useEffect(() => {
-    fetchDiscover().catch(() => {});
-  }, [activeSearch]);
+  useEffect(() => { fetchDiscover().catch(() => {}); }, [activeSearch]);
 
   async function fetchDiscover() {
     if (!isMounted.current) return;
     if (selectedPlatforms.length === 0) { setDiscoverItems([]); setHeroItem(null); setLoadingDiscover(false); return; }
     setLoadingDiscover(true);
     const platformFilter = selectedPlatforms.map(p => `platform_slug.eq.${p}`).join(',');
-    const sel = `*, availability:hub_availability!inner(platform_slug, platform_url)`;
-    let q;
-    if (activeSearch.trim().length > 0) {
+    let q = supabase.from('hub_contents')
+      .select('*, availability:hub_availability!inner(platform_slug, platform_url)')
+      .not('imdb_score', 'is', null).not('imdb_id', 'is', null)
+      .or(platformFilter, { referencedTable: 'hub_availability' });
+    if (activeSearch.trim()) {
       const s = activeSearch.trim().replace(/[%_\\]/g, '\\$&');
-      q = supabase.from('hub_contents').select(sel)
-        .not('imdb_score', 'is', null).not('imdb_id', 'is', null)
-        .or(platformFilter, { referencedTable: 'hub_availability' })
-        .or(`title.ilike.%${s}%,original_title.ilike.%${s}%,title_tr.ilike.%${s}%,cast_list.ilike.%${s}%,director.ilike.%${s}%`)
-        .order('imdb_score', { ascending: false }).limit(40);
-    } else {
-      q = supabase.from('hub_contents').select(sel)
-        .not('imdb_score', 'is', null).not('imdb_id', 'is', null)
-        .or(platformFilter, { referencedTable: 'hub_availability' })
-        .order('imdb_score', { ascending: false }).range(0, 29);
+      q = q.or(`title.ilike.%${s}%,original_title.ilike.%${s}%,title_tr.ilike.%${s}%,cast_list.ilike.%${s}%,director.ilike.%${s}%`);
     }
+    q = q.order('imdb_score', { ascending: false }).limit(30);
     const { data, error } = await q;
     if (!isMounted.current) return;
-    if (error) { console.error(error); setLoadingDiscover(false); return; }
+    if (error) { setLoadingDiscover(false); return; }
     const enriched = (data || []).map(item => ({ ...item, availability: (item.availability || []).filter(a => selectedPlatforms.includes(a.platform_slug)) }));
     setDiscoverItems(enriched);
-    if (enriched.length > 0 && activeSearch.trim().length === 0) {
+    if (enriched.length > 0 && !activeSearch.trim()) {
       setHeroItem(enriched[Math.floor(Math.random() * Math.min(5, enriched.length))]);
     }
     setLoadingDiscover(false);
@@ -1229,14 +1444,17 @@ function AppleTVMainScreen({ user, selectedPlatforms, onPlatformToggle, isPremiu
     if (error || !data) { setLoadingPopular(false); return; }
     const seen = new Set();
     const items = data.filter(item => {
-      const k = item.imdb_id || item.show_name;
+      const k = item.imdb_id || item.title || item.id;
       if (!k || seen.has(k)) return false;
       seen.add(k); return true;
     }).map(item => ({
-      id: item.id, title: item.show_name || '', title_tr: null, original_language: null,
+      id: item.id,
+      title: item.title || item.show_name || '',
+      title_tr: null, original_language: null,
       poster_url: item.poster_w480 || item.poster_w240,
       imdb_score: item.rating ? item.rating / 10 : null,
-      year: null, type: item.show_type,
+      year: item.release_year || null,
+      type: item.show_type,
       availability: [{ platform_slug: item.platform, platform_url: item.streaming_link }],
       imdb_id: item.imdb_id, _rawPopular: item,
     }));
@@ -1248,8 +1466,8 @@ function AppleTVMainScreen({ user, selectedPlatforms, onPlatformToggle, isPremiu
     if (!isMounted.current) return;
     if (selectedPlatforms.length === 0) { setNewItems([]); setLoadingNew(false); return; }
     setLoadingNew(true);
-    const threeWeeksAgo = new Date(); threeWeeksAgo.setDate(threeWeeksAgo.getDate() - 21);
-    const fromStr = threeWeeksAgo.toISOString().split('T')[0];
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 21);
+    const fromStr = cutoff.toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('hub_availability')
       .select('platform_slug, platform_url, available_since, content:hub_contents(id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, type, year, synopsis_tr, director, cast_list, trailer_url, genre)')
@@ -1259,10 +1477,29 @@ function AppleTVMainScreen({ user, selectedPlatforms, onPlatformToggle, isPremiu
     if (!isMounted.current) return;
     if (error || !data) { setLoadingNew(false); return; }
     const seen = new Set();
-    const items = (data || []).map(row => ({ ...row.content, availability: [{ platform_slug: row.platform_slug, platform_url: row.platform_url }], available_since: row.available_since }))
+    const items = (data || [])
+      .map(row => ({ ...row.content, availability: [{ platform_slug: row.platform_slug, platform_url: row.platform_url }], available_since: row.available_since }))
       .filter(item => { if (!item.id || seen.has(item.id)) return false; seen.add(item.id); return true; });
     setNewItems(items);
     setLoadingNew(false);
+  }
+
+  async function fetchCollectionItems() {
+    if (!isMounted.current) return;
+    if (selectedPlatforms.length === 0) { setCollections([]); setLoadingCollections(false); return; }
+    setLoadingCollections(true);
+    const { data, error } = await supabase
+      .from('hub_collections')
+      .select('id, name, name_tr, avg_imdb_score, items:hub_collection_items(content_id, imdb_score, content:hub_contents(id, poster_url, availability:hub_availability(platform_slug)))')
+      .order('avg_votes', { ascending: false, nullsFirst: false })
+      .limit(12);
+    if (!isMounted.current) return;
+    if (error || !data) { setLoadingCollections(false); return; }
+    const filtered = (data || []).filter(col =>
+      (col.items || []).some(i => i.content?.availability?.some(a => selectedPlatforms.includes(a.platform_slug)))
+    );
+    setCollections(filtered);
+    setLoadingCollections(false);
   }
 
   async function handleItemPress(item) {
@@ -1271,13 +1508,22 @@ function AppleTVMainScreen({ user, selectedPlatforms, onPlatformToggle, isPremiu
       const base = { ...item, poster_url: raw.poster_w480 || raw.poster_w240 || item.poster_url };
       setSelectedItem(base);
       if (item.imdb_id) {
-        const { data } = await supabase.from('hub_contents').select('synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, genre, year, original_language').eq('imdb_id', item.imdb_id).single().catch(() => ({ data: null }));
+        const { data } = await supabase.from('hub_contents')
+          .select('synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, genre, year, original_language')
+          .eq('imdb_id', item.imdb_id).single()
+          .catch(() => ({ data: null }));
         if (data && isMounted.current) setSelectedItem(prev => prev ? { ...prev, ...data, poster_url: data.poster_url || prev.poster_url } : prev);
       }
     } else {
       setSelectedItem(item);
     }
   }
+
+  // Tam ekran yönlendirme
+  if (fullScreen === 'discover') return <DiscoverScreen selectedPlatforms={selectedPlatforms} onBack={() => setFullScreen(null)} user={user} />;
+  if (fullScreen === 'popular') return <PopularScreen selectedPlatforms={selectedPlatforms} onBack={() => setFullScreen(null)} user={user} />;
+  if (fullScreen === 'new') return <NewScreen selectedPlatforms={selectedPlatforms} onBack={() => setFullScreen(null)} user={user} />;
+  if (fullScreen === 'collections') return <CollectionsScreen selectedPlatforms={selectedPlatforms} onBack={() => setFullScreen(null)} user={user} />;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -1295,7 +1541,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, onPlatformToggle, isPremiu
       </View>
 
       {/* Search bar */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }}>
         <Text style={{ color: '#555', fontSize: 13, marginRight: 8 }}>🔍</Text>
         <TextInput
           style={{ flex: 1, color: '#fff', fontSize: 15 }}
@@ -1314,48 +1560,32 @@ function AppleTVMainScreen({ user, selectedPlatforms, onPlatformToggle, isPremiu
         )}
       </View>
 
-      {/* Platform filter chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 6, paddingBottom: 10 }}>
-        {PLATFORMS.map(p => {
-          const active = selectedPlatforms.includes(p.slug);
-          return (
-            <TouchableOpacity key={p.slug}
-              style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, backgroundColor: active ? p.color : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: active ? p.color : 'rgba(255,255,255,0.1)' }}
-              onPress={() => onPlatformToggle(p.slug)}
-            >
-              <Text style={{ color: active ? '#fff' : 'rgba(255,255,255,0.38)', fontSize: 12, fontWeight: '700' }}>{p.name}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {/* Main content */}
+      {/* Main scroll */}
       <Animated.ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         scrollEventThrottle={16}
       >
-        {activeSearch.trim().length === 0 && (
-          <HeroSection item={heroItem} scrollY={scrollY} onPress={handleItemPress} />
-        )}
-        <View style={{ paddingTop: 20 }}>
-          {activeSearch.trim().length > 0 ? (
+        {!activeSearch.trim() && <HeroSection item={heroItem} scrollY={scrollY} onPress={handleItemPress} />}
+        <View style={{ paddingTop: 22 }}>
+          {activeSearch.trim() ? (
             <>
-              <ContentRow title={`"${activeSearch}" sonuçları`} items={discoverItems} onPress={handleItemPress} loading={loadingDiscover} />
+              <ContentRow title={`"${activeSearch}" Sonuçları`} items={discoverItems} onPress={handleItemPress} loading={loadingDiscover} />
               {discoverItems.length === 0 && !loadingDiscover && (
                 <Text style={{ color: 'rgba(255,255,255,0.25)', textAlign: 'center', marginTop: 60, fontSize: 16 }}>Sonuç bulunamadı</Text>
               )}
             </>
           ) : (
             <>
-              <ContentRow title="En İyi Puanlılar" items={discoverItems} onPress={handleItemPress} loading={loadingDiscover} />
-              <ContentRow title="Şu An Popüler" items={popularItems} onPress={handleItemPress} loading={loadingPopular} />
-              <ContentRow title="Yeni Eklenenler" items={newItems} onPress={handleItemPress} loading={loadingNew} />
+              <ContentRow title="En İyi Puanlılar" items={discoverItems} onPress={handleItemPress} loading={loadingDiscover} onSeeAll={() => setFullScreen('discover')} />
+              <ContentRow title="Şu An Popüler" items={popularItems} onPress={handleItemPress} loading={loadingPopular} onSeeAll={() => setFullScreen('popular')} />
+              <ContentRow title="Yeni Eklenenler" items={newItems} onPress={handleItemPress} loading={loadingNew} onSeeAll={() => setFullScreen('new')} />
+              <CollectionRow collections={collections} selectedPlatforms={selectedPlatforms} onSeeAll={() => setFullScreen('collections')} loading={loadingCollections} />
             </>
           )}
         </View>
-        <View style={{ height: 50 }} />
+        <View style={{ height: 60 }} />
       </Animated.ScrollView>
 
       <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
@@ -2181,6 +2411,7 @@ export default function App() {
   if (showOnboarding) return <OnboardingScreen user={user} onComplete={({ platforms }) => {
     setSelectedPlatforms(platforms);
     saveSelectedPlatforms(platforms);
+    savePlatformsToProfile(user.id, platforms).catch(() => {});
     setShowOnboarding(false);
   }} />;
 
@@ -2201,7 +2432,6 @@ export default function App() {
       <AppleTVMainScreen
         user={user}
         selectedPlatforms={selectedPlatforms}
-        onPlatformToggle={handlePlatformToggle}
         isPremium={isPremium}
         onWatchlist={() => setShowWatchlist(true)}
         onProfile={() => setShowProfile(true)}
