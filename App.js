@@ -1678,10 +1678,10 @@ function HomeScreen({ selectedPlatforms, onPlatformToggle, onNavigate, isPremium
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8 }}>
           <View style={{ flex: 1 }} />
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity onPress={onWatchlist} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
+            <TouchableOpacity onPress={onWatchlist} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
               <Text style={{ fontSize: 18 }}>🔖</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={onProfile} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
+            <TouchableOpacity onPress={onProfile} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}>
               <Text style={{ fontSize: 18 }}>👤</Text>
             </TouchableOpacity>
           </View>
