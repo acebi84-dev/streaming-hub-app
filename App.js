@@ -16,7 +16,7 @@ import {
 import { Linking, Share, AppState } from 'react-native';
 import ReAnimated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { supabase } from './supabase';
-import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff } from 'lucide-react-native';
+import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Play, Star, Share2, Trash2 } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 const GoogleSignin = null;
 // import * as AppleAuthentication from 'expo-apple-authentication';
@@ -95,7 +95,7 @@ function saveSelectedPlatforms(slugs) {
   _platformCache.slugs = slugs;
 }
 async function savePlatformsToProfile(userId, slugs) {
-  await supabase.from('profiles').update({ selected_platforms: slugs }).eq('id', userId);
+  await supabase.from('profiles').upsert({ id: userId, selected_platforms: slugs }, { onConflict: 'id' });
 }
 
 function CarouselComments() {
@@ -182,9 +182,9 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate }) {
   }
 
   const statusConfig = {
-    watched:  { label: 'İzledim',          emoji: '✅', color: '#51cf66' },
-    watching: { label: 'İzliyorum',         emoji: '▶️',  color: '#339af0' },
-    want:     { label: 'İzlemek İstiyorum', emoji: '🔖', color: '#ffd43b' },
+    watched:  { label: 'İzledim',          icon: <CheckCircle size={20} color="#51cf66" strokeWidth={2} />, color: '#51cf66' },
+    watching: { label: 'İzliyorum',         icon: <Play size={20} color="#339af0" strokeWidth={2} />,        color: '#339af0' },
+    want:     { label: 'İzlemek İstiyorum', icon: <Bookmark size={20} color="#ffd43b" strokeWidth={2} />,    color: '#ffd43b' },
   };
 
   return (
@@ -193,7 +193,7 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate }) {
         style={[wlStyles.btn, entry && { backgroundColor: statusConfig[entry.status]?.color + '22', borderColor: statusConfig[entry.status]?.color }]}
         onPress={() => setShowMenu(true)}
       >
-        <Text style={{ fontSize: 14 }}>{entry ? statusConfig[entry.status]?.emoji : '＋'}</Text>
+        {entry ? statusConfig[entry.status]?.icon : <Star size={14} color="rgba(255,255,255,0.7)" strokeWidth={2} />}
         <Text style={[wlStyles.btnText, entry && { color: statusConfig[entry.status]?.color }]}>
           {entry ? statusConfig[entry.status]?.label : 'Listeye Ekle'}
         </Text>
@@ -207,23 +207,23 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate }) {
             <Text style={wlStyles.menuTitle}>{item.title_tr || item.title}</Text>
             {Object.entries(statusConfig).map(([key, cfg]) => (
               <TouchableOpacity key={key} style={[wlStyles.menuItem, entry?.status === key && { backgroundColor: cfg.color + '22' }]} onPress={() => setStatus(key)}>
-                <Text style={{ fontSize: 18 }}>{cfg.emoji}</Text>
+                {cfg.icon}
                 <Text style={[wlStyles.menuItemText, entry?.status === key && { color: cfg.color, fontWeight: '700' }]}>{cfg.label}</Text>
-                {entry?.status === key && <Text style={{ color: cfg.color, fontSize: 12, marginLeft: 'auto' }}>✓</Text>}
+                {entry?.status === key && <CheckCircle size={16} color={cfg.color} strokeWidth={2} style={{ marginLeft: 'auto' }} />}
               </TouchableOpacity>
             ))}
             {entry && <>
               <View style={wlStyles.menuDivider} />
               <TouchableOpacity style={wlStyles.menuItem} onPress={() => { setShowMenu(false); setShowRating(true); }}>
-                <Text style={{ fontSize: 18 }}>⭐</Text>
+                <Star size={20} color="#ffd43b" strokeWidth={2} />
                 <Text style={wlStyles.menuItemText}>Puan Ver {entry.rating ? `(${entry.rating}/10)` : ''}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={wlStyles.menuItem} onPress={share}>
-                <Text style={{ fontSize: 18 }}>📤</Text>
+                <Share2 size={20} color="rgba(255,255,255,0.7)" strokeWidth={2} />
                 <Text style={wlStyles.menuItemText}>Paylaş</Text>
               </TouchableOpacity>
               <TouchableOpacity style={wlStyles.menuItem} onPress={remove}>
-                <Text style={{ fontSize: 18 }}>🗑</Text>
+                <Trash2 size={20} color="#ff6b6b" strokeWidth={2} />
                 <Text style={[wlStyles.menuItemText, { color: '#ff6b6b' }]}>Listeden Çıkar</Text>
               </TouchableOpacity>
             </>}
@@ -300,15 +300,17 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000' }}>
-      <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
-        <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', marginBottom: 14 }}>İzleme Listem</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+          <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', flex: 1 }}>İzleme Listem</Text>
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
           {tabs.map(t => (
             <TouchableOpacity key={t.key}
-              style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.12)' }}
+              style={{ paddingHorizontal: 18, paddingVertical: 9, borderRadius: 20, backgroundColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.12)' }}
               onPress={() => setTab(t.key)}>
-              <Text style={{ color: tab === t.key ? '#000' : '#fff', fontWeight: '700', fontSize: 14 }}>{t.emoji} {t.label}</Text>
+              <Text style={{ color: tab === t.key ? '#000' : 'rgba(255,255,255,0.75)', fontWeight: '700', fontSize: 14 }}>{t.label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -319,9 +321,16 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
           <ActivityIndicator color="#fff" size="large" />
         </View>
       ) : items.length === 0 ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-          <Text style={{ fontSize: 48 }}>{tabs.find(t => t.key === tab)?.emoji}</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16 }}>Henüz içerik yok</Text>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+          <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+            {tab === 'watched' && <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 30 }}>✓</Text>}
+            {tab === 'watching' && <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 28, fontWeight: '300' }}>▷</Text>}
+            {tab === 'want' && <Bookmark size={30} color="rgba(255,255,255,0.35)" strokeWidth={1.5} />}
+          </View>
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz içerik yok</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, textAlign: 'center', paddingHorizontal: 40 }}>
+            {tab === 'watched' ? 'İzlediğin içerikleri burada göreceksin' : tab === 'watching' ? 'Şu an izlediğin dizileri buraya ekle' : 'İzlemek istediğin içerikleri buraya kaydet'}
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -354,7 +363,7 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
         />
       )}
       <FloatingBackBtn onPress={onBack} />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -1087,7 +1096,6 @@ function ContentCard({ item, onPress }) {
           {item.poster_url
             ? <Image source={{ uri: item.poster_url }} style={{ width: CARD_W, height: CARD_H }} resizeMode="cover" />
             : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 26, opacity: 0.25 }}>🎬</Text></View>}
-          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 72, backgroundColor: 'rgba(0,0,0,0.62)' }} />
           {item.imdb_score != null && (
             <View style={{ position: 'absolute', top: 6, left: 6, backgroundColor: 'rgba(0,0,0,0.78)', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
               <Text style={{ color: '#ffd43b', fontSize: 9, fontWeight: '800' }}>★</Text>
@@ -1193,7 +1201,6 @@ function CollectionRow({ collections, selectedPlatforms, onSeeAll, loading }) {
                     <Image key={idx} source={{ uri }} style={{ width: COLL_W / 2, height: COLL_H / 2 }} resizeMode="cover" />
                   ))
                   : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 28, opacity: 0.2 }}>🎬</Text></View>}
-                <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 36, backgroundColor: 'rgba(0,0,0,0.65)' }} />
               </View>
               <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', marginTop: 6, width: COLL_W }} numberOfLines={1}>{col.name_tr || col.name}</Text>
               <Text style={{ color: 'rgba(255,255,255,0.38)', fontSize: 10, marginTop: 2 }}>{availItems.length} film · ★ {col.avg_imdb_score?.toFixed(1)}</Text>
@@ -1207,7 +1214,7 @@ function CollectionRow({ collections, selectedPlatforms, onSeeAll, loading }) {
 
 // ── HeroSection ────────────────────────────────────────────────
 function HeroSection({ item, scrollY, onPress }) {
-  if (!item) return <View style={{ height: HERO_H, backgroundColor: '#000' }} />;
+  if (!item) return null;
   const title = (item.original_language === 'tr' && item.title_tr) ? item.title_tr : (item.title || '');
   const imgTranslate = scrollY.interpolate({
     inputRange: [-HERO_H, 0, HERO_H],
@@ -1226,8 +1233,7 @@ function HeroSection({ item, scrollY, onPress }) {
           ? <Image source={{ uri: item.poster_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
           : <View style={{ flex: 1, backgroundColor: '#111' }} />}
       </Animated.View>
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 100, backgroundColor: 'rgba(0,0,0,0.45)' }} />
-      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HERO_H * 0.68, backgroundColor: 'rgba(0,0,0,0.82)' }} />
+      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HERO_H * 0.45, backgroundColor: 'rgba(0,0,0,0.88)' }} />
       <Animated.View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 26, opacity: contentOpacity }}>
         <Text style={{ color: '#fff', fontSize: 35, fontWeight: '900', letterSpacing: -0.8, marginBottom: 8, lineHeight: 41, textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }} numberOfLines={2}>{title}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -1306,7 +1312,7 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
         <TextInput style={{ flex: 1, color: '#fff', fontSize: 15 }} placeholder="Film, dizi, oyuncu ara..." placeholderTextColor="#444" value={searchInput} onChangeText={setSearchInput} onSubmitEditing={() => setActiveSearch(searchInput)} returnKeyType="search" maxFontSizeMultiplier={1} />
         {searchInput.length > 0 && <TouchableOpacity onPress={() => { setSearchInput(''); setActiveSearch(''); }}><Text style={{ color: '#555', fontSize: 16, paddingLeft: 8 }}>✕</Text></TouchableOpacity>}
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 10 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingVertical: 8, alignItems: 'center' }}>
         {[['all','Tümü'],['movie','Filmler'],['series','Diziler']].map(([val, label]) => (
           <TouchableOpacity key={val} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: typeFilter === val ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: typeFilter === val ? '#fff' : 'rgba(255,255,255,0.1)' }} onPress={() => setTypeFilter(val)}>
             <Text style={{ color: typeFilter === val ? '#000' : 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '700' }}>{label}</Text>
@@ -1318,9 +1324,12 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
         </TouchableOpacity>
         {genreFilter && <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)' }} onPress={() => setGenreFilter(null)}><Text style={{ color: '#fff', fontSize: 13 }}>✕</Text></TouchableOpacity>}
         <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
+        <View style={{ paddingHorizontal: 6, paddingVertical: 7, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: '#ffd43b', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>IMDb</Text>
+        </View>
         {[0, 6, 7, 7.5, 8].map(val => (
           <TouchableOpacity key={val} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: minImdb === val ? '#ffd43b' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: minImdb === val ? '#ffd43b' : 'rgba(255,255,255,0.1)' }} onPress={() => setMinImdb(val)}>
-            <Text style={{ color: minImdb === val ? '#000' : 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '700' }}>{val === 0 ? '★ Tümü' : `★ ${val}+`}</Text>
+            <Text style={{ color: minImdb === val ? '#000' : 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '700' }}>{val === 0 ? 'Tümü' : `${val}+`}</Text>
           </TouchableOpacity>
         ))}
         <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
@@ -1372,7 +1381,18 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
               </TouchableOpacity>
             );
           }}
-          ListEmptyComponent={<View style={{ alignItems: 'center', paddingTop: 80 }}><Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 15 }}>Sonuç bulunamadı</Text></View>}
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center', paddingTop: 80, gap: 8 }}>
+              <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 15, fontWeight: '600' }}>
+                {selectedPlatforms.length === 0
+                  ? 'Platform seçilmedi'
+                  : 'Bu kriterlere uygun içerik seçili platformlarda bulunamadı'}
+              </Text>
+              {selectedPlatforms.length > 0 && (
+                <Text style={{ color: 'rgba(255,255,255,0.18)', fontSize: 13 }}>Filtreleri değiştirmeyi dene</Text>
+              )}
+            </View>
+          }
         />
       )}
     </View>
@@ -1506,13 +1526,15 @@ function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, on
     if (item._rawPopular) {
       const raw = item._rawPopular;
       const base = { ...item, poster_url: raw.poster_w480 || raw.poster_w240 || item.poster_url };
-      setSelectedItem(base);
       if (item.imdb_id) {
         const { data } = await supabase.from('hub_contents')
-          .select('synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, genre, year, original_language')
+          .select('id, synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, genre, year, original_language')
           .eq('imdb_id', item.imdb_id).single()
           .catch(() => ({ data: null }));
-        if (data && isMounted.current) setSelectedItem(prev => prev ? { ...prev, ...data, poster_url: data.poster_url || prev.poster_url } : prev);
+        if (!isMounted.current) return;
+        setSelectedItem(data ? { ...base, ...data, poster_url: data.poster_url || base.poster_url } : base);
+      } else {
+        setSelectedItem(base);
       }
     } else {
       setSelectedItem(item);
@@ -1531,33 +1553,44 @@ function AppleTVMainScreen({ user, selectedPlatforms, isPremium, onWatchlist, on
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
         <Text style={{ color: '#fff', fontSize: 28, fontWeight: '900', letterSpacing: -0.5 }}>İzlio</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist}>
-            <Text style={{ fontSize: 17 }}>🔖</Text>
+          <TouchableOpacity style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Bookmark size={22} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
-          <TouchableOpacity style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onProfile}>
-            <Text style={{ fontSize: 17 }}>👤</Text>
+          <TouchableOpacity style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onProfile} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <User size={22} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Search bar */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }}>
-        <Text style={{ color: '#555', fontSize: 13, marginRight: 8 }}>🔍</Text>
-        <TextInput
-          style={{ flex: 1, color: '#fff', fontSize: 15 }}
-          placeholder="Film, dizi, oyuncu ara..."
-          placeholderTextColor="#444"
-          value={searchInput}
-          onChangeText={setSearchInput}
-          onSubmitEditing={() => setActiveSearch(searchInput)}
-          returnKeyType="search"
-          maxFontSizeMultiplier={1}
-        />
-        {searchInput.length > 0 && (
-          <TouchableOpacity onPress={() => { setSearchInput(''); setActiveSearch(''); }}>
-            <Text style={{ color: '#555', fontSize: 16, fontWeight: '700', paddingLeft: 8 }}>✕</Text>
-          </TouchableOpacity>
-        )}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 10, gap: 8 }}>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }}>
+          <Text style={{ color: '#555', fontSize: 13, marginRight: 8 }}>🔍</Text>
+          <TextInput
+            style={{ flex: 1, color: '#fff', fontSize: 15 }}
+            placeholder="Film, dizi, oyuncu ara..."
+            placeholderTextColor="#444"
+            value={searchInput}
+            onChangeText={setSearchInput}
+            onSubmitEditing={() => setActiveSearch(searchInput)}
+            returnKeyType="search"
+            maxFontSizeMultiplier={1}
+          />
+          {searchInput.length > 0 && (
+            <TouchableOpacity onPress={() => { setSearchInput(''); setActiveSearch(''); }} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
+              <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginLeft: 6 }}>
+                <Text style={{ color: '#aaa', fontSize: 11, fontWeight: '800', lineHeight: 13 }}>✕</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
+        <TouchableOpacity
+          style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center' }}
+          onPress={() => setFullScreen('discover')}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <SlidersHorizontal size={20} color="rgba(255,255,255,0.65)" strokeWidth={2} />
+        </TouchableOpacity>
       </View>
 
       {/* Main scroll */}
@@ -1772,14 +1805,23 @@ function OnboardingScreen({ user, onComplete }) {
 
   async function finish() {
     setLoading(true);
-    await supabase.from('profiles').update({
+    const { error } = await supabase.from('profiles').upsert({
+      id: user.id,
       selected_platforms: selPlatforms,
       favorite_genres: selGenres,
       display_name: displayName || null,
       birth_date: birthDate || null,
       gender: gender || null,
       updated_at: new Date().toISOString(),
-    }).eq('id', user.id);
+    }, { onConflict: 'id' });
+    if (error) {
+      // Hata durumunda yeniden dene
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        selected_platforms: selPlatforms,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' }).catch(() => {});
+    }
     onComplete({ platforms: selPlatforms, genres: selGenres });
     setLoading(false);
   }
@@ -1907,8 +1949,27 @@ const obStyles = StyleSheet.create({
 });
 
 // ── Profile Modal ──────────────────────────────────────────────
+function AccordionSection({ title, isOpen, onToggle, children }) {
+  return (
+    <View style={{ borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+      <TouchableOpacity
+        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14 }}
+        onPress={onToggle}
+        activeOpacity={0.7}
+      >
+        <Text style={{ flex: 1, color: '#fff', fontSize: 15, fontWeight: '700' }}>{title}</Text>
+        <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '300' }}>{isOpen ? '∧' : '∨'}</Text>
+      </TouchableOpacity>
+      {isOpen && (
+        <View style={{ paddingHorizontal: 18, paddingBottom: 18, gap: 12 }}>
+          {children}
+        </View>
+      )}
+    </View>
+  );
+}
+
 function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSignOut, isPremium, onUpgrade }) {
-  const [profile, setProfile] = useState(null);
   const [editName, setEditName] = useState('');
   const [editBirth, setEditBirth] = useState('');
   const [editGender, setEditGender] = useState('');
@@ -1917,12 +1978,14 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [openPersonal, setOpenPersonal] = useState(false);
+  const [openPlatforms, setOpenPlatforms] = useState(true);
+  const [openGenres, setOpenGenres] = useState(false);
 
   useEffect(() => {
     if (visible && user) {
       supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data }) => {
         if (data) {
-          setProfile(data);
           setEditName(data.display_name || '');
           setEditBirth(data.birth_date || '');
           setEditGender(data.gender || '');
@@ -1943,14 +2006,15 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
   async function save() {
     setLoading(true);
     setSaveError('');
-    const { error } = await supabase.from('profiles').update({
+    const { error } = await supabase.from('profiles').upsert({
+      id: user.id,
       display_name: editName || null,
       birth_date: editBirth || null,
       gender: editGender || null,
       selected_platforms: selPlatforms,
       favorite_genres: selGenres,
       updated_at: new Date().toISOString(),
-    }).eq('id', user.id);
+    }, { onConflict: 'id' });
     if (error) {
       setSaveError('Kayıt başarısız, tekrar deneyin.');
     } else {
@@ -1966,24 +2030,23 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
       <SafeAreaView style={{ flex: 1, backgroundColor: '#111' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' }}>
           <Text style={{ flex: 1, color: '#fff', fontSize: 20, fontWeight: '800' }}>Profil</Text>
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16 }}>Kapat</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView contentContainerStyle={{ padding: 20, gap: 28 }} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ padding: 20, gap: 12 }} keyboardShouldPersistTaps="handled">
 
-          {/* Kullanıcı bilgisi */}
-          <View style={{ alignItems: 'center', paddingVertical: 8 }}>
-            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
-              <Text style={{ fontSize: 30 }}>👤</Text>
+          {/* Avatar */}
+          <View style={{ alignItems: 'center', paddingVertical: 12 }}>
+            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: '#2C2C3A', alignItems: 'center', justifyContent: 'center', marginBottom: 10, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.12)' }}>
+              <Text style={{ color: '#fff', fontSize: 28, fontWeight: '700' }}>{(editName || user?.email || 'İ').slice(0, 1).toUpperCase()}</Text>
             </View>
-            <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>{editName || user?.email}</Text>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{editName || user?.email}</Text>
             {editName ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 2 }}>{user?.email}</Text> : null}
           </View>
 
-          {/* Kişisel bilgiler */}
-          <View style={{ gap: 12 }}>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 }}>Kişisel Bilgiler</Text>
+          {/* Kişisel Bilgiler — accordion */}
+          <AccordionSection title="Kişisel Bilgiler" isOpen={openPersonal} onToggle={() => setOpenPersonal(p => !p)}>
             <View style={pmStyles.inputRow}>
               <TextInput style={pmStyles.input} placeholder="İsim" placeholderTextColor="rgba(255,255,255,0.3)" value={editName} onChangeText={setEditName} />
             </View>
@@ -1999,11 +2062,10 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
+          </AccordionSection>
 
-          {/* Platformlar */}
-          <View style={{ gap: 12 }}>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 }}>Platformlar</Text>
+          {/* Platformlar — accordion */}
+          <AccordionSection title="Platformlar" isOpen={openPlatforms} onToggle={() => setOpenPlatforms(p => !p)}>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
               {PLATFORMS.map(p => {
                 const sel = selPlatforms.includes(p.slug);
@@ -2016,11 +2078,10 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
                 );
               })}
             </View>
-          </View>
+          </AccordionSection>
 
-          {/* Türler */}
-          <View style={{ gap: 12 }}>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 }}>Favori Türler</Text>
+          {/* Favori Türler — accordion */}
+          <AccordionSection title="Favori Türler" isOpen={openGenres} onToggle={() => setOpenGenres(p => !p)}>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {PROFILE_GENRES.map(g => {
                 const sel = selGenres.includes(g.id);
@@ -2028,15 +2089,15 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
                   <TouchableOpacity key={g.id}
                     style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: sel ? '#fff' : 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: sel ? '#fff' : 'rgba(255,255,255,0.1)' }}
                     onPress={() => toggleGenre(g.id)}>
-                    <Text style={{ color: sel ? '#000' : '#fff', fontWeight: sel ? '700' : '500', fontSize: 13 }}>{g.emoji} {g.label}</Text>
+                    <Text style={{ color: sel ? '#000' : 'rgba(255,255,255,0.75)', fontWeight: sel ? '700' : '500', fontSize: 13 }}>{g.label}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
-          </View>
+          </AccordionSection>
 
           {/* Kaydet */}
-          {saveError ? <Text style={{ color: '#ff6b6b', fontSize: 13, textAlign: 'center', marginBottom: 8 }}>{saveError}</Text> : null}
+          {saveError ? <Text style={{ color: '#ff6b6b', fontSize: 13, textAlign: 'center' }}>{saveError}</Text> : null}
           <TouchableOpacity style={[pmStyles.saveBtn, loading && { opacity: 0.6 }]} onPress={save} disabled={loading}>
             {loading ? <ActivityIndicator color="#000" /> : <Text style={pmStyles.saveBtnText}>{saved ? '✓ Kaydedildi' : 'Kaydet'}</Text>}
           </TouchableOpacity>
@@ -2044,12 +2105,12 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
           {/* Premium */}
           {!isPremium && (
             <TouchableOpacity style={pmStyles.premiumBtn} onPress={onUpgrade}>
-              <Text style={pmStyles.premiumBtnText}>✨ Premium'a Geç — Reklamsız</Text>
+              <Text style={pmStyles.premiumBtnText}>Premium'a Geç — Reklamsız</Text>
             </TouchableOpacity>
           )}
           {isPremium && (
             <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-              <Text style={{ color: '#ffd43b', fontSize: 14, fontWeight: '700' }}>✨ Premium Üye</Text>
+              <Text style={{ color: '#ffd43b', fontSize: 14, fontWeight: '700' }}>Premium Üye</Text>
             </View>
           )}
 
@@ -2325,10 +2386,16 @@ export default function App() {
     if (!user) return;
     supabase.from('profiles').select('selected_platforms, is_premium').eq('id', user.id).single()
       .then(({ data }) => {
-        if (!data?.selected_platforms || data.selected_platforms.length === 0) setShowOnboarding(true);
+        if (data?.selected_platforms && data.selected_platforms.length > 0) {
+          saveSelectedPlatforms(data.selected_platforms);
+          setSelectedPlatforms(data.selected_platforms);
+          setShowOnboarding(false);
+        } else {
+          setShowOnboarding(true);
+        }
         if (data?.is_premium) setIsPremium(true);
       })
-      .catch(e => { console.error('profile load error:', e); setShowOnboarding(true); });
+      .catch(() => { setShowOnboarding(true); });
   }, [user?.id]);
 
   useEffect(() => {
@@ -2341,9 +2408,10 @@ export default function App() {
         const u = session?.user ?? null;
         setUser(u);
         if (u && _event === 'SIGNED_IN') {
+          // Onboarding kararı useEffect([user?.id])'de veriliyor — burada sadece cache'i güncelle
           const { data } = await supabase.from('profiles').select('selected_platforms').eq('id', u.id).single();
-          if (!data?.selected_platforms || data.selected_platforms.length === 0) {
-            setShowOnboarding(true);
+          if (data?.selected_platforms && data.selected_platforms.length > 0) {
+            saveSelectedPlatforms(data.selected_platforms);
           }
         }
       } catch(e) { console.error('onAuthStateChange error:', e); }
