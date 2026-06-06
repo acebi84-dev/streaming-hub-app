@@ -144,7 +144,7 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate }) {
   useEffect(() => {
     if (initialEntry !== undefined) return; // initialEntry verilmişse DB sorgusu atla
     if (user && item?.id) {
-      getWatchlistEntry(user.id, item.id).then(d => { if (isMounted.current) setEntry(d); });
+      getWatchlistEntry(user.id, item.id).then(d => { if (isMounted.current) setEntry(d); }).catch(() => {});
     }
   }, [user, item?.id]);
 
@@ -278,7 +278,7 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
   const isMounted = useRef(true);
   useEffect(() => { return () => { isMounted.current = false; }; }, []);
 
-  useEffect(() => { fetchList(); }, [tab]);
+  useEffect(() => { fetchList().catch(() => {}); }, [tab]);
 
   async function fetchList() {
     if (!user) return;
@@ -543,7 +543,7 @@ function CollectionsScreen({ selectedPlatforms, onBack, user }) {
   const [colSearchInput, setColSearchInput] = useState('');
   const [colActiveSearch, setColActiveSearch] = useState('');
 
-  useEffect(() => { fetchCollections(); }, [sortBy, sortAscCol]);
+  useEffect(() => { fetchCollections().catch(() => {}); }, [sortBy, sortAscCol]);
 
   async function fetchCollections() {
     if (!isMounted.current) return;
@@ -1378,7 +1378,7 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
           setSelPlatforms(data.selected_platforms?.length > 0 ? data.selected_platforms : selectedPlatforms);
           setSelGenres(data.favorite_genres || []);
         }
-      });
+      }).catch(() => {});
     }
   }, [visible]);
 
@@ -1555,25 +1555,16 @@ function AuthScreen({ onAuth }) {
     setLoading(true); setError(''); setMsg('');
     try {
       if (mode === 'login') {
-        setMsg('Bağlanıyor...');
         const res = await fetch('https://bvggvperehlduxziaqfu.supabase.co/auth/v1/token?grant_type=password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': 'sb_publishable_Q3JqA0F8fU7vE6fQMZ_ZcA_-x5qLhnk' },
           body: JSON.stringify({ email, password }),
         });
-        setMsg('Yanıt: ' + res.status);
         const json = await res.json();
         if (!res.ok || json.error) {
-          setError(json.error_description || json.msg || json.error || 'Giriş başarısız (' + res.status + ')');
-          setMsg('');
-        } else if (!json.user) {
-          setError('Kullanıcı bilgisi alınamadı');
-          setMsg('');
+          setError(json.error_description || json.msg || json.error || 'Giriş başarısız');
         } else {
-          setMsg('Giriş başarılı!');
-          setLoading(false);
-          setTimeout(() => onAuth(json.user), 300);
-          return;
+          onAuth(json.user);
         }
       } else {
         const result = await supabase.auth.signUp({ email, password });
