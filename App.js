@@ -11,8 +11,9 @@ SplashScreen.preventAutoHideAsync();
 import {
   StyleSheet, Text, View, FlatList, TextInput, TouchableOpacity,
   Image, ActivityIndicator, SafeAreaView, StatusBar, ScrollView,
-  Animated, Modal, KeyboardAvoidingView, Platform,
+  Animated, Modal, KeyboardAvoidingView, Platform, useWindowDimensions,
 } from 'react-native';
+import YoutubeIframe from 'react-native-youtube-iframe';
 import { Linking, Share, AppState } from 'react-native';
 import ReAnimated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
 import { supabase, supabasePublic } from './supabase';
@@ -141,8 +142,14 @@ async function removeWatchlist(userId, contentId) {
   await supabase.from('watchlist').delete().eq('user_id', userId).eq('content_id', contentId);
 }
 
+function extractYouTubeId(url) {
+  if (!url) return null;
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
 // ── Watchlist Button (içerik kartı için) ─────────────────────
-function WatchlistButton({ item, user, style, initialEntry, onUpdate }) {
+function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVariant }) {
   const [entry, setEntry] = useState(initialEntry ?? null);
   const [showMenu, setShowMenu] = useState(false);
   const [showRating, setShowRating] = useState(false);
@@ -195,15 +202,19 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate }) {
   };
 
   return (
-    <View style={[{ position: 'relative' }, style]}>
+    <View style={[{ position: 'relative' }, modalVariant && { alignSelf: 'stretch' }, style]}>
       <TouchableOpacity
-        style={[wlStyles.btn, entry && { backgroundColor: statusConfig[entry.status]?.color + '22', borderColor: statusConfig[entry.status]?.color }]}
+        style={[
+          wlStyles.btn,
+          modalVariant && { paddingVertical: 16, borderRadius: 14, justifyContent: 'center', gap: 10 },
+          entry && { backgroundColor: statusConfig[entry.status]?.color + '22', borderColor: statusConfig[entry.status]?.color },
+        ]}
         onPress={() => setShowMenu(true)}
         hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
       >
-        {entry ? statusConfig[entry.status]?.icon : <Star size={14} color="rgba(255,255,255,0.7)" strokeWidth={2} />}
-        <Text style={[wlStyles.btnText, entry && { color: statusConfig[entry.status]?.color }]}>
-          {entry ? statusConfig[entry.status]?.label : 'Listeye Ekle'}
+        {entry ? (modalVariant ? React.cloneElement(statusConfig[entry.status]?.icon, { size: 20 }) : statusConfig[entry.status]?.icon) : <Star size={modalVariant ? 18 : 14} color="rgba(255,255,255,0.7)" strokeWidth={2} />}
+        <Text style={[wlStyles.btnText, modalVariant && { fontSize: 15, fontWeight: '700' }, entry && { color: statusConfig[entry.status]?.color }]}>
+          {entry ? statusConfig[entry.status]?.label : 'İzleme Listesine Ekle'}
         </Text>
         {entry?.rating && <Text style={[wlStyles.ratingText, { color: statusConfig[entry.status]?.color }]}>★{entry.rating}</Text>}
       </TouchableOpacity>
@@ -414,108 +425,243 @@ function PlatformModal({ visible, selected, onSave, onClose }) {
 
 function DetailModal({ item, onClose, user }) {
   if (!item) return null;
+
+  const { width: SCREEN_W, height: SCREEN_H } = useWindowDimensions();
+  const HEADER_H = Math.round(SCREEN_H * 0.45);
+
   const [itemStack, setItemStack] = React.useState([item]);
   const cur = itemStack[itemStack.length - 1];
-  const typeLabel = cur.type === 'movie' ? '🎬 Film' : '📺 Dizi';
-  const langLabel = cur.original_language ? LANGUAGE_MAP[cur.original_language] : null;
   const [similarItems, setSimilarItems] = React.useState([]);
-  const [posterFullscreen, setPosterFullscreen] = React.useState(false);
+
+  const title = cur.original_language === 'tr' && cur.title_tr ? cur.title_tr : cur.title;
+  const typeLabel = cur.type === 'movie' ? 'Film' : 'Dizi';
+  const langLabel = cur.original_language ? LANGUAGE_MAP[cur.original_language] : null;
+  const youtubeId = extractYouTubeId(cur.trailer_url);
+  const metaParts = [typeLabel, cur.year && String(cur.year), langLabel].filter(Boolean);
 
   React.useEffect(() => {
     setSimilarItems([]);
     if (!cur.imdb_id) return;
-    fetchSimilar(cur);
+    fetchSimilar();
   }, [cur.imdb_id]);
 
-  async function fetchSimilar(item) {
+  async function fetchSimilar() {
     try {
-      // Get similar_tmdb_ids from DB
       const { data: contentData } = await supabasePublic
-        .from('hub_contents')
-        .select('similar_tmdb_ids')
-        .eq('imdb_id', cur.imdb_id)
-        .single();
-
+        .from('hub_contents').select('similar_tmdb_ids').eq('imdb_id', cur.imdb_id).single();
       const tmdbIds = contentData?.similar_tmdb_ids;
       if (!tmdbIds || tmdbIds.length === 0) return;
-
-      // Find matching contents directly by tmdb_id — no TMDB API calls needed
       const { data } = await supabasePublic
         .from('hub_contents')
         .select('id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, availability:hub_availability(platform_slug, platform_url)')
-        .in('tmdb_id', tmdbIds)
-        .not('imdb_score', 'is', null);
-
+        .in('tmdb_id', tmdbIds).not('imdb_score', 'is', null);
       const filtered = (data || []).filter(i => i.availability && i.availability.length > 0).slice(0, 10);
-      // Only show if we got at least 2 meaningful results
       if (filtered.length >= 2) setSimilarItems(filtered);
-    } catch (e) {
-      console.error('Similar fetch error:', e);
-    }
+    } catch (e) {}
   }
 
+  const ImdbBadgeInline = () => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      <View style={{ backgroundColor: '#F5C518', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
+        <Text style={{ color: '#000', fontSize: 9, fontWeight: '900' }}>IMDb</Text>
+      </View>
+      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{cur.imdb_score?.toFixed(1)}</Text>
+    </View>
+  );
+
   return (
-    <Modal transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
-        <View style={styles.detailModalContainer}>
-          <TouchableOpacity activeOpacity={1}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => cur.poster_url && setPosterFullscreen(true)} activeOpacity={0.85}>
-              {cur.poster_url ? <Image source={{ uri: cur.poster_url }} style={styles.modalPoster} /> : <View style={styles.modalPosterPlaceholder}><Text style={{ color: '#ffffff22', fontSize: 24 }}>?</Text></View>}
+    <Modal animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+        <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+
+          {/* ── Media hero ── */}
+          <View style={{ height: HEADER_H, overflow: 'hidden', backgroundColor: '#111' }}>
+            {youtubeId ? (
+              <YoutubeIframe
+                height={HEADER_H}
+                width={SCREEN_W}
+                videoId={youtubeId}
+                play
+                mute
+                initialPlayerParams={{ preventFullScreen: true, rel: 0 }}
+              />
+            ) : cur.poster_url ? (
+              <Image source={{ uri: cur.poster_url }} style={{ width: SCREEN_W, height: HEADER_H }} resizeMode="cover" />
+            ) : (
+              <View style={{ width: SCREEN_W, height: HEADER_H, backgroundColor: '#111' }} />
+            )}
+
+            {/* Gradient — poster mode only */}
+            {!youtubeId && <>
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 90, backgroundColor: 'rgba(0,0,0,0.38)' }} />
+              <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HEADER_H * 0.68, backgroundColor: 'rgba(0,0,0,0.7)' }} />
+            </>}
+
+            {/* Close button */}
+            <TouchableOpacity
+              style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', zIndex: 20 }}
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>✕</Text>
             </TouchableOpacity>
-            <Modal visible={posterFullscreen} transparent animationType="fade" onRequestClose={() => setPosterFullscreen(false)}>
-              <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setPosterFullscreen(false)} activeOpacity={1}>
-                <Image source={{ uri: cur.poster_url }} style={{ width: '90%', height: '80%', borderRadius: 16 }} resizeMode="contain" />
+
+            {/* Back button */}
+            {itemStack.length > 1 && (
+              <TouchableOpacity
+                style={{ position: 'absolute', top: 16, left: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', zIndex: 20 }}
+                onPress={() => setItemStack(prev => prev.slice(0, -1))}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <ChevronLeft size={20} color="#fff" strokeWidth={2.5} />
               </TouchableOpacity>
-            </Modal>
-              <View style={styles.modalHeaderInfo}>
-                <Text style={styles.modalTitle} numberOfLines={2}>{cur.original_language === 'tr' && cur.title_tr ? cur.title_tr : cur.title}</Text>
-                {cur.original_title && cur.original_title !== cur.title && cur.original_language !== 'tr' && <Text style={styles.modalOriginalTitle}>{cur.original_title}</Text>}
-                <Text style={styles.modalMeta}>{typeLabel}{langLabel ? ' · ' + langLabel : ''}</Text>
-                {cur.year && <Text style={styles.modalMeta}>{cur.year}</Text>}
-                <View style={styles.modalImdbRow}>
-                  <View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View>
-                  <Text style={styles.imdbScoreLarge}>{cur.imdb_score ? cur.imdb_score.toFixed(1) : 'N/A'}</Text>
-                </View>
-                {cur.availability && cur.availability.length > 0 && (
-                  <View style={styles.modalPlatformRow}>
-                    {cur.availability.map(a => {
-                      const p = PLATFORMS.find(x => x.slug === a.platform_slug);
-                      if (!p) return null;
-                      return (
-                        <TouchableOpacity key={a.platform_slug} style={[styles.modalPlatformBtn, { backgroundColor: p.color }]} onPress={() => openPlatformUrl(a.platform_slug, a.platform_url)} disabled={!a.platform_url}>
-                          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>{p.name}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
+            )}
+
+            {/* Platform badges — top-right column (poster mode) */}
+            {!youtubeId && cur.availability?.length > 0 && (
+              <View style={{ position: 'absolute', top: 60, right: 16, flexDirection: 'column', gap: 6, zIndex: 20 }}>
+                {cur.availability.map(a => {
+                  const p = PLATFORMS.find(x => x.slug === a.platform_slug);
+                  if (!p) return null;
+                  return (
+                    <TouchableOpacity key={a.platform_slug}
+                      style={{ backgroundColor: p.color, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}
+                      onPress={() => openPlatformUrl(a.platform_slug, a.platform_url)}
+                      disabled={!a.platform_url}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>{p.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
+            )}
+
+            {/* Title + meta — bottom-left overlay (poster mode) */}
+            {!youtubeId && (
+              <View style={{ position: 'absolute', bottom: 20, left: 20, right: 110, zIndex: 10 }}>
+                <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900', letterSpacing: -0.5, marginBottom: 7, lineHeight: 32, textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 8 }} numberOfLines={3}>
+                  {title}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13 }}>{metaParts.join(' · ')}</Text>
+                  {cur.imdb_score != null && <ImdbBadgeInline />}
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* Title block below YouTube player */}
+          {youtubeId && (
+            <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 14 }}>
+              <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900', letterSpacing: -0.5, marginBottom: 8, lineHeight: 32 }} numberOfLines={3}>
+                {title}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>{metaParts.join(' · ')}</Text>
+                {cur.imdb_score != null && <ImdbBadgeInline />}
+              </View>
+              {cur.availability?.length > 0 && (
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                  {cur.availability.map(a => {
+                    const p = PLATFORMS.find(x => x.slug === a.platform_slug);
+                    if (!p) return null;
+                    return (
+                      <TouchableOpacity key={a.platform_slug}
+                        style={{ backgroundColor: p.color, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 }}
+                        onPress={() => openPlatformUrl(a.platform_slug, a.platform_url)}
+                        disabled={!a.platform_url}
+                      >
+                        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>{p.name}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
             </View>
-            {cur.tagline ? <Text style={styles.modalTagline}>"{cur.tagline}"</Text> : null}
-            {cur.director ? <Text style={styles.modalDetail}>🎬 <Text style={styles.modalDetailLabel}>Yönetmen: </Text>{cur.director}</Text> : null}
-            {cur.cast_list ? <Text style={styles.modalDetail}>👥 <Text style={styles.modalDetailLabel}>Oyuncular: </Text>{cur.cast_list}</Text> : null}
-            {cur.synopsis_tr ? (<><Text style={styles.modalSynopsisTitle}>Konu</Text><Text style={styles.modalSynopsis}>{cur.synopsis_tr}</Text></>) : null}
-            <WatchlistButton item={cur} user={user} style={{ marginHorizontal: 0, marginBottom: 12 }} />
-            <View style={styles.modalButtons}>
-              {cur.trailer_url && <TouchableOpacity style={styles.trailerBtn} onPress={() => Linking.openURL(cur.trailer_url)}><Text style={styles.trailerBtnText}>▶ Fragman</Text></TouchableOpacity>}
-              {cur.imdb_id && <TouchableOpacity style={styles.imdbLinkBtn} onPress={() => Linking.openURL('https://www.imdb.com/title/' + cur.imdb_id + '/')}><View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View><Text style={styles.imdbLinkText}>↗ imdb.com</Text></TouchableOpacity>}
-              {itemStack.length > 1 && <TouchableOpacity style={styles.closeBtn} onPress={() => setItemStack(prev => prev.slice(0,-1))}><Text style={styles.closeBtnText}>← Geri</Text></TouchableOpacity>}
-              <TouchableOpacity style={styles.closeBtn} onPress={onClose}><Text style={styles.closeBtnText}>✕ Kapat</Text></TouchableOpacity>
-            </View>
+          )}
+
+          {/* Separator */}
+          <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginHorizontal: 20 }} />
+
+          {/* ── Scrollable content ── */}
+          <View style={{ padding: 20 }}>
+
+            {/* Tagline */}
+            {cur.tagline ? (
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontStyle: 'italic', marginBottom: 20, paddingLeft: 14, borderLeftWidth: 2, borderLeftColor: 'rgba(255,255,255,0.2)', lineHeight: 20 }}>
+                "{cur.tagline}"
+              </Text>
+            ) : null}
+
+            {/* Watchlist — primary full-width */}
+            <WatchlistButton item={cur} user={user} modalVariant style={{ marginBottom: 12 }} />
+
+            {/* Trailer open (when trailer_url is not YouTube) */}
+            {cur.trailer_url && !youtubeId && (
+              <TouchableOpacity
+                style={{ borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.28)', borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginBottom: 10 }}
+                onPress={() => Linking.openURL(cur.trailer_url)}
+              >
+                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>▶  Fragman İzle</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* IMDb link */}
+            {cur.imdb_id && (
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginBottom: 20 }}
+                onPress={() => Linking.openURL('https://www.imdb.com/title/' + cur.imdb_id + '/')}
+              >
+                <View style={{ backgroundColor: '#F5C518', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                  <Text style={{ color: '#000', fontSize: 10, fontWeight: '900' }}>IMDb</Text>
+                </View>
+                <Text style={{ color: '#F5C518', fontSize: 13, fontWeight: '600' }}>↗ imdb.com'da görüntüle</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Synopsis */}
+            {cur.synopsis_tr ? (
+              <View style={{ marginBottom: 22 }}>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '700', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.9 }}>Konu</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 15, lineHeight: 24 }}>{cur.synopsis_tr}</Text>
+              </View>
+            ) : null}
+
+            {/* Director */}
+            {cur.director ? (
+              <View style={{ marginBottom: 14 }}>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.9 }}>Yönetmen</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.82)', fontSize: 14, lineHeight: 20 }}>{cur.director}</Text>
+              </View>
+            ) : null}
+
+            {/* Cast */}
+            {cur.cast_list ? (
+              <View style={{ marginBottom: 26 }}>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.9 }}>Oyuncular</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.82)', fontSize: 14, lineHeight: 20 }}>{cur.cast_list}</Text>
+              </View>
+            ) : null}
+
+            {/* Similar items */}
             {similarItems.length > 0 && (
-              <View style={styles.similarSection}>
-                <Text style={styles.similarTitle}>Benzer İçerikler</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 8 }}>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '700', marginBottom: 14, textTransform: 'uppercase', letterSpacing: 1 }}>Benzer İçerikler</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 4 }}>
                   {similarItems.map(s => {
                     const p = PLATFORMS.find(x => x.slug === s.availability?.[0]?.platform_slug);
                     return (
-                      <TouchableOpacity key={s.imdb_id} style={styles.similarCard} onPress={() => { setSimilarItems([]); setItemStack(prev => [...prev, s]); }}>
-                        {s.poster_url ? <Image source={{ uri: s.poster_url }} style={styles.similarPoster} resizeMode="cover" /> : <View style={[styles.similarPoster, { backgroundColor: SURFACE }]} />}
-                        <Text style={styles.similarCardTitle} numberOfLines={2}>{s.original_language === 'tr' && s.title_tr ? s.title_tr : s.title}</Text>
+                      <TouchableOpacity key={s.imdb_id} style={{ width: 96 }}
+                        onPress={() => { setSimilarItems([]); setItemStack(prev => [...prev, s]); }}>
+                        {s.poster_url
+                          ? <Image source={{ uri: s.poster_url }} style={{ width: 96, height: 140, borderRadius: 12, marginBottom: 6 }} resizeMode="cover" />
+                          : <View style={{ width: 96, height: 140, borderRadius: 12, backgroundColor: SURFACE, marginBottom: 6 }} />}
+                        <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginBottom: 4, lineHeight: 15 }} numberOfLines={2}>
+                          {s.original_language === 'tr' && s.title_tr ? s.title_tr : s.title}
+                        </Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                           <View style={styles.imdbBadge}><Text style={styles.imdbBadgeText}>IMDb</Text></View>
-                          <Text style={styles.similarScore}>{s.imdb_score?.toFixed(1)}</Text>
+                          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{s.imdb_score?.toFixed(1)}</Text>
                           {p && <View style={[styles.similarPlatformDot, { backgroundColor: p.color }]} />}
                         </View>
                       </TouchableOpacity>
@@ -524,9 +670,9 @@ function DetailModal({ item, onClose, user }) {
                 </ScrollView>
               </View>
             )}
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     </Modal>
   );
 }
