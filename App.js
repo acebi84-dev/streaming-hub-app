@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
 import * as SecureStore from 'expo-secure-store';
+import * as WebBrowser from 'expo-web-browser';
+import * as ExpoLinking from 'expo-linking';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -19,7 +21,6 @@ async function checkForOTAUpdate() {
 
 
 
-// GoogleSignin devre dışı
 import {
   StyleSheet, Text, View, FlatList, TextInput, TouchableOpacity,
   Image, ActivityIndicator, SafeAreaView, StatusBar, ScrollView,
@@ -32,7 +33,6 @@ import ReAnimated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, r
 import { supabase, supabasePublic, getStoredToken, setStoredToken } from './supabase';
 import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Play, Star, Share2, Trash2 } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
-const GoogleSignin = null;
 // import * as AppleAuthentication from 'expo-apple-authentication';
 // AdMob devre dışı
 
@@ -2064,7 +2064,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
         <View>
           <Text style={{ color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: 3 }}>İZLİO</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v16</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v17</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
@@ -2820,20 +2820,29 @@ function AuthScreen({ onAuth }) {
   }
 
   async function handleGoogle() {
-    if (!GoogleSignin || Platform.OS === 'web') { setError('Google giriş sadece mobilde çalışır'); return; }
+    if (Platform.OS === 'web') { setError('Google giriş sadece mobilde çalışır'); return; }
     setLoading(true); setError('');
     try {
-      await GoogleSignin.hasPlayServices();
-      const userInfo = await GoogleSignin.signIn();
-      const idToken = userInfo.data?.idToken || userInfo.idToken;
-      const { data, error } = await supabase.auth.signInWithIdToken({
+      const redirectTo = ExpoLinking.createURL('/auth-callback');
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        token: idToken,
+        options: { redirectTo, skipBrowserRedirect: true },
       });
-      if (error) setError(error.message);
-      else if (data?.user) onAuth(data.user);
+      if (error) { setError(error.message); setLoading(false); return; }
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      if (result.type !== 'success' || !result.url) { setLoading(false); return; }
+
+      const params = new URLSearchParams(result.url.split('#')[1] || result.url.split('?')[1] || '');
+      const access_token = params.get('access_token');
+      const refresh_token = params.get('refresh_token');
+      if (!access_token || !refresh_token) { setError('Google girişi tamamlanamadı'); setLoading(false); return; }
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({ access_token, refresh_token });
+      if (sessionError) setError(sessionError.message);
+      else if (sessionData?.user) onAuth(sessionData.user);
     } catch(e) {
-      if (e.code !== '-5') setError(e.message || 'Google giriş başarısız');
+      setError(e.message || 'Google giriş başarısız');
     }
     setLoading(false);
   }
