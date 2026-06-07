@@ -32,7 +32,7 @@ import YoutubeIframe from 'react-native-youtube-iframe';
 import { Linking, Share, AppState } from 'react-native';
 import ReAnimated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
 import { supabase, supabasePublic, getStoredToken, setStoredToken } from './supabase';
-import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Check, Play, Star, Share2, Trash2, Users, Search, UserPlus, UserMinus, Settings } from 'lucide-react-native';
+import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Check, Play, Star, Share2, Trash2, Users, Search, UserPlus, UserMinus, Settings, ChevronDown } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 // import * as AppleAuthentication from 'expo-apple-authentication';
 // AdMob devre dışı
@@ -2829,10 +2829,10 @@ function OnboardingScreen({ user, onComplete }) {
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
 
         {step === 0 && (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
-            <Image source={require('./assets/images/logo.png')} style={{ width: 90, height: 90, borderRadius: 22, marginBottom: 24 }} resizeMode="contain" />
-            <Text style={{ color: '#fff', fontSize: 32, fontWeight: '800', letterSpacing: 0.5, marginBottom: 12 }}>İzlio'ya Hoş Geldin</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, textAlign: 'center', lineHeight: 24 }}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: 8 }}>
+            <Image source={require('./assets/images/logo.png')} style={{ width: 100, height: 100, borderRadius: 24, marginBottom: 28 }} resizeMode="contain" />
+            <Text style={{ color: '#fff', fontSize: 32, fontWeight: '800', letterSpacing: 0.5, marginBottom: 14, textAlign: 'center' }}>İzlio'ya Hoş Geldin</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 16, textAlign: 'center', lineHeight: 24 }}>
               Sana özel içerik keşfi için birkaç saniyeni al.
             </Text>
           </View>
@@ -2842,12 +2842,12 @@ function OnboardingScreen({ user, onComplete }) {
           <View style={{ paddingTop: 32 }}>
             <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', marginBottom: 6 }}>Platformlarını Seç</Text>
             <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, marginBottom: 28 }}>Hangi platformlara aboneliğin var?</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14 }}>
               {PLATFORMS.map(p => {
                 const sel = selPlatforms.includes(p.slug);
                 return (
                   <TouchableOpacity key={p.slug}
-                    style={{ width: '47%', aspectRatio: 2.2, borderRadius: 14, backgroundColor: sel ? p.color : 'rgba(255,255,255,0.07)', borderWidth: 2, borderColor: sel ? p.color : 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}
+                    style={{ width: '47%', aspectRatio: 2.3, borderRadius: 16, backgroundColor: sel ? p.color : 'rgba(255,255,255,0.06)', borderWidth: 1.5, borderColor: sel ? p.color : 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}
                     onPress={() => togglePlatform(p.slug)}>
                     <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>{p.name}</Text>
                     {sel && <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 2 }}>✓ Seçildi</Text>}
@@ -2886,7 +2886,7 @@ function OnboardingScreen({ user, onComplete }) {
                 const sel = selLanguages.includes(l.code);
                 return (
                   <TouchableOpacity key={l.code}
-                    style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, backgroundColor: sel ? '#64d2ff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: sel ? '#64d2ff' : 'rgba(255,255,255,0.12)' }}
+                    style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, backgroundColor: sel ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: sel ? '#fff' : 'rgba(255,255,255,0.12)' }}
                     onPress={() => toggleLanguage(l.code)}>
                     <Text style={{ color: sel ? '#000' : '#fff', fontWeight: sel ? '700' : '500', fontSize: 14 }}>{l.emoji} {l.label}</Text>
                   </TouchableOpacity>
@@ -2935,7 +2935,7 @@ function OnboardingScreen({ user, onComplete }) {
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   {[['male','Erkek'],['female','Kadın'],['other','Diğer']].map(([val, label]) => (
                     <TouchableOpacity key={val}
-                      style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: gender === val ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: gender === val ? '#fff' : 'rgba(255,255,255,0.12)', alignItems: 'center' }}
+                      style={{ flex: 1, paddingVertical: 12, borderRadius: 20, backgroundColor: gender === val ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: gender === val ? '#fff' : 'rgba(255,255,255,0.12)', alignItems: 'center' }}
                       onPress={() => setGender(prev => prev === val ? '' : val)}>
                       <Text style={{ color: gender === val ? '#000' : '#fff', fontWeight: '600', fontSize: 14 }}>{label}</Text>
                     </TouchableOpacity>
@@ -3050,14 +3050,16 @@ function BirthDatePicker({ value, onChange }) {
 // ── Profile Modal ──────────────────────────────────────────────
 function AccordionSection({ title, isOpen, onToggle, children }) {
   return (
-    <View style={{ borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+    <View style={{ borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
       <TouchableOpacity
-        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14 }}
+        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 16 }}
         onPress={onToggle}
         activeOpacity={0.7}
       >
         <Text style={{ flex: 1, color: '#fff', fontSize: 15, fontWeight: '700' }}>{title}</Text>
-        <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '300' }}>{isOpen ? '∧' : '∨'}</Text>
+        <View style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}>
+          <ChevronDown size={18} color="rgba(255,255,255,0.4)" strokeWidth={2} />
+        </View>
       </TouchableOpacity>
       {isOpen && (
         <View style={{ paddingHorizontal: 18, paddingBottom: 18, gap: 12 }}>
@@ -3173,7 +3175,7 @@ function SettingsModal({ visible, user, selectedPlatforms, onClose, onSave, onSi
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#111' }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' }}>
           <Text style={{ flex: 1, color: '#fff', fontSize: 20, fontWeight: '800' }}>Profil Ayarları</Text>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -3224,7 +3226,7 @@ function SettingsModal({ visible, user, selectedPlatforms, onClose, onSave, onSi
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {[['male','Erkek'],['female','Kadın'],['other','Diğer']].map(([val, label]) => (
                 <TouchableOpacity key={val}
-                  style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: editGender === val ? '#fff' : 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: editGender === val ? '#fff' : 'rgba(255,255,255,0.1)', alignItems: 'center' }}
+                  style={{ flex: 1, paddingVertical: 10, borderRadius: 20, backgroundColor: editGender === val ? '#fff' : 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: editGender === val ? '#fff' : 'rgba(255,255,255,0.1)', alignItems: 'center' }}
                   onPress={() => setEditGender(prev => prev === val ? '' : val)}>
                   <Text style={{ color: editGender === val ? '#000' : 'rgba(255,255,255,0.7)', fontWeight: '600', fontSize: 13 }}>{label}</Text>
                 </TouchableOpacity>
@@ -3291,7 +3293,7 @@ function SettingsModal({ visible, user, selectedPlatforms, onClose, onSave, onSi
                 const sel = selLanguages.includes(l.code);
                 return (
                   <TouchableOpacity key={l.code}
-                    style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: sel ? '#64d2ff' : 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: sel ? '#64d2ff' : 'rgba(255,255,255,0.1)' }}
+                    style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: sel ? '#fff' : 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: sel ? '#fff' : 'rgba(255,255,255,0.1)' }}
                     onPress={() => toggleLanguage(l.code)}>
                     <Text style={{ color: sel ? '#000' : 'rgba(255,255,255,0.75)', fontWeight: sel ? '700' : '500', fontSize: 13 }}>{l.emoji} {l.label}</Text>
                   </TouchableOpacity>
@@ -3330,7 +3332,7 @@ function SettingsModal({ visible, user, selectedPlatforms, onClose, onSave, onSi
 }
 
 const pmStyles = StyleSheet.create({
-  inputRow: { backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  inputRow: { backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   input: { color: '#fff', fontSize: 15 },
   saveBtn: { backgroundColor: '#fff', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
   saveBtnText: { color: '#000', fontSize: 16, fontWeight: '800' },
@@ -3652,9 +3654,9 @@ function AuthScreen({ onAuth }) {
 
 const authStyles = StyleSheet.create({
   container: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 20, paddingBottom: 40, justifyContent: 'center' },
-  logoWrap: { alignItems: 'center', marginBottom: 40 },
-  logo: { width: 220, height: 110, marginBottom: 10 },
-  subtitle: { color: 'rgba(255,255,255,0.45)', fontSize: 15, marginTop: 4 },
+  logoWrap: { alignItems: 'center', marginBottom: 48 },
+  logo: { width: 220, height: 110, marginBottom: 14 },
+  subtitle: { color: 'rgba(255,255,255,0.45)', fontSize: 15, marginTop: 6 },
   socialWrap: { gap: 12, marginBottom: 24 },
   googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 14, paddingVertical: 15 },
   googleText: { fontSize: 16, fontWeight: '600', color: '#111', letterSpacing: 0.2 },
