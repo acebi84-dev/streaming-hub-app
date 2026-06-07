@@ -528,7 +528,7 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
       const ids = Array.isArray(data) ? data.map(r => r.follower_id) : [];
       if (isMounted.current) setFollowerCount(ids.length);
       if (!ids.length) { if (isMounted.current) setFollowers([]); return; }
-      const { data: profs } = await dbXHR('profiles?id=in.(' + ids.join(',') + ')&select=id,username,display_name&order=display_name.asc');
+      const { data: profs } = await dbXHR('public_profiles?id=in.(' + ids.join(',') + ')&select=id,username,display_name&order=display_name.asc');
       if (isMounted.current) setFollowers(Array.isArray(profs) ? profs : []);
     } finally {
       if (isMounted.current) setLoadingFollowers(false);
@@ -539,7 +539,7 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
     if (isMounted.current) setLoadingFollowing(true);
     try {
       if (!ids || ids.length === 0) { if (isMounted.current) setFollowing([]); return; }
-      const { data } = await dbXHR('profiles?id=in.(' + ids.join(',') + ')&select=id,username,display_name&order=display_name.asc');
+      const { data } = await dbXHR('public_profiles?id=in.(' + ids.join(',') + ')&select=id,username,display_name&order=display_name.asc');
       if (isMounted.current) setFollowing(Array.isArray(data) ? data : []);
     } finally {
       if (isMounted.current) setLoadingFollowing(false);
@@ -555,7 +555,7 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
       const rows = Array.isArray(data) ? data : [];
       const actorIds = [...new Set(rows.map(r => r.user_id))];
       if (actorIds.length > 0) {
-        const { data: profs } = await dbXHR('profiles?id=in.(' + actorIds.join(',') + ')&select=id,username,display_name');
+        const { data: profs } = await dbXHR('public_profiles?id=in.(' + actorIds.join(',') + ')&select=id,username,display_name');
         const map = {};
         (Array.isArray(profs) ? profs : []).forEach(p => { map[p.id] = p; });
         if (isMounted.current) setActorMap(map);
@@ -571,7 +571,7 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
     if (!term) { setSearchResults([]); setSearching(false); return; }
     setSearching(true);
     try {
-      const { data } = await dbXHR('profiles?username=ilike.*' + term + '*&id=neq.' + user.id + '&select=id,username,display_name&limit=20');
+      const { data } = await dbXHR('public_profiles?username=ilike.*' + term + '*&id=neq.' + user.id + '&select=id,username,display_name&limit=20');
       if (isMounted.current) setSearchResults(Array.isArray(data) ? data : []);
     } finally {
       if (isMounted.current) setSearching(false);
@@ -2283,7 +2283,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
       const actorIds = [...new Set(rows.map(r => r.user_id))];
       let actorMap = {};
       if (actorIds.length > 0) {
-        const { data: profs } = await dbXHR('profiles?id=in.(' + actorIds.join(',') + ')&select=id,username,display_name');
+        const { data: profs } = await dbXHR('public_profiles?id=in.(' + actorIds.join(',') + ')&select=id,username,display_name');
         (Array.isArray(profs) ? profs : []).forEach(p => { actorMap[p.id] = p; });
       }
       const seen = new Set();
