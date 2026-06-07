@@ -615,18 +615,37 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
   async function fetchFeed(ids) {
     if (isMounted.current) setLoadingFeed(true);
     try {
-      if (!ids || ids.length === 0) { if (isMounted.current) setFeed([]); return; }
       const sel = 'select=*,content:hub_contents(id,title,title_tr,type,year,imdb_score,poster_url,original_language)';
-      const { data } = await dbXHR('activity_feed?user_id=in.(' + ids.join(',') + ')&order=created_at.desc&limit=50&' + sel);
-      const rows = Array.isArray(data) ? data : [];
-      const actorIds = [...new Set(rows.map(r => r.user_id))];
-      if (actorIds.length > 0) {
-        const { data: profs } = await dbXHR('public_profiles?id=in.(' + actorIds.join(',') + ')&select=id,username,display_name');
+      let activityRows = [];
+      if (ids && ids.length > 0) {
+        // Takibe başladığım zamanlar — sadece takipten SONRAKİ aktiviteleri göster
+        const { data: myFollows } = await dbXHR('follows?follower_id=eq.' + user.id + '&select=following_id,created_at');
+        const followStart = {};
+        (Array.isArray(myFollows) ? myFollows : []).forEach(f => { followStart[f.following_id] = f.created_at; });
+        const { data } = await dbXHR('activity_feed?user_id=in.(' + ids.join(',') + ')&order=created_at.desc&limit=50&' + sel);
+        activityRows = (Array.isArray(data) ? data : [])
+          .filter(r => { const since = followStart[r.user_id]; return since && new Date(r.created_at) >= new Date(since); })
+          .map(r => ({ ...r, _kind: 'activity' }));
+      }
+      // Beni takip edenler -> akışta "seni takip etti"
+      const { data: followsData } = await dbXHR('follows?following_id=eq.' + user.id + '&order=created_at.desc&limit=30&select=follower_id,created_at');
+      const followRows = (Array.isArray(followsData) ? followsData : []).map(f => ({
+        id: 'follow-' + f.follower_id + '-' + f.created_at,
+        _kind: 'follow',
+        user_id: f.follower_id,
+        created_at: f.created_at,
+      }));
+      const merged = [...activityRows, ...followRows]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 60);
+      const allIds = [...new Set(merged.map(r => r.user_id))];
+      if (allIds.length > 0) {
+        const { data: profs } = await dbXHR('public_profiles?id=in.(' + allIds.join(',') + ')&select=id,username,display_name');
         const map = {};
         (Array.isArray(profs) ? profs : []).forEach(p => { map[p.id] = p; });
         if (isMounted.current) setActorMap(map);
       }
-      if (isMounted.current) setFeed(rows);
+      if (isMounted.current) setFeed(merged);
     } finally {
       if (isMounted.current) setLoadingFeed(false);
     }
@@ -766,25 +785,24 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
               if (!c) return null;
               return (
                 <TouchableOpacity style={{ width: gridItemWidth }} onPress={() => onItemPress(c)}>
-                  <View>
-                    {c.poster_url ? (
-                      <Image source={{ uri: c.poster_url }} style={{ width: gridItemWidth, height: gridItemHeight, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)' }} resizeMode="cover" />
-                    ) : (
-                      <View style={{ width: gridItemWidth, height: gridItemHeight, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' }}>
-                        <Film size={26} color="rgba(255,255,255,0.3)" />
-                      </View>
-                    )}
-                    {row.review ? (
-                      <View style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.6)', borderWidth: 1, borderColor: 'rgba(116,192,252,0.7)', alignItems: 'center', justifyContent: 'center' }}>
-                        <MessageSquare size={12} color="#74c0fc" strokeWidth={2.4} />
-                      </View>
-                    ) : null}
-                  </View>
+                  {c.poster_url ? (
+                    <Image source={{ uri: c.poster_url }} style={{ width: gridItemWidth, height: gridItemHeight, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)' }} resizeMode="cover" />
+                  ) : (
+                    <View style={{ width: gridItemWidth, height: gridItemHeight, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Film size={26} color="rgba(255,255,255,0.3)" />
+                    </View>
+                  )}
                   <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 8 }} numberOfLines={1}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
                     <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>{c.year || (c.type === 'movie' ? 'Film' : 'Dizi')}</Text>
                     {row.rating ? <Text style={{ color: '#ffd43b', fontSize: 12, fontWeight: '700' }}>· ★ {row.rating}</Text> : null}
                   </View>
+                  {row.review ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6, backgroundColor: 'rgba(116,192,252,0.12)', alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
+                      <MessageSquare size={15} color="#74c0fc" strokeWidth={2.2} />
+                      <Text style={{ color: '#74c0fc', fontSize: 11.5, fontWeight: '700' }}>Değerlendirdin</Text>
+                    </View>
+                  ) : null}
                 </TouchableOpacity>
               );
             }}
@@ -814,10 +832,32 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
             keyExtractor={r => r.id}
             contentContainerStyle={{ padding: 16, gap: 12 }}
             renderItem={({ item: row }) => {
-              const c = row.content;
-              if (!c) return null;
               const actor = actorMap[row.user_id];
               const actorName = actor?.display_name || (actor?.username ? '@' + actor.username : 'Bir kullanıcı');
+              if (row._kind === 'follow') {
+                const followsBack = followingIds.includes(row.user_id);
+                return (
+                  <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 12 }}>
+                    <Avatar seed={row.user_id} name={actor?.display_name || actor?.username || '?'} size={44} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5 }} numberOfLines={2}>
+                        <Text style={{ color: '#fff', fontWeight: '700' }}>{actorName}</Text> seni takip etti
+                      </Text>
+                      <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600', marginTop: 2 }}>{timeAgo(row.created_at)}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => toggleFollow(row.user_id)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: followsBack ? 'rgba(255,255,255,0.08)' : '#fff', borderWidth: 1, borderColor: followsBack ? 'rgba(255,255,255,0.15)' : '#fff' }}>
+                      {followsBack
+                        ? <UserMinus size={14} color="rgba(255,255,255,0.7)" strokeWidth={2} />
+                        : <UserPlus size={14} color="#000" strokeWidth={2} />}
+                      <Text style={{ color: followsBack ? 'rgba(255,255,255,0.7)' : '#000', fontSize: 12.5, fontWeight: '700' }}>{followsBack ? 'Takiptesin' : 'Geri Takip Et'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              }
+              const c = row.content;
+              if (!c) return null;
               return (
                 <TouchableOpacity style={{ flexDirection: 'row', gap: 12, alignItems: row.review ? 'flex-start' : 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 10 }} onPress={() => onItemPress(c)}>
                   {c.poster_url ? <Image source={{ uri: c.poster_url }} style={{ width: 52, height: 78, borderRadius: 8 }} resizeMode="cover" /> : <View style={{ width: 52, height: 78, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' }} />}
@@ -969,10 +1009,25 @@ function DetailModal({ item, onClose, user }) {
   const HEADER_H = Math.round(SCREEN_H * 0.45);
 
   const [navStack, setNavStack] = React.useState([]);
-  const cur = navStack.length > 0 ? navStack[navStack.length - 1] : item;
+  const base = navStack.length > 0 ? navStack[navStack.length - 1] : item;
+  const [hydrated, setHydrated] = React.useState(null);
+  const cur = (hydrated && hydrated.id === base.id) ? { ...base, ...hydrated } : base;
   const [similarItems, setSimilarItems] = React.useState([]);
   const [reviews, setReviews] = React.useState([]);
   const [loadingReviews, setLoadingReviews] = React.useState(false);
+
+  // Feed gibi eksik alanlı içerikler açıldığında tam veriyi çek
+  React.useEffect(() => {
+    if (base && base.id && base.cast_list === undefined) fetchFullContent(base.id);
+  }, [base.id]);
+
+  async function fetchFullContent(id) {
+    try {
+      const { data } = await dbXHR('hub_contents?id=eq.' + id + '&select=id,title,title_tr,type,year,imdb_score,imdb_id,poster_url,original_language,synopsis_tr,director,cast_list,trailer_url,tagline,availability:hub_availability(platform_slug,platform_url)');
+      const row = Array.isArray(data) ? data[0] : null;
+      if (row) setHydrated(row);
+    } catch (_) {}
+  }
 
   const videoH = Math.round(SCREEN_W * 9 / 16);
 
