@@ -2075,7 +2075,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
         <View>
           <Text style={{ color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: 3 }}>İZLİO</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v22</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v23</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
@@ -2875,7 +2875,13 @@ function AuthScreen({ onAuth }) {
       const params = new URLSearchParams(result.url.split('#')[1] || result.url.split('?')[1] || '');
       const access_token = params.get('access_token');
       const refresh_token = params.get('refresh_token');
-      if (!access_token || !refresh_token) { setError('Apple girişi tamamlanamadı'); setLoading(false); return; }
+      if (!access_token || !refresh_token) {
+        const oauthError = params.get('error_description') || params.get('error');
+        console.warn('Apple OAuth redirect URL:', result.url);
+        setError(oauthError ? `Apple girişi: ${oauthError}` : 'Apple girişi tamamlanamadı');
+        setLoading(false);
+        return;
+      }
 
       const { data: sessionData, error: sessionError } = await supabase.auth.setSession({ access_token, refresh_token });
       if (sessionError) setError(sessionError.message);
