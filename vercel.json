@@ -4,7 +4,8 @@
   "rewrites": [
     { "source": "/.well-known/apple-app-site-association", "destination": "/.well-known/apple-app-site-association" },
     { "source": "/c/:id", "destination": "/api/c?id=:id" },
-    { "source": "/((?!\\.well-known|api|c/).*)", "destination": "/index.html" }
+    { "source": "/u/:username", "destination": "/api/u?username=:username" },
+    { "source": "/((?!\\.well-known|api|c/|u/).*)", "destination": "/index.html" }
   ],
   "headers": [
     {

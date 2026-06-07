@@ -730,6 +730,13 @@ function WatchlistScreen({ user, onItemPress, onBack, targetUser, onOpenProfile 
   ];
 
   const fullName = [profile?.display_name, profile?.surname].filter(Boolean).join(' ') || profile?.username || 'Kullanıcı';
+  const shareUsername = profile?.username || targetUser?.username;
+  function shareProfile() {
+    if (!shareUsername) return;
+    const link = 'https://izlio.app/u/' + shareUsername;
+    const msg = isOwn ? `İzlio'da beni takip et!\n${link}` : `@${shareUsername} — İzlio'da takip et\n${link}`;
+    Share.share({ message: msg });
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
@@ -740,6 +747,12 @@ function WatchlistScreen({ user, onItemPress, onBack, targetUser, onOpenProfile 
         </TouchableOpacity>
         {/* person card */}
         <View style={{ flexDirection: isNarrow ? 'column' : 'row', alignItems: isNarrow ? 'center' : 'center', gap: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 18, padding: 16, marginBottom: 16 }}>
+          {shareUsername ? (
+            <TouchableOpacity onPress={shareProfile} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ position: 'absolute', top: 12, right: 12, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>
+              <Share2 size={16} color="rgba(255,255,255,0.7)" strokeWidth={2} />
+            </TouchableOpacity>
+          ) : null}
           <Avatar seed={profileId} name={profile?.display_name || profile?.username || 'Kullanıcı'} size={isNarrow ? 64 : 72} />
           <View style={{ flex: isNarrow ? undefined : 1, alignItems: isNarrow ? 'center' : 'flex-start', gap: 4, width: isNarrow ? '100%' : undefined }}>
             <Text style={{ color: '#fff', fontSize: 19, fontWeight: '800' }} numberOfLines={1}>{fullName}</Text>
