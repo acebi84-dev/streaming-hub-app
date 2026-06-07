@@ -1054,7 +1054,7 @@ function PlatformModal({ visible, selected, onSave, onClose }) {
   );
 }
 
-function DetailModal({ item, onClose, user }) {
+function DetailModal({ item, onClose, user, onOpenProfile }) {
   if (!item) return null;
 
   const { width: SCREEN_W, height: SCREEN_H } = useWindowDimensions();
@@ -1355,14 +1355,20 @@ function DetailModal({ item, onClose, user }) {
                     return (
                       <View key={r.user_id} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                          <Avatar seed={r.user_id} name={r.profile?.display_name || r.profile?.username || '?'} size={34} />
-                          <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }} numberOfLines={1}>{name}</Text>
-                              {isMe ? <View style={{ backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}><Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '700' }}>Sen</Text></View> : null}
+                          <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}
+                            activeOpacity={(isMe || !onOpenProfile) ? 1 : 0.6}
+                            disabled={isMe || !onOpenProfile}
+                            onPress={() => onOpenProfile?.({ id: r.user_id, username: r.profile?.username, display_name: r.profile?.display_name })}>
+                            <Avatar seed={r.user_id} name={r.profile?.display_name || r.profile?.username || '?'} size={34} />
+                            <View style={{ flex: 1 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }} numberOfLines={1}>{name}</Text>
+                                {isMe ? <View style={{ backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}><Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '700' }}>Sen</Text></View> : null}
+                              </View>
+                              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600', marginTop: 1 }}>{timeAgo(r.created_at)}</Text>
                             </View>
-                            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600', marginTop: 1 }}>{timeAgo(r.created_at)}</Text>
-                          </View>
+                          </TouchableOpacity>
                           {r.rating ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                               <Star size={13} color="#ffd43b" strokeWidth={2} fill="#ffd43b" />
@@ -1425,7 +1431,7 @@ const POPULAR_GENRES = [
 ];
 
 
-function CollectionsScreen({ selectedPlatforms, onBack, user, initialCollectionId }) {
+function CollectionsScreen({ selectedPlatforms, onBack, user, initialCollectionId, onOpenProfile }) {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCollectionId, setActiveCollectionId] = useState(initialCollectionId || null);
@@ -1482,7 +1488,7 @@ function CollectionsScreen({ selectedPlatforms, onBack, user, initialCollectionI
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
+      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} onOpenProfile={(p) => { setSelectedItem(null); onOpenProfile?.(p); }} />
       <View style={[styles.header, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
         {onBack && (
           <TouchableOpacity onPress={onBack} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
@@ -1613,7 +1619,7 @@ function CollectionsScreen({ selectedPlatforms, onBack, user, initialCollectionI
 
 
 
-function NewScreen({ selectedPlatforms, onBack, user }) {
+function NewScreen({ selectedPlatforms, onBack, user, onOpenProfile }) {
   const [items, setItems] = useState({});
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('week');
@@ -1676,7 +1682,7 @@ function NewScreen({ selectedPlatforms, onBack, user }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
+      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} onOpenProfile={(p) => { setSelectedItem(null); onOpenProfile?.(p); }} />
       <View style={[styles.popularHeader, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
         {onBack && (
           <TouchableOpacity onPress={onBack} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
@@ -1794,7 +1800,7 @@ function NewScreen({ selectedPlatforms, onBack, user }) {
   );
 }
 
-function PopularScreen({ selectedPlatforms, onBack, user }) {
+function PopularScreen({ selectedPlatforms, onBack, user, onOpenProfile }) {
   const [popular, setPopular] = useState({});
   const [loading, setLoading] = useState(true);
   const isMountedPop = useRef(true);
@@ -1893,7 +1899,7 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
+      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} onOpenProfile={(p) => { setSelectedItem(null); onOpenProfile?.(p); }} />
       <View style={[styles.popularHeader, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
         {onBack && (
           <TouchableOpacity onPress={onBack} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
@@ -2349,7 +2355,7 @@ function PersonalizedHeroSection({ items, scrollY, onPress }) {
 }
 
 // ── DiscoverScreen (Tümünü Gör → Keşfet) ──────────────────────
-function DiscoverScreen({ selectedPlatforms, onBack, user }) {
+function DiscoverScreen({ selectedPlatforms, onBack, user, onOpenProfile }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
@@ -2399,7 +2405,7 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
-      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
+      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} onOpenProfile={(p) => { setSelectedItem(null); onOpenProfile?.(p); }} />
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 }}>
         <TouchableOpacity onPress={onBack} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: '#fff', fontSize: 22, fontWeight: '300', lineHeight: 26 }}>‹</Text>
@@ -2786,10 +2792,10 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
   }
 
   // Tam ekran yönlendirme
-  if (fullScreen === 'discover') return <DiscoverScreen selectedPlatforms={selectedPlatforms} onBack={() => { scrollY.setValue(0); setFullScreen(null); }} user={user} />;
-  if (fullScreen === 'popular') return <PopularScreen selectedPlatforms={selectedPlatforms} onBack={() => { scrollY.setValue(0); setFullScreen(null); }} user={user} />;
-  if (fullScreen === 'new') return <NewScreen selectedPlatforms={selectedPlatforms} onBack={() => { scrollY.setValue(0); setFullScreen(null); }} user={user} />;
-  if (fullScreen === 'collections') return <CollectionsScreen selectedPlatforms={selectedPlatforms} onBack={() => { scrollY.setValue(0); setFullScreen(null); setSelectedCollectionId(null); }} user={user} initialCollectionId={selectedCollectionId} />;
+  if (fullScreen === 'discover') return <DiscoverScreen selectedPlatforms={selectedPlatforms} onBack={() => { scrollY.setValue(0); setFullScreen(null); }} user={user} onOpenProfile={onOpenProfile} />;
+  if (fullScreen === 'popular') return <PopularScreen selectedPlatforms={selectedPlatforms} onBack={() => { scrollY.setValue(0); setFullScreen(null); }} user={user} onOpenProfile={onOpenProfile} />;
+  if (fullScreen === 'new') return <NewScreen selectedPlatforms={selectedPlatforms} onBack={() => { scrollY.setValue(0); setFullScreen(null); }} user={user} onOpenProfile={onOpenProfile} />;
+  if (fullScreen === 'collections') return <CollectionsScreen selectedPlatforms={selectedPlatforms} onBack={() => { scrollY.setValue(0); setFullScreen(null); setSelectedCollectionId(null); }} user={user} initialCollectionId={selectedCollectionId} onOpenProfile={onOpenProfile} />;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -2869,7 +2875,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
         <View style={{ height: 60 }} />
       </Animated.ScrollView>
 
-      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} />
+      <DetailModal key={selectedItem?.id || 'modal'} item={selectedItem} onClose={() => setSelectedItem(null)} user={user} onOpenProfile={(p) => { setSelectedItem(null); onOpenProfile?.(p); }} />
     </View>
   );
 }
@@ -4115,7 +4121,7 @@ export default function App() {
           onBack={() => { setProfileStack(prev => prev.slice(0, -1)); setWatchlistItem(null); }}
           onItemPress={(item) => setWatchlistItem(item)}
         />
-        <DetailModal key={watchlistItem?.id || 'wmodal'} item={watchlistItem} onClose={() => setWatchlistItem(null)} user={user} />
+        <DetailModal key={watchlistItem?.id || 'wmodal'} item={watchlistItem} onClose={() => setWatchlistItem(null)} user={user} onOpenProfile={(p) => { setWatchlistItem(null); openUserProfile(p); }} />
       </>
     );
   }
