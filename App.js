@@ -32,7 +32,7 @@ import YoutubeIframe from 'react-native-youtube-iframe';
 import { Linking, Share, AppState } from 'react-native';
 import ReAnimated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
 import { supabase, supabasePublic, getStoredToken, setStoredToken } from './supabase';
-import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Check, Play, Star, Share2, Trash2, Users, Search, UserPlus, UserMinus, Settings, ChevronDown, MessageSquare } from 'lucide-react-native';
+import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Check, Play, Star, Share2, Trash2, Users, Search, UserPlus, UserMinus, Settings, ChevronDown, MessageSquare, Pencil } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 // import * as AppleAuthentication from 'expo-apple-authentication';
 // AdMob devre dışı
@@ -280,9 +280,9 @@ function suggestUsername(input) {
 function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVariant, compact }) {
   const [entry, setEntry] = useState(initialEntry ?? null);
   const [showMenu, setShowMenu] = useState(false);
-  const [showRating, setShowRating] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [reviewDraft, setReviewDraft] = useState('');
+  const [draftRating, setDraftRating] = useState(null);
   const isMounted = useRef(true);
   useEffect(() => { return () => { isMounted.current = false; }; }, []);
 
@@ -293,33 +293,31 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
     }
   }, [user, item?.id]);
 
+  function openReviewPanel() {
+    setDraftRating(entry?.rating ?? null);
+    setReviewDraft(entry?.review || '');
+    setShowMenu(false);
+    setShowReview(true);
+  }
+
   function setStatus(status) {
     if (!user) return;
     setEntry({ user_id: user.id, content_id: item.id, status, rating: entry?.rating || null, review: entry?.review || null });
     setShowMenu(false);
-    if (status === 'watched') setShowRating(true);
+    if (status === 'watched') openReviewPanel();
     upsertWatchlist(user.id, item.id, status, entry?.rating || null, entry?.review ?? null)
       .then(({ data }) => { if (isMounted.current && data) setEntry(data); onUpdate?.(); })
       .catch(() => {});
   }
 
-  function setRating(rating) {
-    if (!user || !entry) return;
-    const prevStatus = entry.status;
-    setEntry({ ...entry, rating });
-    setShowRating(false);
-    upsertWatchlist(user.id, item.id, prevStatus, rating, entry?.review ?? null)
-      .then(({ data }) => { if (isMounted.current && data) setEntry(data); onUpdate?.(); })
-      .catch(() => {});
-  }
-
-  function saveReview(override) {
+  // Puan + yorum tek panelde — birlikte kaydedilir (aynı upsertWatchlist/logActivity yolu)
+  function saveReviewPanel() {
     if (!user) return;
-    const text = (typeof override === 'string' ? override : reviewDraft).trim();
+    const text = reviewDraft.trim();
     const status = entry?.status || 'watched';
-    setEntry(prev => ({ ...(prev || { user_id: user.id, content_id: item.id }), status, review: text || null }));
+    setEntry(prev => ({ ...(prev || { user_id: user.id, content_id: item.id }), status, rating: draftRating ?? null, review: text || null }));
     setShowReview(false);
-    upsertWatchlist(user.id, item.id, status, entry?.rating ?? null, text || null)
+    upsertWatchlist(user.id, item.id, status, draftRating ?? null, text || null)
       .then(({ data }) => { if (isMounted.current && data) setEntry(data); onUpdate?.(); })
       .catch(() => {});
   }
@@ -359,18 +357,41 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
             {entry ? statusConfig[entry.status]?.label : 'Listeye Ekle'}
           </Text>
         </TouchableOpacity>
+      ) : modalVariant ? (
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {/* Durum */}
+          <TouchableOpacity
+            style={[wlStyles.actionBtn, entry && { backgroundColor: statusConfig[entry.status]?.color + '22', borderColor: statusConfig[entry.status]?.color }]}
+            onPress={() => setShowMenu(true)}>
+            {entry ? React.cloneElement(statusConfig[entry.status]?.icon, { size: 20 }) : <Bookmark size={20} color="rgba(255,255,255,0.7)" strokeWidth={1.8} />}
+            <Text style={[wlStyles.actionLabel, entry && { color: statusConfig[entry.status]?.color }]} numberOfLines={1}>
+              {entry ? statusConfig[entry.status]?.label : 'Listeye Ekle'}
+            </Text>
+          </TouchableOpacity>
+          {/* Değerlendir (puan + yorum) */}
+          <TouchableOpacity style={wlStyles.actionBtn} onPress={openReviewPanel}>
+            <Star size={20} color={entry?.rating ? '#ffd43b' : 'rgba(255,255,255,0.7)'} strokeWidth={1.8} fill={entry?.rating ? '#ffd43b' : 'none'} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={[wlStyles.actionLabel, entry?.rating && { color: '#ffd43b' }]} numberOfLines={1}>
+                {entry?.rating ? `★ ${entry.rating}` : 'Değerlendir'}
+              </Text>
+              {entry?.review ? <Pencil size={12} color="#74c0fc" strokeWidth={2} /> : null}
+            </View>
+          </TouchableOpacity>
+          {/* Paylaş */}
+          <TouchableOpacity style={wlStyles.actionBtn} onPress={share}>
+            <Share2 size={20} color="rgba(255,255,255,0.7)" strokeWidth={1.8} />
+            <Text style={wlStyles.actionLabel} numberOfLines={1}>Paylaş</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
       <TouchableOpacity
-        style={[
-          wlStyles.btn,
-          modalVariant && { paddingVertical: 16, borderRadius: 14, justifyContent: 'center', gap: 10 },
-          entry && { backgroundColor: statusConfig[entry.status]?.color + '22', borderColor: statusConfig[entry.status]?.color },
-        ]}
+        style={[wlStyles.btn, entry && { backgroundColor: statusConfig[entry.status]?.color + '22', borderColor: statusConfig[entry.status]?.color }]}
         onPress={() => setShowMenu(true)}
         hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
       >
-        {entry ? (modalVariant ? React.cloneElement(statusConfig[entry.status]?.icon, { size: 20 }) : statusConfig[entry.status]?.icon) : <Star size={modalVariant ? 18 : 14} color="rgba(255,255,255,0.7)" strokeWidth={2} />}
-        <Text style={[wlStyles.btnText, modalVariant && { fontSize: 15, fontWeight: '700' }, entry && { color: statusConfig[entry.status]?.color }]}>
+        {entry ? statusConfig[entry.status]?.icon : <Star size={14} color="rgba(255,255,255,0.7)" strokeWidth={2} />}
+        <Text style={[wlStyles.btnText, entry && { color: statusConfig[entry.status]?.color }]}>
           {entry ? statusConfig[entry.status]?.label : 'İzleme Listesine Ekle'}
         </Text>
         {entry?.rating && <Text style={[wlStyles.ratingText, { color: statusConfig[entry.status]?.color }]}>★{entry.rating}</Text>}
@@ -391,18 +412,6 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
             ))}
             {entry && <>
               <View style={wlStyles.menuDivider} />
-              <TouchableOpacity style={wlStyles.menuItem} onPress={() => { setShowMenu(false); setShowRating(true); }}>
-                <Star size={20} color="#ffd43b" strokeWidth={2} />
-                <Text style={wlStyles.menuItemText}>Puan Ver {entry.rating ? `(${entry.rating}/10)` : ''}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={wlStyles.menuItem} onPress={() => { setReviewDraft(entry.review || ''); setShowMenu(false); setShowReview(true); }}>
-                <MessageSquare size={20} color="#74c0fc" strokeWidth={2} />
-                <Text style={wlStyles.menuItemText}>{entry.review ? 'Değerlendirmeyi Düzenle' : 'Değerlendirme Bırak'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={wlStyles.menuItem} onPress={share}>
-                <Share2 size={20} color="rgba(255,255,255,0.7)" strokeWidth={2} />
-                <Text style={wlStyles.menuItemText}>Paylaş</Text>
-              </TouchableOpacity>
               <TouchableOpacity style={wlStyles.menuItem} onPress={remove}>
                 <Trash2 size={20} color="#ff6b6b" strokeWidth={2} />
                 <Text style={[wlStyles.menuItemText, { color: '#ff6b6b' }]}>Listeden Çıkar</Text>
@@ -412,54 +421,46 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
         </TouchableOpacity>
       </Modal>
 
-      {/* Rating modal */}
-      <Modal visible={showRating} transparent animationType="fade" onRequestClose={() => setShowRating(false)}>
-        <TouchableOpacity style={wlStyles.menuOverlay} activeOpacity={1} onPress={() => setShowRating(false)}>
-          <View style={wlStyles.ratingBox}>
-            <Text style={wlStyles.menuTitle}>Puan Ver</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 16, textAlign: 'center' }}>{item.title_tr || item.title}</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-              {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                <TouchableOpacity key={n} style={[wlStyles.ratingBtn, entry?.rating === n && { backgroundColor: '#ffd43b', borderColor: '#ffd43b' }]} onPress={() => setRating(n)}>
-                  <Text style={[wlStyles.ratingBtnText, entry?.rating === n && { color: '#000' }]}>{n}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            {entry?.rating && (
-              <TouchableOpacity style={{ marginTop: 16, alignItems: 'center', paddingVertical: 12, paddingHorizontal: 20 }} onPress={() => setRating(null)}>
-                <Text style={{ color: '#ff6b6b', fontSize: 13 }}>Puanı Kaldır</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Review modal */}
+      {/* Puan + Değerlendirme — birleşik panel */}
       <Modal visible={showReview} transparent animationType="fade" onRequestClose={() => setShowReview(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <TouchableOpacity style={wlStyles.menuOverlay} activeOpacity={1} onPress={() => setShowReview(false)}>
             <TouchableOpacity activeOpacity={1} style={wlStyles.reviewBox}>
-              <Text style={wlStyles.menuTitle}>Değerlendirmen</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 16, textAlign: 'center' }}>{item.title_tr || item.title}</Text>
-              <View style={{ backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 14, paddingVertical: 12, minHeight: 110 }}>
+              <Text style={wlStyles.menuTitle}>Değerlendir</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 18, textAlign: 'center' }}>{item.title_tr || item.title}</Text>
+
+              {/* Puan */}
+              <Text style={wlStyles.panelLabel}>Puanın</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+                {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                  <TouchableOpacity key={n} style={[wlStyles.ratingBtn, draftRating === n && { backgroundColor: '#ffd43b', borderColor: '#ffd43b' }]} onPress={() => setDraftRating(n)}>
+                    <Text style={[wlStyles.ratingBtnText, draftRating === n && { color: '#000' }]}>{n}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {draftRating ? (
+                <TouchableOpacity style={{ alignItems: 'center', paddingVertical: 8 }} onPress={() => setDraftRating(null)}>
+                  <Text style={{ color: '#ff6b6b', fontSize: 12.5 }}>Puanı kaldır</Text>
+                </TouchableOpacity>
+              ) : null}
+
+              {/* Yorum */}
+              <Text style={[wlStyles.panelLabel, { marginTop: 12 }]}>Değerlendirmen</Text>
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 14, paddingVertical: 12, minHeight: 100 }}>
                 <TextInput
-                  style={{ color: '#fff', fontSize: 15, minHeight: 86, textAlignVertical: 'top' }}
+                  style={{ color: '#fff', fontSize: 15, minHeight: 76, textAlignVertical: 'top' }}
                   placeholder="Bu içerik hakkında ne düşünüyorsun? Takipçilerin akışında görünür."
                   placeholderTextColor="rgba(255,255,255,0.35)"
                   value={reviewDraft}
                   onChangeText={t => setReviewDraft(t.slice(0, 300))}
-                  multiline numberOfLines={5} maxLength={300} autoFocus
+                  multiline numberOfLines={4} maxLength={300}
                 />
               </View>
               <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginTop: 4, textAlign: 'right' }}>{reviewDraft.length}/300</Text>
-              <TouchableOpacity style={[pmStyles.saveBtn, { marginTop: 12 }]} onPress={() => saveReview()}>
+
+              <TouchableOpacity style={[pmStyles.saveBtn, { marginTop: 10 }]} onPress={saveReviewPanel}>
                 <Text style={pmStyles.saveBtnText}>Kaydet</Text>
               </TouchableOpacity>
-              {entry?.review ? (
-                <TouchableOpacity style={{ marginTop: 8, alignItems: 'center', paddingVertical: 10 }} onPress={() => { setReviewDraft(''); saveReview(''); }}>
-                  <Text style={{ color: '#ff6b6b', fontSize: 13 }}>Değerlendirmeyi Sil</Text>
-                </TouchableOpacity>
-              ) : null}
             </TouchableOpacity>
           </TouchableOpacity>
         </KeyboardAvoidingView>
@@ -471,6 +472,9 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
 const wlStyles = StyleSheet.create({
   btn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
   btnText: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' },
+  actionBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  actionLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 12.5, fontWeight: '700' },
+  panelLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '700', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.6 },
   ratingText: { fontSize: 12, fontWeight: '700', marginLeft: 4 },
   menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   menuBox: { backgroundColor: '#1c1c1e', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
