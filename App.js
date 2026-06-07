@@ -1347,8 +1347,8 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
 const CARD_W = 112;
 const CARD_H = 168;
 const HERO_H = 500;
-// Üstten alta doğru artan opaklık değerleri — ince katmanlar üst üste binince yumuşak bir gradient hissi verir (native modül gerekmez)
-const HERO_GRADIENT_STEPS = [0, 0.04, 0.1, 0.18, 0.28, 0.4, 0.53, 0.66, 0.78, 0.88, 0.95];
+// Üstten alta doğru artan opaklık değerleri — çok sayıda ince katman üst üste binince bant hissi vermeden yumuşak bir gradient oluşturur (native modül gerekmez)
+const HERO_GRADIENT_STEPS = Array.from({ length: 36 }, (_, i) => Math.pow(i / 35, 1.7) * 0.94);
 
 // ── ContentCard (Reanimated scale press) ──────────────────────
 function ContentCard({ item, onPress }) {
