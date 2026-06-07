@@ -212,7 +212,7 @@ async function getWatchlistEntry(userId, contentId) {
   return Array.isArray(data) ? (data[0] || null) : null;
 }
 async function upsertWatchlist(userId, contentId, status, rating) {
-  const { data, error } = await dbXHR('watchlist', 'POST', {
+  const { data, error } = await dbXHR('watchlist?on_conflict=user_id,content_id', 'POST', {
     user_id: userId, content_id: contentId, status,
     rating: rating !== undefined ? rating : null,
     updated_at: new Date().toISOString(),
@@ -2064,7 +2064,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
         <View>
           <Text style={{ color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: 3 }}>İZLİO</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v15</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v16</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
