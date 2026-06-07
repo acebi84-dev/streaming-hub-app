@@ -3,7 +3,8 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/.well-known/apple-app-site-association", "destination": "/.well-known/apple-app-site-association" },
-    { "source": "/((?!\\.well-known).*)", "destination": "/index.html" }
+    { "source": "/c/:id", "destination": "/api/c?id=:id" },
+    { "source": "/((?!\\.well-known|api|c/).*)", "destination": "/index.html" }
   ],
   "headers": [
     {

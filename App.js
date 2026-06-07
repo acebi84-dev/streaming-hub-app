@@ -333,7 +333,7 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
     const title = item.title_tr || item.title;
     const statusLabel = entry?.status === 'watched' ? 'izledim' : entry?.status === 'watching' ? 'izliyorum' : 'izlemek istiyorum';
     const ratingText = entry?.rating ? ` — ${entry.rating}/10 puan verdim` : '';
-    const text = `"${title}" filmini/dizisini ${statusLabel}${ratingText}! 🎬 İzlio ile keşfet.`;
+    const text = `"${title}" filmini/dizisini ${statusLabel}${ratingText}! 🎬 İzlio ile keşfet.\nhttps://izlio.app/c/${item.id}`;
     Share.share({ message: text, title });
     setShowMenu(false);
   }
@@ -1133,15 +1133,23 @@ function DetailModal({ item, onClose, user }) {
                 webViewProps={{ allowsInlineMediaPlayback: true, mediaPlaybackRequiresUserAction: false }}
               />
             ) : cur.poster_url ? (
-              <Image source={{ uri: cur.poster_url }} style={{ width: SCREEN_W, height: HEADER_H }} resizeMode="cover" />
+              <>
+                {/* Blurlu ambient arka plan — dikey posterin kırpılmadan dolgu yapması için */}
+                <Image source={{ uri: cur.poster_url }} style={{ position: 'absolute', width: SCREEN_W, height: HEADER_H }} resizeMode="cover" blurRadius={30} />
+                <View style={{ position: 'absolute', width: SCREEN_W, height: HEADER_H, backgroundColor: 'rgba(0,0,0,0.5)' }} />
+                {/* Net dikey poster — ortada kart */}
+                <View style={{ height: HEADER_H, alignItems: 'center', justifyContent: 'center' }}>
+                  <Image source={{ uri: cur.poster_url }} style={{ height: HEADER_H * 0.82, aspectRatio: 2 / 3, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.05)' }} resizeMode="cover" />
+                </View>
+              </>
             ) : (
               <View style={{ width: SCREEN_W, height: HEADER_H, backgroundColor: '#111' }} />
             )}
 
-            {/* Gradient — poster mode only */}
+            {/* Gradient — poster mode only (üstte butonlar, altta başlık için kontrast) */}
             {!youtubeId && <>
-              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 90, backgroundColor: 'rgba(0,0,0,0.38)' }} />
-              <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HEADER_H * 0.68, backgroundColor: 'rgba(0,0,0,0.7)' }} />
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 90, backgroundColor: 'rgba(0,0,0,0.3)' }} />
+              <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HEADER_H * 0.5, backgroundColor: 'rgba(0,0,0,0.55)' }} />
             </>}
 
             {/* Close button */}
