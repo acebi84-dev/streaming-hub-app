@@ -385,9 +385,13 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
   async function fetchList() {
     if (!user) { setLoading(false); return; }
     setLoading(true);
-    const sel = 'select=*,content:hub_contents(id,title,title_tr,type,year,imdb_score,poster_url,imdb_id,original_language,availability:hub_availability(platform_slug,platform_url))';
-    const { data } = await dbXHR('watchlist?user_id=eq.' + user.id + '&status=eq.' + tab + '&order=updated_at.desc&' + sel);
-    if (isMounted.current) { setItems(Array.isArray(data) ? data : []); setLoading(false); }
+    try {
+      const sel = 'select=*,content:hub_contents(id,title,title_tr,type,year,imdb_score,poster_url,imdb_id,original_language,availability:hub_availability(platform_slug,platform_url))';
+      const { data } = await dbXHR('watchlist?user_id=eq.' + user.id + '&status=eq.' + tab + '&order=updated_at.desc&' + sel);
+      if (isMounted.current) setItems(Array.isArray(data) ? data : []);
+    } finally {
+      if (isMounted.current) setLoading(false);
+    }
   }
 
   const tabs = [
@@ -791,20 +795,21 @@ function CollectionsScreen({ selectedPlatforms, onBack, user, initialCollectionI
   async function fetchCollections() {
     if (!isMounted.current) return;
     setLoading(true);
-    const { data, error } = await supabasePublic
-      .from('hub_collections')
-      .select('*, items:hub_collection_items(content_id, imdb_score, content:hub_contents(id, title, title_tr, original_language, poster_url, imdb_score, imdb_id, type, year, trailer_url, synopsis_tr, director, cast_list, tagline, availability:hub_availability(platform_slug, platform_url)))')
-      .order(sortBy, { ascending: sortAscCol, nullsFirst: false });
-    if (error) { console.error(error); setLoading(false); return; }
-
-    // Filter collections where at least one movie is in selected platforms
-    const filtered = (data || []).filter(col =>
-      col.items.some(item =>
-        item.content?.availability?.some(a => selectedPlatforms.includes(a.platform_slug))
-      )
-    );
-    setCollections(filtered);
-    setLoading(false);
+    try {
+      const { data, error } = await supabasePublic
+        .from('hub_collections')
+        .select('*, items:hub_collection_items(content_id, imdb_score, content:hub_contents(id, title, title_tr, original_language, poster_url, imdb_score, imdb_id, type, year, trailer_url, synopsis_tr, director, cast_list, tagline, availability:hub_availability(platform_slug, platform_url)))')
+        .order(sortBy, { ascending: sortAscCol, nullsFirst: false });
+      if (error || !isMounted.current) return;
+      const filtered = (data || []).filter(col =>
+        col.items.some(item =>
+          item.content?.availability?.some(a => selectedPlatforms.includes(a.platform_slug))
+        )
+      );
+      if (isMounted.current) setCollections(filtered);
+    } finally {
+      if (isMounted.current) setLoading(false);
+    }
   }
 
   const allGenres = [...new Set(collections.flatMap(c => c.genres ? c.genres.split(', ') : []))].filter(Boolean).sort();
@@ -972,36 +977,37 @@ function NewScreen({ selectedPlatforms, onBack, user }) {
   async function fetchNew() {
     if (!isMountedNew.current) return;
     setLoading(true);
-    const now = new Date();
-    let fromDate;
-    if (period === 'day') {
-      fromDate = new Date(now); fromDate.setDate(now.getDate() - 1);
-    } else if (period === 'week') {
-      fromDate = new Date(now); fromDate.setDate(now.getDate() - 7);
-    } else {
-      fromDate = new Date(now); fromDate.setMonth(now.getMonth() - 1);
+    try {
+      const now = new Date();
+      let fromDate;
+      if (period === 'day') {
+        fromDate = new Date(now); fromDate.setDate(now.getDate() - 1);
+      } else if (period === 'week') {
+        fromDate = new Date(now); fromDate.setDate(now.getDate() - 7);
+      } else {
+        fromDate = new Date(now); fromDate.setMonth(now.getMonth() - 1);
+      }
+      const fromStr = fromDate.toISOString().split('T')[0];
+      const platforms = selectedPlatforms.length > 0 ? selectedPlatforms : PLATFORMS.map(p => p.slug);
+      const { data, error } = await supabasePublic
+        .from('hub_availability')
+        .select('platform_slug, platform_url, available_since, content:hub_contents(id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, type, year, synopsis_tr, director, cast_list, trailer_url, tagline, genre)')
+        .in('platform_slug', platforms)
+        .gte('available_since', fromStr)
+        .order('available_since', { ascending: false })
+        .limit(300);
+      if (!isMountedNew.current || error) return;
+      const grouped = {};
+      (data || []).forEach(row => {
+        if (!row.content) return;
+        const slug = row.platform_slug;
+        if (!grouped[slug]) grouped[slug] = [];
+        grouped[slug].push({ ...row.content, platform_url: row.platform_url, available_since: row.available_since });
+      });
+      if (isMountedNew.current) setItems(grouped);
+    } finally {
+      if (isMountedNew.current) setLoading(false);
     }
-    const fromStr = fromDate.toISOString().split('T')[0];
-    const platforms = selectedPlatforms.length > 0 ? selectedPlatforms : PLATFORMS.map(p => p.slug);
-    const { data, error } = await supabasePublic
-      .from('hub_availability')
-      .select('platform_slug, platform_url, available_since, content:hub_contents(id, title, title_tr, original_language, imdb_score, poster_url, imdb_id, type, year, synopsis_tr, director, cast_list, trailer_url, tagline, genre)')
-      .in('platform_slug', platforms)
-      .gte('available_since', fromStr)
-      .order('available_since', { ascending: false })
-      .limit(300);
-    if (!isMountedNew.current) return;
-    if (error) { console.error(error); setLoading(false); return; }
-    const grouped = {};
-    (data || []).forEach(row => {
-      if (!row.content) return;
-      const slug = row.platform_slug;
-      if (!grouped[slug]) grouped[slug] = [];
-      grouped[slug].push({ ...row.content, platform_url: row.platform_url, available_since: row.available_since });
-    });
-    if (!isMountedNew.current) return;
-    setItems(grouped);
-    setLoading(false);
   }
 
   function filterItems(list) {
@@ -1151,51 +1157,51 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
   async function fetchPopular() {
     if (!isMountedPop.current) return;
     setLoading(true);
-    const platforms = selectedPlatforms.length > 0 ? selectedPlatforms : PLATFORMS.map(p => p.slug);
-    const { data, error } = await supabasePublic
-      .from('hub_popular')
-      .select('*')
-      .in('platform', platforms)
-      .order('rating', { ascending: false });
-    if (error) { console.error(error); setLoading(false); return; }
-
-    // Tek sorguda tüm içerikleri zenginleştir
-    const imdbIds = [...new Set((data || []).map(i => i.imdb_id).filter(Boolean))];
-    const contentMap = {};
-    if (imdbIds.length > 0) {
-      const { data: contents } = await supabasePublic
-        .from('hub_contents')
-        .select('imdb_id, synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, type, year, title_tr, original_language')
-        .in('imdb_id', imdbIds)
-        .catch(() => ({ data: null }));
-      (contents || []).forEach(c => { contentMap[c.imdb_id] = c; });
+    try {
+      const platforms = selectedPlatforms.length > 0 ? selectedPlatforms : PLATFORMS.map(p => p.slug);
+      const { data, error } = await supabasePublic
+        .from('hub_popular')
+        .select('*')
+        .in('platform', platforms)
+        .order('rating', { ascending: false });
+      if (error || !isMountedPop.current) return;
+      const imdbIds = [...new Set((data || []).map(i => i.imdb_id).filter(Boolean))];
+      const contentMap = {};
+      if (imdbIds.length > 0) {
+        const { data: contents } = await supabasePublic
+          .from('hub_contents')
+          .select('imdb_id, synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, type, year, title_tr, original_language')
+          .in('imdb_id', imdbIds);
+        (contents || []).forEach(c => { contentMap[c.imdb_id] = c; });
+      }
+      if (!isMountedPop.current) return;
+      const grouped = {};
+      (data || []).forEach(item => {
+        const e = item.imdb_id ? contentMap[item.imdb_id] : null;
+        const merged = {
+          ...item,
+          type: e?.type || item.show_type || null,
+          year: e?.year || item.release_year || null,
+          poster_url: e?.poster_url || item.poster_w480 || item.poster_w240,
+          imdb_score: item.rating ? item.rating / 10 : null,
+          availability: item.streaming_link ? [{ platform_slug: item.platform, platform_url: item.streaming_link }] : [],
+          ...(e && {
+            synopsis_tr: e.synopsis_tr,
+            director: e.director,
+            cast_list: e.cast_list,
+            trailer_url: e.trailer_url,
+            tagline: e.tagline,
+            title_tr: e.title_tr || item.title_tr,
+            original_language: e.original_language,
+          }),
+        };
+        if (!grouped[item.platform]) grouped[item.platform] = [];
+        grouped[item.platform].push(merged);
+      });
+      if (isMountedPop.current) setPopular(grouped);
+    } finally {
+      if (isMountedPop.current) setLoading(false);
     }
-
-    const grouped = {};
-    (data || []).forEach(item => {
-      const e = item.imdb_id ? contentMap[item.imdb_id] : null;
-      const merged = {
-        ...item,
-        type: e?.type || item.show_type || null,
-        year: e?.year || item.release_year || null,
-        poster_url: e?.poster_url || item.poster_w480 || item.poster_w240,
-        imdb_score: item.rating ? item.rating / 10 : null,
-        availability: item.streaming_link ? [{ platform_slug: item.platform, platform_url: item.streaming_link }] : [],
-        ...(e && {
-          synopsis_tr: e.synopsis_tr,
-          director: e.director,
-          cast_list: e.cast_list,
-          trailer_url: e.trailer_url,
-          tagline: e.tagline,
-          title_tr: e.title_tr || item.title_tr,
-          original_language: e.original_language,
-        }),
-      };
-      if (!grouped[item.platform]) grouped[item.platform] = [];
-      grouped[item.platform].push(merged);
-    });
-    setPopular(grouped);
-    setLoading(false);
   }
 
   function filterItems(items) {
@@ -1663,26 +1669,28 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
     if (!isMounted.current) return;
     if (selectedPlatforms.length === 0) { setItems([]); setLoading(false); return; }
     setLoading(true);
-    const platformFilter = selectedPlatforms.map(p => `platform_slug.eq.${p}`).join(',');
-    let q = supabasePublic.from('hub_contents')
-      .select('*, availability:hub_availability!inner(platform_slug, platform_url)')
-      .not('imdb_score', 'is', null).not('imdb_id', 'is', null)
-      .or(platformFilter, { referencedTable: 'hub_availability' });
-    if (activeSearch.trim()) {
-      const s = activeSearch.trim().replace(/[%_\\]/g, '\\$&');
-      q = q.or(`title.ilike.%${s}%,original_title.ilike.%${s}%,title_tr.ilike.%${s}%,cast_list.ilike.%${s}%,director.ilike.%${s}%`);
+    try {
+      const platformFilter = selectedPlatforms.map(p => `platform_slug.eq.${p}`).join(',');
+      let q = supabasePublic.from('hub_contents')
+        .select('*, availability:hub_availability!inner(platform_slug, platform_url)')
+        .not('imdb_score', 'is', null).not('imdb_id', 'is', null)
+        .or(platformFilter, { referencedTable: 'hub_availability' });
+      if (activeSearch.trim()) {
+        const s = activeSearch.trim().replace(/[%_\\]/g, '\\$&');
+        q = q.or(`title.ilike.%${s}%,original_title.ilike.%${s}%,title_tr.ilike.%${s}%,cast_list.ilike.%${s}%,director.ilike.%${s}%`);
+      }
+      if (typeFilter !== 'all') q = q.eq('type', typeFilter);
+      if (genreFilter) q = q.ilike('genre', `%${genreFilter}%`);
+      if (langFilter) q = q.eq('original_language', langFilter);
+      if (minImdb > 0) q = q.gte('imdb_score', minImdb);
+      q = q.order(sortBy, { ascending: false, nullsFirst: false }).limit(90);
+      const { data, error } = await q;
+      if (!isMounted.current || error) return;
+      const enriched = (data || []).map(item => ({ ...item, availability: (item.availability || []).filter(a => selectedPlatforms.includes(a.platform_slug)) }));
+      if (isMounted.current) setItems(enriched);
+    } finally {
+      if (isMounted.current) setLoading(false);
     }
-    if (typeFilter !== 'all') q = q.eq('type', typeFilter);
-    if (genreFilter) q = q.ilike('genre', `%${genreFilter}%`);
-    if (langFilter) q = q.eq('original_language', langFilter);
-    if (minImdb > 0) q = q.gte('imdb_score', minImdb);
-    q = q.order(sortBy, { ascending: false, nullsFirst: false }).limit(90);
-    const { data, error } = await q;
-    if (!isMounted.current) return;
-    if (error) { setLoading(false); return; }
-    const enriched = (data || []).map(item => ({ ...item, availability: (item.availability || []).filter(a => selectedPlatforms.includes(a.platform_slug)) }));
-    setItems(enriched);
-    setLoading(false);
   }
 
   const genreLabel = POPULAR_GENRES.find(g => g.en === genreFilter)?.tr || 'Tür';
@@ -2038,7 +2046,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
         <View>
           <Text style={{ color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: 3 }}>İZLİO</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v12</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v13</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
