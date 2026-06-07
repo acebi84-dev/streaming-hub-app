@@ -971,6 +971,8 @@ function DetailModal({ item, onClose, user }) {
   const [navStack, setNavStack] = React.useState([]);
   const cur = navStack.length > 0 ? navStack[navStack.length - 1] : item;
   const [similarItems, setSimilarItems] = React.useState([]);
+  const [reviews, setReviews] = React.useState([]);
+  const [loadingReviews, setLoadingReviews] = React.useState(false);
 
   const videoH = Math.round(SCREEN_W * 9 / 16);
 
@@ -985,6 +987,34 @@ function DetailModal({ item, onClose, user }) {
     if (!cur.imdb_id) return;
     fetchSimilar();
   }, [cur.imdb_id]);
+
+  React.useEffect(() => {
+    fetchReviews();
+  }, [cur.id]);
+
+  async function fetchReviews() {
+    if (!cur?.id) return;
+    setLoadingReviews(true);
+    try {
+      const { data } = await dbXHR('activity_feed?content_id=eq.' + cur.id + '&review=not.is.null&order=created_at.desc&select=user_id,review,rating,created_at&limit=50');
+      const rows = Array.isArray(data) ? data : [];
+      // her kullanıcının yalnızca en yeni değerlendirmesini tut (desc sıralı, ilk görülen kazanır)
+      const seen = new Set();
+      const latest = [];
+      for (const r of rows) { if (!seen.has(r.user_id)) { seen.add(r.user_id); latest.push(r); } }
+      const ids = latest.map(r => r.user_id);
+      let profMap = {};
+      if (ids.length > 0) {
+        const { data: profs } = await dbXHR('public_profiles?id=in.(' + ids.join(',') + ')&select=id,username,display_name');
+        (Array.isArray(profs) ? profs : []).forEach(p => { profMap[p.id] = p; });
+      }
+      setReviews(latest.map(r => ({ ...r, profile: profMap[r.user_id] || null })));
+    } catch (_) {
+      setReviews([]);
+    } finally {
+      setLoadingReviews(false);
+    }
+  }
 
   async function fetchSimilar() {
     try {
@@ -1136,7 +1166,7 @@ function DetailModal({ item, onClose, user }) {
             ) : null}
 
             {/* Watchlist — primary full-width */}
-            <WatchlistButton item={cur} user={user} modalVariant style={{ marginBottom: 12 }} />
+            <WatchlistButton item={cur} user={user} modalVariant style={{ marginBottom: 12 }} onUpdate={fetchReviews} />
 
             {/* Trailer open (when trailer_url is not YouTube) */}
             {cur.trailer_url && !youtubeId && (
@@ -1184,6 +1214,40 @@ function DetailModal({ item, onClose, user }) {
                 <Text style={{ color: 'rgba(255,255,255,0.82)', fontSize: 14, lineHeight: 20 }}>{cur.cast_list}</Text>
               </View>
             ) : null}
+
+            {/* Değerlendirmeler */}
+            {reviews.length > 0 && (
+              <View style={{ marginBottom: 26 }}>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '700', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.9 }}>Değerlendirmeler ({reviews.length})</Text>
+                <View style={{ gap: 12 }}>
+                  {reviews.map(r => {
+                    const isMe = user && r.user_id === user.id;
+                    const name = r.profile?.display_name || (r.profile?.username ? '@' + r.profile.username : 'Bir kullanıcı');
+                    return (
+                      <View key={r.user_id} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                          <Avatar seed={r.user_id} name={r.profile?.display_name || r.profile?.username || '?'} size={34} />
+                          <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }} numberOfLines={1}>{name}</Text>
+                              {isMe ? <View style={{ backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}><Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '700' }}>Sen</Text></View> : null}
+                            </View>
+                            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600', marginTop: 1 }}>{timeAgo(r.created_at)}</Text>
+                          </View>
+                          {r.rating ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                              <Star size={13} color="#ffd43b" strokeWidth={2} fill="#ffd43b" />
+                              <Text style={{ color: '#ffd43b', fontSize: 13, fontWeight: '800' }}>{r.rating}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        <Text style={{ color: 'rgba(255,255,255,0.82)', fontSize: 14, lineHeight: 21 }}>{r.review}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
 
             {/* Similar items */}
             {similarItems.length > 0 && (
