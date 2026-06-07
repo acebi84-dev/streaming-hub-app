@@ -2780,7 +2780,7 @@ function OnboardingScreen({ user, onComplete }) {
     if (!/^[a-z0-9_]{3,20}$/.test(u)) { setUsernameStatus('invalid'); return; }
     setUsernameStatus('checking');
     const t = setTimeout(() => {
-      dbXHR('profiles?username=eq.' + u + '&select=id').then(({ data }) => {
+      dbXHR('public_profiles?username=ilike.' + u.replace(/_/g, '\\_') + '&select=id').then(({ data }) => {
         setUsernameStatus(Array.isArray(data) && data.length > 0 ? 'taken' : 'available');
       }).catch(() => setUsernameStatus(''));
     }, 500);
@@ -3115,7 +3115,7 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
     if (!/^[a-z0-9_]{3,20}$/.test(u)) { setUsernameStatus('invalid'); return; }
     setUsernameStatus('checking');
     const t = setTimeout(() => {
-      dbXHR('profiles?username=eq.' + u + '&select=id').then(({ data }) => {
+      dbXHR('public_profiles?username=ilike.' + u.replace(/_/g, '\\_') + '&select=id').then(({ data }) => {
         const taken = Array.isArray(data) && data.length > 0;
         setUsernameStatus(taken ? 'taken' : 'available');
       }).catch(() => setUsernameStatus(''));
@@ -3355,7 +3355,7 @@ function UsernameSetupModal({ visible, user, suggested, onDone }) {
     if (!/^[a-z0-9_]{3,20}$/.test(u)) { setStatus('invalid'); return; }
     setStatus('checking');
     const t = setTimeout(() => {
-      dbXHR('profiles?username=eq.' + u + '&select=id').then(({ data }) => {
+      dbXHR('public_profiles?username=ilike.' + u.replace(/_/g, '\\_') + '&select=id').then(({ data }) => {
         setStatus(Array.isArray(data) && data.length > 0 ? 'taken' : 'available');
       }).catch(() => setStatus(''));
     }, 500);
