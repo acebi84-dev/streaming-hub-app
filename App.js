@@ -32,7 +32,7 @@ import YoutubeIframe from 'react-native-youtube-iframe';
 import { Linking, Share, AppState } from 'react-native';
 import ReAnimated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
 import { supabase, supabasePublic, getStoredToken, setStoredToken } from './supabase';
-import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Check, Play, Star, Share2, Trash2, Users, Search, UserPlus, UserMinus } from 'lucide-react-native';
+import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Check, Play, Star, Share2, Trash2, Users, Search, UserPlus, UserMinus, Settings } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 // import * as AppleAuthentication from 'expo-apple-authentication';
 // AdMob devre dışı
@@ -430,18 +430,6 @@ const wlStyles = StyleSheet.create({
 });
 
 // ── Watchlist Screen ───────────────────────────────────────────
-const GENDER_LABEL = { male: 'Erkek', female: 'Kadın', other: 'Diğer' };
-function calcAge(birthDateStr) {
-  if (!birthDateStr) return null;
-  const b = new Date(birthDateStr);
-  if (isNaN(b.getTime())) return null;
-  const today = new Date();
-  let age = today.getFullYear() - b.getFullYear();
-  const m = today.getMonth() - b.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
-  return age;
-}
-
 function timeAgo(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -479,14 +467,14 @@ function PersonRow({ person, isFollowing, onToggleFollow }) {
   );
 }
 
-function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
+function WatchlistScreen({ user, onItemPress, onBack }) {
   const { width: winWidth } = useWindowDimensions();
   const isNarrow = winWidth < 360;
   const GRID_COLS = winWidth >= 700 ? 4 : 3;
   const GRID_GAP = 12;
   const gridItemWidth = (winWidth - 32 - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
   const gridItemHeight = gridItemWidth * 1.5;
-  const [tab, setTab] = useState(initialTab || 'list');
+  const [tab, setTab] = useState('list');
   const [listSubTab, setListSubTab] = useState('watched');
   const [items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
@@ -651,18 +639,6 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
           <View style={{ flex: isNarrow ? undefined : 1, alignItems: isNarrow ? 'center' : 'flex-start', gap: 3, width: isNarrow ? '100%' : undefined }}>
             <Text style={{ color: '#fff', fontSize: 19, fontWeight: '800' }} numberOfLines={1}>{fullName}</Text>
             {profile?.username ? <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontWeight: '600' }}>@{profile.username}</Text> : null}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2, justifyContent: isNarrow ? 'center' : 'flex-start' }}>
-              {calcAge(profile?.birth_date) != null && (
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '600' }}>{calcAge(profile?.birth_date)} yaş</Text>
-                </View>
-              )}
-              {profile?.gender && GENDER_LABEL[profile.gender] && (
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '600' }}>{GENDER_LABEL[profile.gender]}</Text>
-                </View>
-              )}
-            </View>
             {profile?.bio ? (
               <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 6, lineHeight: 18, textAlign: isNarrow ? 'center' : 'left' }} numberOfLines={3}>{profile.bio}</Text>
             ) : null}
@@ -2278,7 +2254,7 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
 }
 
 // ── AppleTVMainScreen ──────────────────────────────────────────
-function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLanguages, isPremium, onWatchlist, onProfile, onFriends }) {
+function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLanguages, isPremium, onWatchlist, onProfile }) {
   const [heroItems, setHeroItems] = useState([]);
   const [discoverItems, setDiscoverItems] = useState([]);
   const [popularItems, setPopularItems] = useState([]);
@@ -2562,14 +2538,11 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
           <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v24</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onFriends} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
-            <Users size={26} color="#fff" strokeWidth={2} />
-          </TouchableOpacity>
           <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
-            <Bookmark size={26} color="#fff" strokeWidth={2} />
+            <User size={26} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
           <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onProfile} hitSlop={{ top: 24, bottom: 24, left: 12, right: 24 }}>
-            <User size={26} color="#fff" strokeWidth={2} />
+            <Settings size={26} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
         </View>
       </View>
@@ -3718,7 +3691,6 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showWatchlist, setShowWatchlist] = useState(false);
   const [watchlistItem, setWatchlistItem] = useState(null);
-  const [watchlistInitialTab, setWatchlistInitialTab] = useState('list');
 
   // Kullanıcı giriş yaptığında profil bilgilerini yükle
   useEffect(() => {
@@ -3835,7 +3807,6 @@ export default function App() {
     <>
       <WatchlistScreen
         user={user}
-        initialTab={watchlistInitialTab}
         onBack={() => { setShowWatchlist(false); setWatchlistItem(null); }}
         onItemPress={(item) => setWatchlistItem(item)}
       />
@@ -3878,9 +3849,8 @@ export default function App() {
         favoriteGenres={favoriteGenres}
         favoriteLanguages={favoriteLanguages}
         isPremium={isPremium}
-        onWatchlist={() => { setWatchlistInitialTab('list'); setShowWatchlist(true); }}
+        onWatchlist={() => setShowWatchlist(true)}
         onProfile={() => setShowProfile(true)}
-        onFriends={() => { setWatchlistInitialTab('feed'); setShowWatchlist(true); }}
       />
     </SafeAreaView>
   );
