@@ -508,14 +508,16 @@ function timeAgo(dateStr) {
   return Math.floor(day / 365) + ' yıl önce';
 }
 
-function PersonRow({ person, isFollowing, onToggleFollow }) {
+function PersonRow({ person, isFollowing, onToggleFollow, onPress }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 }}>
-      <Avatar seed={person.id} name={person.display_name || person.username} size={46} />
-      <View style={{ flex: 1, gap: 1 }}>
-        <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }} numberOfLines={1}>{person.display_name || person.username}</Text>
-        {person.username ? <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: '500' }} numberOfLines={1}>@{person.username}</Text> : null}
-      </View>
+      <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }} activeOpacity={onPress ? 0.6 : 1} onPress={onPress}>
+        <Avatar seed={person.id} name={person.display_name || person.username} size={46} />
+        <View style={{ flex: 1, gap: 1 }}>
+          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }} numberOfLines={1}>{person.display_name || person.username}</Text>
+          {person.username ? <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: '500' }} numberOfLines={1}>@{person.username}</Text> : null}
+        </View>
+      </TouchableOpacity>
       <TouchableOpacity
         style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: isFollowing ? 'rgba(255,255,255,0.08)' : '#fff', borderWidth: 1, borderColor: isFollowing ? 'rgba(255,255,255,0.18)' : '#fff' }}
         onPress={onToggleFollow}>
@@ -526,7 +528,9 @@ function PersonRow({ person, isFollowing, onToggleFollow }) {
   );
 }
 
-function WatchlistScreen({ user, onItemPress, onBack }) {
+function WatchlistScreen({ user, onItemPress, onBack, targetUser, onOpenProfile }) {
+  const isOwn = !targetUser;
+  const profileId = targetUser?.id || user?.id;
   const { width: winWidth } = useWindowDimensions();
   const isNarrow = winWidth < 360;
   const GRID_COLS = winWidth >= 700 ? 4 : 3;
@@ -537,8 +541,9 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
   const [listSubTab, setListSubTab] = useState('watched');
   const [items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
-  const [profile, setProfile] = useState(null);
+  const [profile, setProfile] = useState(targetUser || null);
   const [followingIds, setFollowingIds] = useState([]);
+  const [myFollowingIds, setMyFollowingIds] = useState([]);
   const [followerCount, setFollowerCount] = useState(0);
   const [feed, setFeed] = useState([]);
   const [loadingFeed, setLoadingFeed] = useState(true);
@@ -554,32 +559,37 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
   useEffect(() => { return () => { isMounted.current = false; }; }, []);
 
   useEffect(() => {
-    if (!user) return;
-    dbXHR('profiles?id=eq.' + user.id + '&select=display_name,surname,username,birth_date,gender,bio')
-      .then(({ data }) => { if (isMounted.current) setProfile(Array.isArray(data) ? data[0] : null); })
+    if (!profileId) return;
+    const q = isOwn
+      ? 'profiles?id=eq.' + profileId + '&select=display_name,surname,username,birth_date,gender,bio'
+      : 'public_profiles?id=eq.' + profileId + '&select=display_name,username,bio,avatar_url';
+    dbXHR(q)
+      .then(({ data }) => { if (isMounted.current && Array.isArray(data) && data[0]) setProfile(data[0]); })
       .catch(() => {});
-  }, [user?.id]);
+  }, [profileId]);
 
   useEffect(() => { fetchItems().catch(() => {}); }, [listSubTab]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !profileId) return;
     init();
-  }, [user?.id]);
+  }, [profileId]);
 
   async function init() {
-    const ids = await loadFollowing();
-    fetchFeed(ids);
+    const ownerFollowing = await loadFollowing();   // profil sahibinin takip ettikleri
+    if (isOwn) setMyFollowingIds(ownerFollowing);
+    else await loadMyFollowing();                   // izleyenin (senin) takip ettiklerin
+    fetchFeed(ownerFollowing);
     fetchFollowers();
-    fetchFollowing(ids);
+    fetchFollowing(ownerFollowing);
   }
 
   async function fetchItems() {
-    if (!user) { setLoadingItems(false); return; }
+    if (!profileId) { setLoadingItems(false); return; }
     setLoadingItems(true);
     try {
       const sel = 'select=*,content:hub_contents(id,title,title_tr,type,year,imdb_score,poster_url,imdb_id,original_language,synopsis_tr,director,cast_list,trailer_url,tagline,availability:hub_availability(platform_slug,platform_url))';
-      const { data } = await dbXHR('watchlist?user_id=eq.' + user.id + '&status=eq.' + listSubTab + '&order=updated_at.desc&' + sel);
+      const { data } = await dbXHR('watchlist?user_id=eq.' + profileId + '&status=eq.' + listSubTab + '&order=updated_at.desc&' + sel);
       if (isMounted.current) setItems(Array.isArray(data) ? data : []);
     } finally {
       if (isMounted.current) setLoadingItems(false);
@@ -587,16 +597,23 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
   }
 
   async function loadFollowing() {
-    const { data } = await dbXHR('follows?follower_id=eq.' + user.id + '&select=following_id');
+    const { data } = await dbXHR('follows?follower_id=eq.' + profileId + '&select=following_id');
     const ids = Array.isArray(data) ? data.map(r => r.following_id) : [];
     if (isMounted.current) setFollowingIds(ids);
+    return ids;
+  }
+
+  async function loadMyFollowing() {
+    const { data } = await dbXHR('follows?follower_id=eq.' + user.id + '&select=following_id');
+    const ids = Array.isArray(data) ? data.map(r => r.following_id) : [];
+    if (isMounted.current) setMyFollowingIds(ids);
     return ids;
   }
 
   async function fetchFollowers() {
     if (isMounted.current) setLoadingFollowers(true);
     try {
-      const { data } = await dbXHR('follows?following_id=eq.' + user.id + '&select=follower_id');
+      const { data } = await dbXHR('follows?following_id=eq.' + profileId + '&select=follower_id');
       const ids = Array.isArray(data) ? data.map(r => r.follower_id) : [];
       if (isMounted.current) setFollowerCount(ids.length);
       if (!ids.length) { if (isMounted.current) setFollowers([]); return; }
@@ -622,28 +639,35 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
     if (isMounted.current) setLoadingFeed(true);
     try {
       const sel = 'select=*,content:hub_contents(id,title,title_tr,type,year,imdb_score,poster_url,original_language)';
-      let activityRows = [];
-      if (ids && ids.length > 0) {
-        // Takibe başladığım zamanlar — sadece takipten SONRAKİ aktiviteleri göster
-        const { data: myFollows } = await dbXHR('follows?follower_id=eq.' + user.id + '&select=following_id,created_at');
-        const followStart = {};
-        (Array.isArray(myFollows) ? myFollows : []).forEach(f => { followStart[f.following_id] = f.created_at; });
-        const { data } = await dbXHR('activity_feed?user_id=in.(' + ids.join(',') + ')&order=created_at.desc&limit=50&' + sel);
-        activityRows = (Array.isArray(data) ? data : [])
-          .filter(r => { const since = followStart[r.user_id]; return since && new Date(r.created_at) >= new Date(since); })
-          .map(r => ({ ...r, _kind: 'activity' }));
+      let merged = [];
+      if (isOwn) {
+        let activityRows = [];
+        if (ids && ids.length > 0) {
+          // Takibe başladığım zamanlar — sadece takipten SONRAKİ aktiviteleri göster
+          const { data: myFollows } = await dbXHR('follows?follower_id=eq.' + user.id + '&select=following_id,created_at');
+          const followStart = {};
+          (Array.isArray(myFollows) ? myFollows : []).forEach(f => { followStart[f.following_id] = f.created_at; });
+          const { data } = await dbXHR('activity_feed?user_id=in.(' + ids.join(',') + ')&order=created_at.desc&limit=50&' + sel);
+          activityRows = (Array.isArray(data) ? data : [])
+            .filter(r => { const since = followStart[r.user_id]; return since && new Date(r.created_at) >= new Date(since); })
+            .map(r => ({ ...r, _kind: 'activity' }));
+        }
+        // Beni takip edenler -> akışta "seni takip etti"
+        const { data: followsData } = await dbXHR('follows?following_id=eq.' + user.id + '&order=created_at.desc&limit=30&select=follower_id,created_at');
+        const followRows = (Array.isArray(followsData) ? followsData : []).map(f => ({
+          id: 'follow-' + f.follower_id + '-' + f.created_at,
+          _kind: 'follow',
+          user_id: f.follower_id,
+          created_at: f.created_at,
+        }));
+        merged = [...activityRows, ...followRows]
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 60);
+      } else {
+        // Başkasının profili: yalnızca o kişinin aktiviteleri
+        const { data } = await dbXHR('activity_feed?user_id=eq.' + profileId + '&order=created_at.desc&limit=50&' + sel);
+        merged = (Array.isArray(data) ? data : []).map(r => ({ ...r, _kind: 'activity' }));
       }
-      // Beni takip edenler -> akışta "seni takip etti"
-      const { data: followsData } = await dbXHR('follows?following_id=eq.' + user.id + '&order=created_at.desc&limit=30&select=follower_id,created_at');
-      const followRows = (Array.isArray(followsData) ? followsData : []).map(f => ({
-        id: 'follow-' + f.follower_id + '-' + f.created_at,
-        _kind: 'follow',
-        user_id: f.follower_id,
-        created_at: f.created_at,
-      }));
-      const merged = [...activityRows, ...followRows]
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .slice(0, 60);
       const allIds = [...new Set(merged.map(r => r.user_id))];
       if (allIds.length > 0) {
         const { data: profs } = await dbXHR('public_profiles?id=in.(' + allIds.join(',') + ')&select=id,username,display_name');
@@ -675,25 +699,28 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
   }, [searchQuery]);
 
   async function toggleFollow(targetId) {
-    const isFollowing = followingIds.includes(targetId);
-    const newIds = isFollowing ? followingIds.filter(id => id !== targetId) : [...followingIds, targetId];
-    setFollowingIds(newIds);
+    const isFollowing = myFollowingIds.includes(targetId);
+    const newMy = isFollowing ? myFollowingIds.filter(id => id !== targetId) : [...myFollowingIds, targetId];
+    setMyFollowingIds(newMy);
+    if (isOwn) setFollowingIds(newMy); // kendi profilinde owner == viewer
     if (isFollowing) {
       await dbXHR('follows?follower_id=eq.' + user.id + '&following_id=eq.' + targetId, 'DELETE');
     } else {
       await dbXHR('follows', 'POST', { follower_id: user.id, following_id: targetId });
     }
-    fetchFeed(newIds);
-    fetchFollowing(newIds);
+    if (isOwn) {
+      fetchFeed(newMy);
+      fetchFollowing(newMy);
+    }
     fetchFollowers();
   }
 
   const TOP_TABS = [
-    { key: 'list', label: 'İzleme Listem' },
+    { key: 'list', label: isOwn ? 'İzleme Listem' : 'İzleme Listesi' },
     { key: 'feed', label: 'Aktivite Akışı' },
     { key: 'followers', label: 'Takipçi' },
     { key: 'following', label: 'Takip' },
-    { key: 'search', label: 'Ara' },
+    ...(isOwn ? [{ key: 'search', label: 'Ara' }] : []),
   ];
 
   const SUB_TABS = [
@@ -713,7 +740,7 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
         </TouchableOpacity>
         {/* person card */}
         <View style={{ flexDirection: isNarrow ? 'column' : 'row', alignItems: isNarrow ? 'center' : 'center', gap: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 18, padding: 16, marginBottom: 16 }}>
-          <Avatar seed={user?.id} name={profile?.display_name || profile?.username || 'Kullanıcı'} size={isNarrow ? 64 : 72} />
+          <Avatar seed={profileId} name={profile?.display_name || profile?.username || 'Kullanıcı'} size={isNarrow ? 64 : 72} />
           <View style={{ flex: isNarrow ? undefined : 1, alignItems: isNarrow ? 'center' : 'flex-start', gap: 4, width: isNarrow ? '100%' : undefined }}>
             <Text style={{ color: '#fff', fontSize: 19, fontWeight: '800' }} numberOfLines={1}>{fullName}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 14, justifyContent: isNarrow ? 'center' : 'flex-start' }}>
@@ -732,6 +759,18 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
             ) : null}
           </View>
         </View>
+
+        {!isOwn && (
+          <TouchableOpacity onPress={() => toggleFollow(profileId)}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 14, marginBottom: 14, backgroundColor: myFollowingIds.includes(profileId) ? 'rgba(255,255,255,0.08)' : '#fff', borderWidth: 1, borderColor: myFollowingIds.includes(profileId) ? 'rgba(255,255,255,0.18)' : '#fff' }}>
+            {myFollowingIds.includes(profileId)
+              ? <UserMinus size={17} color="rgba(255,255,255,0.7)" strokeWidth={2} />
+              : <UserPlus size={17} color="#000" strokeWidth={2} />}
+            <Text style={{ color: myFollowingIds.includes(profileId) ? 'rgba(255,255,255,0.7)' : '#000', fontWeight: '800', fontSize: 15 }}>
+              {myFollowingIds.includes(profileId) ? 'Takip Ediliyor' : 'Takip Et'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, alignItems: 'center', paddingRight: 24 }}>
           {TOP_TABS.map(t => (
@@ -775,7 +814,7 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
             </View>
             <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz içerik yok</Text>
             <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, textAlign: 'center', paddingHorizontal: 40 }}>
-              {listSubTab === 'watched' ? 'İzlediğin içerikleri burada göreceksin' : listSubTab === 'watching' ? 'Şu an izlediğin dizileri buraya ekle' : 'İzlemek istediğin içerikleri buraya kaydet'}
+              {!isOwn ? 'Bu listede henüz içerik yok' : listSubTab === 'watched' ? 'İzlediğin içerikleri burada göreceksin' : listSubTab === 'watching' ? 'Şu an izlediğin dizileri buraya ekle' : 'İzlemek istediğin içerikleri buraya kaydet'}
             </Text>
           </View>
         ) : (
@@ -826,11 +865,13 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
             </View>
             <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz aktivite yok</Text>
             <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, textAlign: 'center' }}>
-              Takip ettiklerinin izledikleri içerikleri burada gör
+              {isOwn ? 'Takip ettiklerinin izledikleri içerikleri burada gör' : 'Bu kullanıcının henüz bir aktivitesi yok'}
             </Text>
-            <TouchableOpacity style={{ paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, backgroundColor: '#fff' }} onPress={() => setTab('search')}>
-              <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Kullanıcı Ara</Text>
-            </TouchableOpacity>
+            {isOwn && (
+              <TouchableOpacity style={{ paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, backgroundColor: '#fff' }} onPress={() => setTab('search')}>
+                <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Kullanıcı Ara</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <FlatList
@@ -840,17 +881,20 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
             renderItem={({ item: row }) => {
               const actor = actorMap[row.user_id];
               const actorName = actor?.display_name || (actor?.username ? '@' + actor.username : 'Bir kullanıcı');
+              const openActor = () => { if (actor && actor.id !== user.id) onOpenProfile?.(actor); };
               if (row._kind === 'follow') {
-                const followsBack = followingIds.includes(row.user_id);
+                const followsBack = myFollowingIds.includes(row.user_id);
                 return (
                   <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 12 }}>
-                    <Avatar seed={row.user_id} name={actor?.display_name || actor?.username || '?'} size={44} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5 }} numberOfLines={2}>
-                        <Text style={{ color: '#fff', fontWeight: '700' }}>{actorName}</Text> seni takip etti
-                      </Text>
-                      <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600', marginTop: 2 }}>{timeAgo(row.created_at)}</Text>
-                    </View>
+                    <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }} activeOpacity={0.6} onPress={openActor}>
+                      <Avatar seed={row.user_id} name={actor?.display_name || actor?.username || '?'} size={44} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5 }} numberOfLines={2}>
+                          <Text style={{ color: '#fff', fontWeight: '700' }}>{actorName}</Text> seni takip etti
+                        </Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600', marginTop: 2 }}>{timeAgo(row.created_at)}</Text>
+                      </View>
+                    </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => toggleFollow(row.user_id)}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: followsBack ? 'rgba(255,255,255,0.08)' : '#fff', borderWidth: 1, borderColor: followsBack ? 'rgba(255,255,255,0.15)' : '#fff' }}>
@@ -869,7 +913,7 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
                   {c.poster_url ? <Image source={{ uri: c.poster_url }} style={{ width: 52, height: 78, borderRadius: 8 }} resizeMode="cover" /> : <View style={{ width: 52, height: 78, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' }} />}
                   <View style={{ flex: 1, gap: 3 }}>
                     <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5 }} numberOfLines={2}>
-                      <Text style={{ color: '#fff', fontWeight: '700' }}>{actorName}</Text> {row.review ? 'değerlendirdi' : (ACTIVITY_ACTION_LABEL[row.action] || row.action)} <Text style={{ color: '#fff', fontWeight: '700' }}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
+                      <Text style={{ color: '#fff', fontWeight: '700' }} onPress={openActor}>{actorName}</Text> {row.review ? 'değerlendirdi' : (ACTIVITY_ACTION_LABEL[row.action] || row.action)} <Text style={{ color: '#fff', fontWeight: '700' }}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
                     </Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>{c.type === 'movie' ? 'Film' : 'Dizi'}{c.year ? ` · ${c.year}` : ''}{row.rating ? ` · ★ ${row.rating}/10` : ''}</Text>
@@ -897,7 +941,7 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
             <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
               <Users size={30} color="rgba(255,255,255,0.35)" strokeWidth={1.5} />
             </View>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz takipçin yok</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>{isOwn ? 'Henüz takipçin yok' : 'Henüz takipçisi yok'}</Text>
           </View>
         ) : (
           <FlatList
@@ -905,7 +949,7 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
             keyExtractor={p => p.id}
             contentContainerStyle={{ padding: 16, gap: 10 }}
             renderItem={({ item: p }) => (
-              <PersonRow person={p} isFollowing={followingIds.includes(p.id)} onToggleFollow={() => toggleFollow(p.id)} />
+              <PersonRow person={p} isFollowing={myFollowingIds.includes(p.id)} onToggleFollow={() => toggleFollow(p.id)} onPress={() => p.id !== user.id && onOpenProfile?.(p)} />
             )}
           />
         )
@@ -919,11 +963,13 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
             <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
               <Users size={30} color="rgba(255,255,255,0.35)" strokeWidth={1.5} />
             </View>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz kimseyi takip etmiyorsun</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, textAlign: 'center' }}>Kullanıcı arayıp takip edebilirsin</Text>
-            <TouchableOpacity style={{ paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, backgroundColor: '#fff' }} onPress={() => setTab('search')}>
-              <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Kullanıcı Ara</Text>
-            </TouchableOpacity>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>{isOwn ? 'Henüz kimseyi takip etmiyorsun' : 'Henüz kimseyi takip etmiyor'}</Text>
+            {isOwn && <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, textAlign: 'center' }}>Kullanıcı arayıp takip edebilirsin</Text>}
+            {isOwn && (
+              <TouchableOpacity style={{ paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, backgroundColor: '#fff' }} onPress={() => setTab('search')}>
+                <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Kullanıcı Ara</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <FlatList
@@ -931,7 +977,7 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
             keyExtractor={p => p.id}
             contentContainerStyle={{ padding: 16, gap: 10 }}
             renderItem={({ item: p }) => (
-              <PersonRow person={p} isFollowing={followingIds.includes(p.id)} onToggleFollow={() => toggleFollow(p.id)} />
+              <PersonRow person={p} isFollowing={myFollowingIds.includes(p.id)} onToggleFollow={() => toggleFollow(p.id)} onPress={() => p.id !== user.id && onOpenProfile?.(p)} />
             )}
           />
         )
@@ -954,7 +1000,7 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
               keyExtractor={p => p.id}
               contentContainerStyle={{ padding: 16, gap: 10 }}
               renderItem={({ item: p }) => (
-                <PersonRow person={p} isFollowing={followingIds.includes(p.id)} onToggleFollow={() => toggleFollow(p.id)} />
+                <PersonRow person={p} isFollowing={myFollowingIds.includes(p.id)} onToggleFollow={() => toggleFollow(p.id)} onPress={() => p.id !== user.id && onOpenProfile?.(p)} />
               )}
             />
           )}
@@ -2015,7 +2061,7 @@ function ContentRow({ title, items, onPress, loading, onSeeAll }) {
 }
 
 // ── FriendsActivityRow ─────────────────────────────────────────
-function FriendsActivityRow({ items, onPress, loading }) {
+function FriendsActivityRow({ items, onPress, onUserPress, loading }) {
   const header = (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12, gap: 8 }}>
       <Users size={18} color="#fff" strokeWidth={2.2} />
@@ -2045,7 +2091,9 @@ function FriendsActivityRow({ items, onPress, loading }) {
         removeClippedSubviews={false}
         renderItem={({ item }) => (
           <View style={{ width: CARD_W }}>
-            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10.5, fontWeight: '600', marginBottom: 5 }} numberOfLines={1}>{item._friendName} izledi</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10.5, fontWeight: '600', marginBottom: 5 }} numberOfLines={1}>
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontWeight: '700' }} onPress={() => item._friend && onUserPress?.(item._friend)}>{item._friendName}</Text> izledi
+            </Text>
             <ContentCard item={item} onPress={onPress} />
           </View>
         )}
@@ -2467,7 +2515,7 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
 }
 
 // ── AppleTVMainScreen ──────────────────────────────────────────
-function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLanguages, isPremium, onWatchlist, onProfile }) {
+function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLanguages, isPremium, onWatchlist, onProfile, onOpenProfile }) {
   const [heroItems, setHeroItems] = useState([]);
   const [discoverItems, setDiscoverItems] = useState([]);
   const [popularItems, setPopularItems] = useState([]);
@@ -2525,6 +2573,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
           ...row.content,
           availability: (row.content.availability || []).filter(a => selectedPlatforms.includes(a.platform_slug)),
           _friendName: actor?.display_name || (actor?.username ? '@' + actor.username : 'Bir arkadaşın'),
+          _friend: actor || null,
         });
       }
       if (isMounted.current) setFriendsActivity(merged);
@@ -2809,7 +2858,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
             </>
           ) : (
             <>
-              <FriendsActivityRow items={friendsActivity} onPress={handleItemPress} loading={loadingFriendsActivity} />
+              <FriendsActivityRow items={friendsActivity} onPress={handleItemPress} onUserPress={onOpenProfile} loading={loadingFriendsActivity} />
               <ContentRow title="En İyi Puanlılar" items={discoverItems} onPress={handleItemPress} loading={loadingDiscover} onSeeAll={() => setFullScreen('discover')} />
               <ContentRow title="Şu An Popüler" items={popularItems} onPress={handleItemPress} loading={loadingPopular} onSeeAll={() => setFullScreen('popular')} />
               <ContentRow title="Yeni Eklenenler" items={newItems} onPress={handleItemPress} loading={loadingNew} onSeeAll={() => setFullScreen('new')} />
@@ -3931,8 +3980,13 @@ export default function App() {
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
   const [usernameSuggestion, setUsernameSuggestion] = useState('');
   const [showProfile, setShowProfile] = useState(false);
-  const [showWatchlist, setShowWatchlist] = useState(false);
+  const [profileStack, setProfileStack] = useState([]); // [] = ana ekran; eleman = {self:true} | {id,username,display_name}
   const [watchlistItem, setWatchlistItem] = useState(null);
+  const openOwnProfile = () => setProfileStack([{ self: true }]);
+  const openUserProfile = (person) => {
+    if (!person?.id) return;
+    setProfileStack(prev => (prev.length === 0 ? [person] : [...prev, person]));
+  };
 
   // Kullanıcı giriş yaptığında profil bilgilerini yükle
   useEffect(() => {
@@ -4049,16 +4103,22 @@ export default function App() {
 
   if (authLoading) return null;
   if (!user) return <AuthScreen onAuth={(u) => { setUser(u); }} />;
-  if (showWatchlist) return (
-    <>
-      <WatchlistScreen
-        user={user}
-        onBack={() => { setShowWatchlist(false); setWatchlistItem(null); }}
-        onItemPress={(item) => setWatchlistItem(item)}
-      />
-      <DetailModal key={watchlistItem?.id || 'wmodal'} item={watchlistItem} onClose={() => setWatchlistItem(null)} user={user} />
-    </>
-  );
+  if (profileStack.length > 0) {
+    const top = profileStack[profileStack.length - 1];
+    return (
+      <>
+        <WatchlistScreen
+          key={top.self ? 'self' : top.id}
+          user={user}
+          targetUser={top.self ? null : top}
+          onOpenProfile={openUserProfile}
+          onBack={() => { setProfileStack(prev => prev.slice(0, -1)); setWatchlistItem(null); }}
+          onItemPress={(item) => setWatchlistItem(item)}
+        />
+        <DetailModal key={watchlistItem?.id || 'wmodal'} item={watchlistItem} onClose={() => setWatchlistItem(null)} user={user} />
+      </>
+    );
+  }
 
   if (showOnboarding) return <OnboardingScreen user={user} onComplete={({ platforms, genres, languages }) => {
     setSelectedPlatforms(platforms);
@@ -4095,8 +4155,9 @@ export default function App() {
         favoriteGenres={favoriteGenres}
         favoriteLanguages={favoriteLanguages}
         isPremium={isPremium}
-        onWatchlist={() => setShowWatchlist(true)}
+        onWatchlist={openOwnProfile}
         onProfile={() => setShowProfile(true)}
+        onOpenProfile={openUserProfile}
       />
     </SafeAreaView>
   );
