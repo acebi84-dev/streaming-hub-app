@@ -4051,6 +4051,9 @@ function AuthScreen({ onAuth }) {
         const result = await supabase.auth.signUp({ email, password });
         if (result.error) {
           setError(result.error.message);
+        } else if (result.data?.user && Array.isArray(result.data.user.identities) && result.data.user.identities.length === 0) {
+          // Email zaten kayıtlı (ör. Google ile). Supabase enumeration koruması: sahte başarı, mail göndermez.
+          setError('Bu email zaten kayıtlı. Google ile giriş yapmayı dene; ya da "Şifremi unuttum" ile bir şifre belirle.');
         } else {
           setMsg('Doğrulama emaili gönderildi. Emailini kontrol et.');
           // 4 saniye sonra login moduna geç: kullanıcı emaili onaylayıp döndüğünde direkt giriş yapabilsin
