@@ -32,7 +32,7 @@ import YoutubeIframe from 'react-native-youtube-iframe';
 import { Linking, Share, AppState } from 'react-native';
 import ReAnimated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
 import { supabase, supabasePublic, getStoredToken, setStoredToken } from './supabase';
-import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Play, Star, Share2, Trash2, Users, Search, UserPlus, UserMinus } from 'lucide-react-native';
+import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Check, Play, Star, Share2, Trash2, Users, Search, UserPlus, UserMinus } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 // import * as AppleAuthentication from 'expo-apple-authentication';
 // AdMob devre dışı
@@ -631,9 +631,9 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
   ];
 
   const SUB_TABS = [
-    { key: 'watched',  label: 'İzledim',          emoji: '✅' },
-    { key: 'watching', label: 'İzliyorum',         emoji: '▶️' },
-    { key: 'want',     label: 'İzleyeceğim',       emoji: '🔖' },
+    { key: 'watched',  label: 'İzledim',    icon: Check },
+    { key: 'watching', label: 'İzliyorum',  icon: Play },
+    { key: 'want',     label: 'İzleyeceğim', icon: Bookmark },
   ];
 
   const fullName = [profile?.display_name, profile?.surname].filter(Boolean).join(' ') || profile?.username || 'Kullanıcı';
@@ -641,6 +641,10 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
+        <TouchableOpacity onPress={onBack} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginBottom: 14 }}>
+          <ChevronLeft size={20} color="#fff" strokeWidth={2.2} />
+          <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>Profil</Text>
+        </TouchableOpacity>
         {/* person card */}
         <View style={{ flexDirection: isNarrow ? 'column' : 'row', alignItems: isNarrow ? 'center' : 'center', gap: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 18, padding: 16, marginBottom: 16 }}>
           <Avatar seed={user?.id} name={profile?.display_name || profile?.username || 'Kullanıcı'} size={isNarrow ? 64 : 72} />
@@ -662,12 +666,12 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
             {profile?.bio ? (
               <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 6, lineHeight: 18, textAlign: isNarrow ? 'center' : 'left' }} numberOfLines={3}>{profile.bio}</Text>
             ) : null}
-            <View style={{ flexDirection: 'row', gap: 22, marginTop: 10 }}>
-              <TouchableOpacity onPress={() => setTab('followers')} style={{ alignItems: isNarrow ? 'center' : 'flex-start' }}>
+            <View style={{ flexDirection: 'row', gap: 26, marginTop: 18 }}>
+              <TouchableOpacity onPress={() => setTab('followers')} style={{ alignItems: isNarrow ? 'center' : 'flex-start', gap: 2 }}>
                 <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>{followerCount}</Text>
                 <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '600' }}>Takipçi</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setTab('following')} style={{ alignItems: isNarrow ? 'center' : 'flex-start' }}>
+              <TouchableOpacity onPress={() => setTab('following')} style={{ alignItems: isNarrow ? 'center' : 'flex-start', gap: 2 }}>
                 <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>{followingIds.length}</Text>
                 <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '600' }}>Takip</Text>
               </TouchableOpacity>
@@ -675,7 +679,7 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
           </View>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, alignItems: 'center' }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, alignItems: 'center', paddingRight: 24 }}>
           {TOP_TABS.map(t => (
             <TouchableOpacity key={t.key}
               style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20, backgroundColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.12)' }}
@@ -686,14 +690,19 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
         </ScrollView>
 
         {tab === 'list' && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10, alignItems: 'center' }}>
-            {SUB_TABS.map(t => (
-              <TouchableOpacity key={t.key}
-                style={{ paddingHorizontal: 18, paddingVertical: 10, borderRadius: 18, backgroundColor: listSubTab === t.key ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: listSubTab === t.key ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.1)' }}
-                onPress={() => setListSubTab(t.key)}>
-                <Text style={{ color: listSubTab === t.key ? '#fff' : 'rgba(255,255,255,0.6)', fontWeight: '700', fontSize: 13 }}>{t.emoji} {t.label}</Text>
-              </TouchableOpacity>
-            ))}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10, alignItems: 'center', paddingRight: 24 }}>
+            {SUB_TABS.map(t => {
+              const Icon = t.icon;
+              const sel = listSubTab === t.key;
+              return (
+                <TouchableOpacity key={t.key}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 13, paddingVertical: 7, borderRadius: 14, backgroundColor: sel ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: sel ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)' }}
+                  onPress={() => setListSubTab(t.key)}>
+                  <Icon size={14} strokeWidth={1.8} color={sel ? '#fff' : 'rgba(255,255,255,0.5)'} />
+                  <Text style={{ color: sel ? '#fff' : 'rgba(255,255,255,0.5)', fontWeight: '600', fontSize: 12 }}>{t.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         )}
       </View>
@@ -705,10 +714,10 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
           </View>
         ) : items.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 }}>
-            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
-              {listSubTab === 'watched' && <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 30 }}>✓</Text>}
-              {listSubTab === 'watching' && <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 28, fontWeight: '300' }}>▷</Text>}
-              {listSubTab === 'want' && <Bookmark size={30} color="rgba(255,255,255,0.35)" strokeWidth={1.5} />}
+            <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+              {listSubTab === 'watched' && <Check size={22} color="rgba(255,255,255,0.35)" strokeWidth={1.8} />}
+              {listSubTab === 'watching' && <Play size={22} color="rgba(255,255,255,0.35)" strokeWidth={1.8} />}
+              {listSubTab === 'want' && <Bookmark size={22} color="rgba(255,255,255,0.35)" strokeWidth={1.8} />}
             </View>
             <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz içerik yok</Text>
             <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, textAlign: 'center', paddingHorizontal: 40 }}>
@@ -863,7 +872,6 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
           )}
         </View>
       )}
-      <FloatingBackBtn onPress={onBack} />
     </SafeAreaView>
   );
 }
@@ -2775,20 +2783,6 @@ function useInterstitial() { return () => {}; }
 
 function AdBanner() { return null; }
 
-function FloatingBackBtn({ onPress }) {
-  return (
-    <TouchableOpacity
-      style={styles.floatingBackBtn}
-      onPress={onPress}
-      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      activeOpacity={0.75}
-    >
-      <ChevronLeft size={16} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
-      <Text style={styles.floatingBackBtnText}>Geri Dön</Text>
-    </TouchableOpacity>
-  );
-}
-
 
 
 // ── Onboarding Screen ─────────────────────────────────────────
@@ -4132,8 +4126,6 @@ const styles = StyleSheet.create({
   homeLogoIcon: { width: 44, height: 44, borderRadius: 10 },
   miniHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 10 },
   miniHeaderBack: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  floatingBackBtn: { position: 'absolute', bottom: 28, right: 20, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(30,30,40,0.92)', borderRadius: 24, paddingHorizontal: 18, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
-  floatingBackBtnText: { color: 'white', fontSize: 15, fontWeight: '700', letterSpacing: 0.2 },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   backBtnText: { color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: '700', letterSpacing: 0.2 },
   miniHeaderTitle: { flex: 1, color: '#fff', fontSize: 26, fontWeight: '700', letterSpacing: -0.6 },
