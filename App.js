@@ -4036,7 +4036,14 @@ function AuthScreen({ onAuth }) {
         });
         const json = await res.json();
         if (!res.ok || json.error) {
-          setError(json.error_description || json.msg || json.error || 'Giriş başarısız');
+          const raw = json.error_description || json.msg || json.error || '';
+          if (/invalid login credentials|invalid_grant/i.test(raw)) {
+            setError('Email veya şifre hatalı. Google ile kaydolduysan "Google ile devam et"i kullan; ya da "Şifremi unuttum" ile bir şifre belirle.');
+          } else if (/email not confirmed/i.test(raw)) {
+            setError('Email henüz onaylanmamış. Gelen kutundaki doğrulama linkine tıkla.');
+          } else {
+            setError(raw || 'Giriş başarısız');
+          }
         } else {
           if (json.access_token && json.refresh_token) {
             _SUPA.token = json.access_token;
