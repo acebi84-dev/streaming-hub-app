@@ -578,6 +578,9 @@ function WatchlistScreen({ user, onItemPress, onBack, targetUser, onOpenProfile 
   const [items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [statusCounts, setStatusCounts] = useState({ watched: 0, watching: 0, want: 0 });
+  const [profileReviews, setProfileReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  const [expandedReviews, setExpandedReviews] = useState(() => new Set());
   const [profile, setProfile] = useState(targetUser || null);
   const [followingIds, setFollowingIds] = useState([]);
   const [myFollowingIds, setMyFollowingIds] = useState([]);
@@ -621,7 +624,29 @@ function WatchlistScreen({ user, onItemPress, onBack, targetUser, onOpenProfile 
     fetchFollowers();
     fetchFollowing(ownerFollowing);
     fetchStatusCounts();
+    fetchProfileReviews();
     if (isOwn) fetchSuggestedUsers(user.id, ownerFollowing).then(list => { if (isMounted.current) setSuggested(list); }).catch(() => {});
+  }
+
+  async function fetchProfileReviews() {
+    if (!profileId) { setLoadingReviews(false); return; }
+    setLoadingReviews(true);
+    try {
+      const sel = 'select=review,rating,status,updated_at,content:hub_contents(id,title,title_tr,type,year,poster_url,original_language)';
+      const { data } = await dbXHR('watchlist?user_id=eq.' + profileId + '&review=not.is.null&order=updated_at.desc&' + sel);
+      const rows = (Array.isArray(data) ? data : []).filter(r => r.review && String(r.review).trim() && r.content);
+      if (isMounted.current) setProfileReviews(rows);
+    } finally {
+      if (isMounted.current) setLoadingReviews(false);
+    }
+  }
+
+  function toggleReviewExpand(id) {
+    setExpandedReviews(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   }
 
   async function fetchStatusCounts() {
@@ -768,10 +793,18 @@ function WatchlistScreen({ user, onItemPress, onBack, targetUser, onOpenProfile 
   const TOP_TABS = [
     { key: 'list', label: isOwn ? 'İzleme Listem' : 'İzleme Listesi' },
     { key: 'feed', label: 'Aktivite Akışı' },
+    { key: 'reviews', label: 'Değerlendirmeler' },
     { key: 'followers', label: 'Takipçi' },
     { key: 'following', label: 'Takip' },
     ...(isOwn ? [{ key: 'search', label: 'Ara' }] : []),
   ];
+
+  // Değerlendirme görünürlüğü tercihi (sadece başkasının profilinde geçerli)
+  const reviewFilter = _prefs.reviewFilter || 'everyone';
+  const targetFollowsMe = !isOwn && following.some(f => f.id === user.id);
+  const canSeeReviews = isOwn || reviewFilter === 'everyone'
+    || (reviewFilter === 'following' && myFollowingIds.includes(profileId))
+    || (reviewFilter === 'both' && (myFollowingIds.includes(profileId) || targetFollowsMe));
 
   const SUB_TABS = [
     { key: 'watched',  label: 'İzledim',    icon: Check },
@@ -990,6 +1023,64 @@ function WatchlistScreen({ user, onItemPress, onBack, targetUser, onOpenProfile 
                     <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600', marginTop: 1 }}>{timeAgo(row.created_at)}</Text>
                   </View>
                 </TouchableOpacity>
+              );
+            }}
+          />
+        )
+      ) : tab === 'reviews' ? (
+        (loadingReviews && canSeeReviews) ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color="#fff" size="large" />
+          </View>
+        ) : (!canSeeReviews || profileReviews.length === 0) ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 40 }}>
+            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+              <MessageSquare size={28} color="rgba(255,255,255,0.35)" strokeWidth={1.5} />
+            </View>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz değerlendirme yok</Text>
+            {isOwn && canSeeReviews && (
+              <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, textAlign: 'center' }}>İlk değerlendirmeni bir içerik sayfasından yazabilirsin</Text>
+            )}
+          </View>
+        ) : (
+          <FlatList
+            data={profileReviews}
+            keyExtractor={r => String(r.content.id)}
+            contentContainerStyle={{ padding: 16, gap: 12 }}
+            renderItem={({ item: r }) => {
+              const c = r.content;
+              const reviewText = String(r.review).trim();
+              const long = reviewText.length > 140 || (reviewText.match(/\n/g) || []).length >= 3;
+              const expanded = expandedReviews.has(c.id);
+              const cTitle = c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title;
+              return (
+                <View style={{ flexDirection: 'row', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 18, padding: 12 }}>
+                  <TouchableOpacity onPress={() => onItemPress(c)} activeOpacity={0.7}>
+                    {c.poster_url
+                      ? <Image source={{ uri: c.poster_url }} style={{ width: 52, height: 78, borderRadius: 8 }} resizeMode="cover" />
+                      : <View style={{ width: 52, height: 78, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' }}><Film size={20} color="rgba(255,255,255,0.3)" /></View>}
+                  </TouchableOpacity>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <TouchableOpacity style={{ flex: 1 }} onPress={() => onItemPress(c)} activeOpacity={0.7}>
+                        <Text style={{ color: '#fff', fontSize: 14.5, fontWeight: '700' }} numberOfLines={1}>{cTitle}</Text>
+                      </TouchableOpacity>
+                      {r.rating != null ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                          <Star size={13} color="#ffd43b" strokeWidth={2} fill="#ffd43b" />
+                          <Text style={{ color: '#ffd43b', fontSize: 13, fontWeight: '800' }}>{r.rating}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600', marginTop: 1 }}>{c.year ? c.year + ' · ' : ''}{timeAgo(r.updated_at)}</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.82)', fontSize: 13.5, lineHeight: 19, marginTop: 6 }} numberOfLines={expanded ? undefined : 4}>{reviewText}</Text>
+                    {long && (
+                      <TouchableOpacity onPress={() => toggleReviewExpand(c.id)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 4 }}>
+                        <Text style={{ color: 'rgba(116,192,252,0.9)', fontSize: 12.5, fontWeight: '700' }}>{expanded ? 'daralt' : '...devamını oku'}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
               );
             }}
           />
