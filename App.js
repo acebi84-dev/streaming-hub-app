@@ -1875,9 +1875,9 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
       ? genres.map(g => `genre.ilike.%${GENRE_API_TERM[g] || g}%`).join(',')
       : null;
 
-    const baseQ = () => supabasePublic.from('hub_contents')
+    const baseQ = (minScore = 7) => supabasePublic.from('hub_contents')
       .select('*, availability:hub_availability!inner(platform_slug, platform_url)')
-      .gte('imdb_score', 7).not('imdb_id', 'is', null)
+      .gte('imdb_score', minScore).not('imdb_id', 'is', null)
       .or(platformFilter, { referencedTable: 'hub_availability' })
       .order('imdb_score', { ascending: false })
       .limit(10);
@@ -1900,12 +1900,15 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
       items = data || [];
     }
 
-    // 2. Yeterli içerik yoksa: tüm katalog + dil + genre
+    // 2. Yeterli içerik yoksa: tüm katalog + dil + genre (puan eşiği kademeli düşürülerek)
     if (items.length < 3 && langs.length > 0 && genreOr) {
-      let q = baseQ().in('original_language', langs);
-      if (genreOr) q = q.or(genreOr);
-      const { data } = await q;
-      items = data || [];
+      for (const minScore of [7, 6, 5]) {
+        let q = baseQ(minScore).in('original_language', langs);
+        if (genreOr) q = q.or(genreOr);
+        const { data } = await q;
+        items = data || [];
+        if (items.length >= 3) break;
+      }
     }
 
     // 3. Yeterli yoksa: tüm katalog + dil (genre filtresi yok)
@@ -2064,7 +2067,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
         <View>
           <Text style={{ color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: 3 }}>İZLİO</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v19</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v20</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
