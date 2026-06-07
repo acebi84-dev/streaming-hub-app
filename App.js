@@ -243,6 +243,33 @@ function extractYouTubeId(url) {
   return m ? m[1] : null;
 }
 
+// ── Avatar (renkli baş harf, kullanıcı kimliğinden türetilir) ──
+const AVATAR_COLORS = ['#FF6B6B', '#FFA94D', '#FFD43B', '#69DB7C', '#38D9A9', '#4DABF7', '#748FFC', '#9775FA', '#DA77F2', '#F783AC', '#00BBF9', '#FB8500'];
+function avatarColorFor(seed) {
+  const s = String(seed || '');
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
+function avatarInitial(name) {
+  const s = (name || '').trim();
+  return s ? s.slice(0, 1).toUpperCase() : '?';
+}
+function Avatar({ seed, name, size = 44 }) {
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: avatarColorFor(seed), alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color: '#fff', fontWeight: '800', fontSize: Math.round(size * 0.42) }}>{avatarInitial(name)}</Text>
+    </View>
+  );
+}
+function suggestUsername(input) {
+  if (!input) return '';
+  const map = { 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u', 'İ': 'i', 'Ç': 'c', 'Ğ': 'g', 'Ö': 'o', 'Ş': 's', 'Ü': 'u' };
+  let s = input.toLowerCase().replace(/[çğıöşüİÇĞÖŞÜ]/g, ch => map[ch] || ch);
+  s = s.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return s.slice(0, 16);
+}
+
 // ── Watchlist Button (içerik kartı için) ─────────────────────
 function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVariant, compact }) {
   const [entry, setEntry] = useState(initialEntry ?? null);
@@ -403,12 +430,32 @@ const wlStyles = StyleSheet.create({
 });
 
 // ── Watchlist Screen ───────────────────────────────────────────
+const GENDER_LABEL = { male: 'Erkek', female: 'Kadın', other: 'Diğer' };
+function calcAge(birthDateStr) {
+  if (!birthDateStr) return null;
+  const b = new Date(birthDateStr);
+  if (isNaN(b.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - b.getFullYear();
+  const m = today.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
+  return age;
+}
+
 function WatchlistScreen({ user, onItemPress, onBack }) {
   const [tab, setTab] = useState('watched');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
   const isMounted = useRef(true);
   useEffect(() => { return () => { isMounted.current = false; }; }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    dbXHR('profiles?id=eq.' + user.id + '&select=display_name,surname,username,birth_date,gender,bio')
+      .then(({ data }) => { if (isMounted.current) setProfile(Array.isArray(data) ? data[0] : null); })
+      .catch(() => {});
+  }, [user?.id]);
 
   useEffect(() => { fetchList().catch(() => {}); }, [tab]);
 
@@ -433,6 +480,30 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 18, padding: 16, marginBottom: 16 }}>
+          <Avatar seed={user?.id} name={profile?.display_name || profile?.username || user?.email} size={60} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }} numberOfLines={1}>
+              {[profile?.display_name, profile?.surname].filter(Boolean).join(' ') || user?.email}
+            </Text>
+            {profile?.username ? <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>@{profile.username}</Text> : null}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+              {calcAge(profile?.birth_date) != null && (
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '600' }}>{calcAge(profile?.birth_date)} yaş</Text>
+                </View>
+              )}
+              {profile?.gender && GENDER_LABEL[profile.gender] && (
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '600' }}>{GENDER_LABEL[profile.gender]}</Text>
+                </View>
+              )}
+            </View>
+            {profile?.bio ? (
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 6, lineHeight: 18 }} numberOfLines={3}>{profile.bio}</Text>
+            ) : null}
+          </View>
+        </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
           <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', flex: 1 }}>İzleme Listem</Text>
         </View>
@@ -503,11 +574,13 @@ const ACTIVITY_ACTION_LABEL = {
 };
 
 function FriendsScreen({ user, onItemPress, onBack }) {
-  const [tab, setTab] = useState('feed'); // 'feed' | 'search'
+  const [tab, setTab] = useState('feed'); // 'feed' | 'friends' | 'search'
   const [feed, setFeed] = useState([]);
   const [loadingFeed, setLoadingFeed] = useState(true);
   const [actorMap, setActorMap] = useState({});
   const [followingIds, setFollowingIds] = useState([]);
+  const [friends, setFriends] = useState([]);
+  const [loadingFriends, setLoadingFriends] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -519,6 +592,7 @@ function FriendsScreen({ user, onItemPress, onBack }) {
   async function init() {
     const ids = await loadFollowing();
     fetchFeed(ids);
+    fetchFriends(ids);
   }
 
   async function loadFollowing() {
@@ -526,6 +600,17 @@ function FriendsScreen({ user, onItemPress, onBack }) {
     const ids = Array.isArray(data) ? data.map(r => r.following_id) : [];
     if (isMounted.current) setFollowingIds(ids);
     return ids;
+  }
+
+  async function fetchFriends(ids) {
+    if (isMounted.current) setLoadingFriends(true);
+    try {
+      if (!ids || ids.length === 0) { if (isMounted.current) setFriends([]); return; }
+      const { data } = await dbXHR('profiles?id=in.(' + ids.join(',') + ')&select=id,username,display_name&order=display_name.asc');
+      if (isMounted.current) setFriends(Array.isArray(data) ? data : []);
+    } finally {
+      if (isMounted.current) setLoadingFriends(false);
+    }
   }
 
   async function fetchFeed(ids) {
@@ -575,11 +660,13 @@ function FriendsScreen({ user, onItemPress, onBack }) {
       await dbXHR('follows', 'POST', { follower_id: user.id, following_id: targetId });
     }
     if (tab === 'feed') fetchFeed(newIds);
+    fetchFriends(newIds);
   }
 
   const tabs = [
     { key: 'feed', label: 'Aktivite Akışı' },
-    { key: 'search', label: 'Kullanıcı Ara' },
+    { key: 'friends', label: 'Arkadaşlarım' },
+    { key: 'search', label: 'Arkadaş Ekle' },
   ];
 
   return (
@@ -614,7 +701,7 @@ function FriendsScreen({ user, onItemPress, onBack }) {
               Arkadaşlarını takip et, izledikleri içerikleri burada gör
             </Text>
             <TouchableOpacity style={{ paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, backgroundColor: '#fff' }} onPress={() => setTab('search')}>
-              <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Kullanıcı Ara</Text>
+              <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Arkadaş Ekle</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -642,6 +729,46 @@ function FriendsScreen({ user, onItemPress, onBack }) {
             }}
           />
         )
+      ) : tab === 'friends' ? (
+        loadingFriends ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color="#fff" size="large" />
+          </View>
+        ) : friends.length === 0 ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 40 }}>
+            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+              <Users size={30} color="rgba(255,255,255,0.35)" strokeWidth={1.5} />
+            </View>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz arkadaşın yok</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, textAlign: 'center' }}>
+              Kullanıcı arayıp arkadaş ekleyebilirsin
+            </Text>
+            <TouchableOpacity style={{ paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, backgroundColor: '#fff' }} onPress={() => setTab('search')}>
+              <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Arkadaş Ekle</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={friends}
+            keyExtractor={p => p.id}
+            contentContainerStyle={{ padding: 16, gap: 10 }}
+            renderItem={({ item: p }) => (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 12 }}>
+                <Avatar seed={p.id} name={p.display_name || p.username} size={44} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{p.display_name || p.username}</Text>
+                  {p.username ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>@{p.username}</Text> : null}
+                </View>
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' }}
+                  onPress={() => toggleFollow(p.id)}>
+                  <UserMinus size={15} color="rgba(255,255,255,0.7)" />
+                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: 13 }}>Arkadaşlıktan Çıkar</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          />
+        )
       ) : (
         <View style={{ flex: 1 }}>
           <View style={{ paddingHorizontal: 16, paddingTop: 4 }}>
@@ -664,9 +791,7 @@ function FriendsScreen({ user, onItemPress, onBack }) {
                 const isFollowing = followingIds.includes(p.id);
                 return (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 12 }}>
-                    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#2C2C3A', alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>{(p.display_name || p.username || '?').slice(0, 1).toUpperCase()}</Text>
-                    </View>
+                    <Avatar seed={p.id} name={p.display_name || p.username} size={44} />
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{p.display_name || p.username}</Text>
                       {p.username ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>@{p.username}</Text> : null}
@@ -675,7 +800,7 @@ function FriendsScreen({ user, onItemPress, onBack }) {
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: isFollowing ? 'rgba(255,255,255,0.08)' : '#fff', borderWidth: 1, borderColor: isFollowing ? 'rgba(255,255,255,0.18)' : '#fff' }}
                       onPress={() => toggleFollow(p.id)}>
                       {isFollowing ? <UserMinus size={15} color="rgba(255,255,255,0.7)" /> : <UserPlus size={15} color="#000" />}
-                      <Text style={{ color: isFollowing ? 'rgba(255,255,255,0.7)' : '#000', fontWeight: '700', fontSize: 13 }}>{isFollowing ? 'Takipten Çık' : 'Takip Et'}</Text>
+                      <Text style={{ color: isFollowing ? 'rgba(255,255,255,0.7)' : '#000', fontWeight: '700', fontSize: 13 }}>{isFollowing ? 'Arkadaşlıktan Çıkar' : 'Arkadaş Ekle'}</Text>
                     </TouchableOpacity>
                   </View>
                 );
@@ -2612,9 +2737,26 @@ function OnboardingScreen({ user, onComplete }) {
   const [selGenres, setSelGenres] = useState([]);
   const [selLanguages, setSelLanguages] = useState([]);
   const [displayName, setDisplayName] = useState('');
+  const [surname, setSurname] = useState('');
+  const [username, setUsername] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [gender, setGender] = useState('');
+  const [bio, setBio] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const u = username.trim().toLowerCase();
+    if (!u) { setUsernameStatus(''); return; }
+    if (!/^[a-z0-9_]{3,20}$/.test(u)) { setUsernameStatus('invalid'); return; }
+    setUsernameStatus('checking');
+    const t = setTimeout(() => {
+      dbXHR('profiles?username=eq.' + u + '&select=id').then(({ data }) => {
+        setUsernameStatus(Array.isArray(data) && data.length > 0 ? 'taken' : 'available');
+      }).catch(() => setUsernameStatus(''));
+    }, 500);
+    return () => clearTimeout(t);
+  }, [username]);
 
   function togglePlatform(slug) {
     setSelPlatforms(prev => prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug]);
@@ -2628,14 +2770,18 @@ function OnboardingScreen({ user, onComplete }) {
 
   async function finish() {
     setLoading(true);
+    const u = username.trim().toLowerCase();
     await dbXHR('profiles', 'POST', {
       id: user.id,
       selected_platforms: selPlatforms,
       favorite_genres: selGenres,
       favorite_languages: selLanguages,
       display_name: displayName || null,
+      surname: surname || null,
+      username: (u && usernameStatus === 'available') ? u : null,
       birth_date: birthDate || null,
       gender: gender || null,
+      bio: bio || null,
       updated_at: new Date().toISOString(),
     });
     onComplete({ platforms: selPlatforms, genres: selGenres, languages: selLanguages });
@@ -2728,8 +2874,32 @@ function OnboardingScreen({ user, onComplete }) {
             <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, marginBottom: 28 }}>İsteğe bağlı — dilersen atlayabilirsin.</Text>
 
             <View style={{ gap: 14 }}>
-              <View style={obStyles.inputRow}>
-                <TextInput style={obStyles.input} placeholder="İsmin (isteğe bağlı)" placeholderTextColor="rgba(255,255,255,0.3)" value={displayName} onChangeText={setDisplayName} />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={[obStyles.inputRow, { flex: 1 }]}>
+                  <TextInput style={obStyles.input} placeholder="İsmin" placeholderTextColor="rgba(255,255,255,0.3)" value={displayName} onChangeText={setDisplayName} />
+                </View>
+                <View style={[obStyles.inputRow, { flex: 1 }]}>
+                  <TextInput style={obStyles.input} placeholder="Soyismin" placeholderTextColor="rgba(255,255,255,0.3)" value={surname} onChangeText={setSurname} />
+                </View>
+              </View>
+              <View>
+                <View style={obStyles.inputRow}>
+                  <TextInput style={obStyles.input} placeholder="Kullanıcı adı (örn: ahmet_34)" placeholderTextColor="rgba(255,255,255,0.3)"
+                    value={username} autoCapitalize="none" autoCorrect={false}
+                    onChangeText={t => setUsername(t.replace(/[^a-zA-Z0-9_]/g, ''))} />
+                </View>
+                <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, marginTop: 6, marginLeft: 4 }}>Arkadaşların seni bulabilmesi için gerekir.</Text>
+                {usernameStatus ? (
+                  <Text style={{
+                    fontSize: 12, marginTop: 6, marginLeft: 4,
+                    color: usernameStatus === 'available' ? '#4cd964' : usernameStatus === 'checking' ? 'rgba(255,255,255,0.4)' : '#ff6b6b',
+                  }}>
+                    {usernameStatus === 'available' && '✓ Kullanılabilir'}
+                    {usernameStatus === 'taken' && 'Bu kullanıcı adı alınmış'}
+                    {usernameStatus === 'checking' && 'Kontrol ediliyor...'}
+                    {usernameStatus === 'invalid' && '3-20 karakter, küçük harf/rakam/_ kullanın'}
+                  </Text>
+                ) : null}
               </View>
               <BirthDatePicker value={birthDate} onChange={setBirthDate} />
               <View style={{ gap: 8 }}>
@@ -2743,6 +2913,19 @@ function OnboardingScreen({ user, onComplete }) {
                     </TouchableOpacity>
                   ))}
                 </View>
+              </View>
+              <View>
+                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 8 }}>Hakkımda (isteğe bağlı)</Text>
+                <View style={[obStyles.inputRow, { minHeight: 90, alignItems: 'flex-start', paddingVertical: 12 }]}>
+                  <TextInput
+                    style={[obStyles.input, { minHeight: 70, textAlignVertical: 'top' }]}
+                    placeholder="Kendinden bahset... (ör. ilgi alanların, izlemeyi sevdiğin türler)"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    value={bio} onChangeText={t => setBio(t.slice(0, 200))}
+                    multiline numberOfLines={4} maxLength={200}
+                  />
+                </View>
+                <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginTop: 4, textAlign: 'right' }}>{bio.length}/200</Text>
               </View>
             </View>
           </View>
@@ -2856,10 +3039,12 @@ function AccordionSection({ title, isOpen, onToggle, children }) {
 
 function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSignOut, isPremium, onUpgrade }) {
   const [editName, setEditName] = useState('');
+  const [editSurname, setEditSurname] = useState('');
   const [editUsername, setEditUsername] = useState('');
   const [usernameStatus, setUsernameStatus] = useState(''); // '' | 'checking' | 'available' | 'taken' | 'invalid'
   const [editBirth, setEditBirth] = useState('');
   const [editGender, setEditGender] = useState('');
+  const [editBio, setEditBio] = useState('');
   const [selPlatforms, setSelPlatforms] = useState(selectedPlatforms);
   const [selGenres, setSelGenres] = useState([]);
   const [selLanguages, setSelLanguages] = useState([]);
@@ -2880,10 +3065,12 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
         const d = Array.isArray(data) ? data[0] : null;
         if (d) {
           setEditName(d.display_name || '');
+          setEditSurname(d.surname || '');
           setEditUsername(d.username || '');
           initialUsernameRef.current = d.username || '';
           setEditBirth(d.birth_date || '');
           setEditGender(d.gender || '');
+          setEditBio(d.bio || '');
           setSelPlatforms(d.selected_platforms?.length > 0 ? d.selected_platforms : selectedPlatforms);
           setSelGenres(d.favorite_genres || []);
           setSelLanguages(d.favorite_languages || []);
@@ -2940,9 +3127,11 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
     const { error } = await dbXHR('profiles', 'POST', {
       id: user.id,
       display_name: editName || null,
+      surname: editSurname || null,
       username: u || null,
       birth_date: editBirth || null,
       gender: editGender || null,
+      bio: editBio || null,
       selected_platforms: selPlatforms,
       favorite_genres: selGenres,
       favorite_languages: selLanguages,
@@ -2972,10 +3161,10 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
 
           {/* Avatar */}
           <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: '#2C2C3A', alignItems: 'center', justifyContent: 'center', marginBottom: 10, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.12)' }}>
-              <Text style={{ color: '#fff', fontSize: 28, fontWeight: '700' }}>{(editName || user?.email || 'İ').slice(0, 1).toUpperCase()}</Text>
+            <View style={{ marginBottom: 10 }}>
+              <Avatar seed={user?.id} name={editName || editUsername || user?.email} size={72} />
             </View>
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{editName || user?.email}</Text>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{[editName, editSurname].filter(Boolean).join(' ') || user?.email}</Text>
             {editName ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 2 }}>{user?.email}</Text> : null}
             {editUsername ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 2 }}>@{editUsername}</Text> : null}
             <View style={{ flexDirection: 'row', gap: 28, marginTop: 12 }}>
@@ -2985,15 +3174,20 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
               </View>
               <View style={{ alignItems: 'center' }}>
                 <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>{followingCount}</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>Takip</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>Arkadaş</Text>
               </View>
             </View>
           </View>
 
           {/* Kişisel Bilgiler — accordion */}
           <AccordionSection title="Kişisel Bilgiler" isOpen={openPersonal} onToggle={() => setOpenPersonal(p => !p)}>
-            <View style={pmStyles.inputRow}>
-              <TextInput style={pmStyles.input} placeholder="İsim" placeholderTextColor="rgba(255,255,255,0.3)" value={editName} onChangeText={setEditName} />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={[pmStyles.inputRow, { flex: 1 }]}>
+                <TextInput style={pmStyles.input} placeholder="İsim" placeholderTextColor="rgba(255,255,255,0.3)" value={editName} onChangeText={setEditName} />
+              </View>
+              <View style={[pmStyles.inputRow, { flex: 1 }]}>
+                <TextInput style={pmStyles.input} placeholder="Soyisim" placeholderTextColor="rgba(255,255,255,0.3)" value={editSurname} onChangeText={setEditSurname} />
+              </View>
             </View>
             <View>
               <View style={pmStyles.inputRow}>
@@ -3023,6 +3217,19 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
                 </TouchableOpacity>
               ))}
             </View>
+            <View>
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 8 }}>Hakkımda</Text>
+              <View style={[pmStyles.inputRow, { minHeight: 90, alignItems: 'flex-start', paddingVertical: 12 }]}>
+                <TextInput
+                  style={[pmStyles.input, { minHeight: 70, textAlignVertical: 'top' }]}
+                  placeholder="Kendinden bahset... (ör. ilgi alanların, izlemeyi sevdiğin türler)"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  value={editBio} onChangeText={t => setEditBio(t.slice(0, 200))}
+                  multiline numberOfLines={4} maxLength={200}
+                />
+              </View>
+              <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginTop: 4, textAlign: 'right' }}>{editBio.length}/200</Text>
+            </View>
           </AccordionSection>
 
           {/* Platformlar — accordion */}
@@ -3048,7 +3255,7 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
           </AccordionSection>
 
           {/* Favori Türler — accordion */}
-          <AccordionSection title="Favori Türler" isOpen={openGenres} onToggle={() => setOpenGenres(p => !p)}>
+          <AccordionSection title={`Favori Türler${selGenres.length > 0 ? ` (${selGenres.length})` : ''}`} isOpen={openGenres} onToggle={() => setOpenGenres(p => !p)}>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {PROFILE_GENRES.map(g => {
                 const sel = selGenres.includes(g.id);
@@ -3119,6 +3326,73 @@ const pmStyles = StyleSheet.create({
   premiumBtn: { backgroundColor: '#ffd43b', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   premiumBtnText: { color: '#000', fontSize: 15, fontWeight: '800' },
 });
+
+// ── Username Setup Modal (kullanıcı adı henüz yoksa, mevcut kullanıcılara) ──
+function UsernameSetupModal({ visible, user, suggested, onDone }) {
+  const [username, setUsername] = useState('');
+  const [status, setStatus] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { if (visible) { setUsername(suggested || ''); setStatus(''); } }, [visible]);
+
+  useEffect(() => {
+    const u = username.trim().toLowerCase();
+    if (!u) { setStatus(''); return; }
+    if (!/^[a-z0-9_]{3,20}$/.test(u)) { setStatus('invalid'); return; }
+    setStatus('checking');
+    const t = setTimeout(() => {
+      dbXHR('profiles?username=eq.' + u + '&select=id').then(({ data }) => {
+        setStatus(Array.isArray(data) && data.length > 0 ? 'taken' : 'available');
+      }).catch(() => setStatus(''));
+    }, 500);
+    return () => clearTimeout(t);
+  }, [username]);
+
+  async function save() {
+    const u = username.trim().toLowerCase();
+    if (!u || status !== 'available') return;
+    setSaving(true);
+    const { error } = await dbXHR('profiles', 'POST', { id: user.id, username: u, updated_at: new Date().toISOString() });
+    setSaving(false);
+    if (!error) onDone(u);
+  }
+
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={() => onDone(null)}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.78)', justifyContent: 'center', padding: 24 }}>
+        <View style={{ backgroundColor: '#15151f', borderRadius: 20, padding: 24, gap: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+          <Avatar seed={user?.id} name={username || user?.email} size={56} />
+          <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800' }}>Kullanıcı Adı Seç</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, lineHeight: 20 }}>
+            Arkadaşlarının seni bulup takip edebilmesi için bir kullanıcı adı belirle.
+          </Text>
+          <View style={pmStyles.inputRow}>
+            <TextInput style={pmStyles.input} placeholder="kullanici_adi" placeholderTextColor="rgba(255,255,255,0.3)"
+              value={username} autoCapitalize="none" autoCorrect={false}
+              onChangeText={t => setUsername(t.replace(/[^a-zA-Z0-9_]/g, ''))} />
+          </View>
+          {status ? (
+            <Text style={{
+              fontSize: 13, marginTop: -6,
+              color: status === 'available' ? '#4cd964' : status === 'checking' ? 'rgba(255,255,255,0.4)' : '#ff6b6b',
+            }}>
+              {status === 'available' && '✓ Kullanılabilir'}
+              {status === 'taken' && 'Bu kullanıcı adı alınmış'}
+              {status === 'checking' && 'Kontrol ediliyor...'}
+              {status === 'invalid' && '3-20 karakter, küçük harf/rakam/_ kullanın'}
+            </Text>
+          ) : null}
+          <TouchableOpacity style={[pmStyles.saveBtn, (status !== 'available' || saving) && { opacity: 0.5 }]} disabled={status !== 'available' || saving} onPress={save}>
+            {saving ? <ActivityIndicator color="#000" /> : <Text style={pmStyles.saveBtnText}>Kaydet</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => onDone(null)} style={{ alignItems: 'center', paddingVertical: 6 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Daha sonra</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 // ── Auth Screen ──────────────────────────────────────────────
 function AuthScreen({ onAuth }) {
@@ -3399,6 +3673,8 @@ export default function App() {
   const [favoriteLanguages, setFavoriteLanguages] = useState([]);
 
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
+  const [usernameSuggestion, setUsernameSuggestion] = useState('');
   const [showProfile, setShowProfile] = useState(false);
   const [showWatchlist, setShowWatchlist] = useState(false);
   const [watchlistItem, setWatchlistItem] = useState(null);
@@ -3408,13 +3684,17 @@ export default function App() {
   // Kullanıcı giriş yaptığında profil bilgilerini yükle
   useEffect(() => {
     if (!user) return;
-    dbXHR('profiles?id=eq.' + user.id + '&select=selected_platforms,is_premium,favorite_genres,favorite_languages')
+    dbXHR('profiles?id=eq.' + user.id + '&select=selected_platforms,is_premium,favorite_genres,favorite_languages,username,display_name')
       .then(({ data }) => {
         const d = Array.isArray(data) ? data[0] : null;
         if (d?.selected_platforms && d.selected_platforms.length > 0) {
           saveSelectedPlatforms(d.selected_platforms);
           setSelectedPlatforms(d.selected_platforms);
           setShowOnboarding(false);
+          if (!d.username) {
+            setUsernameSuggestion(suggestUsername(d.display_name) || suggestUsername((user.email || '').split('@')[0]) || '');
+            setShowUsernamePrompt(true);
+          }
         } else {
           setShowOnboarding(true);
         }
@@ -3555,6 +3835,12 @@ export default function App() {
         onSignOut={() => { _SUPA.token = null; setStoredToken(null); SecureStore.deleteItemAsync('izlio_access_token').catch(() => {}); SecureStore.deleteItemAsync('izlio_refresh_token').catch(() => {}); supabase.auth.signOut().catch(() => {}); setUser(null); setShowProfile(false); }}
         isPremium={isPremium}
         onUpgrade={() => { setShowProfile(false); alert('Yakında! In-App Purchase entegrasyonu hazırlanıyor.'); }}
+      />
+      <UsernameSetupModal
+        visible={showUsernamePrompt}
+        user={user}
+        suggested={usernameSuggestion}
+        onDone={() => setShowUsernamePrompt(false)}
       />
       <PlatformModal visible={showPlatformModal} selected={selectedPlatforms} onSave={handlePlatformSave} onClose={() => setShowPlatformModal(false)} />
       <AppleTVMainScreen
