@@ -5,6 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as ExpoLinking from 'expo-linking';
+import { LinearGradient } from 'expo-linear-gradient';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -1615,34 +1616,46 @@ function PersonalizedHeroSection({ items, scrollY, onPress }) {
     extrapolate: 'clamp',
   });
 
-  const POSTER_H = HERO_H * 0.62;
+  const imgTranslate = scrollY.interpolate({
+    inputRange: [-HERO_H, 0, HERO_H],
+    outputRange: [-HERO_H * 0.25, 0, HERO_H * 0.35],
+    extrapolate: 'clamp',
+  });
+
   return (
     <View style={{ height: HERO_H, overflow: 'hidden' }} {...panResponder.panHandlers}>
       <ReAnimated.View style={[StyleSheet.absoluteFill, animStyle]}>
-        <View style={{ height: POSTER_H, overflow: 'hidden', backgroundColor: '#0a0a0c', alignItems: 'center', justifyContent: 'center' }}>
+        <Animated.View style={{ position: 'absolute', top: -40, left: 0, right: 0, height: HERO_H + 80, transform: [{ translateY: imgTranslate }] }}>
           {item.poster_url
-            ? <Image source={{ uri: item.poster_url }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
-            : <View style={{ flex: 1, width: '100%', backgroundColor: '#111' }} />}
-        </View>
-        <Animated.View style={{ flex: 1, backgroundColor: '#0a0a0c', padding: 20, paddingBottom: items.length > 1 ? 38 : 26, opacity: contentOpacity }}>
+            ? <Image source={{ uri: item.poster_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+            : <View style={{ flex: 1, backgroundColor: '#111' }} />}
+        </Animated.View>
+        {/* Tek parça yumuşak gradient — üstte şeffaf (poster net görünür), alta doğru kademeli kararır */}
+        <LinearGradient
+          colors={['transparent', 'rgba(8,8,11,0.5)', 'rgba(8,8,11,0.96)']}
+          locations={[0, 0.52, 1]}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+        <Animated.View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: items.length > 1 ? 38 : 26, opacity: contentOpacity }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
               <Text style={{ color: '#ffd43b', fontSize: 11 }}>✦</Text>
               <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 }}>SANA ÖZEL</Text>
             </View>
           </View>
-          <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900', letterSpacing: -0.8, marginBottom: 8, lineHeight: 31 }} numberOfLines={2}>{title}</Text>
+          <Text style={{ color: '#fff', fontSize: 30, fontWeight: '900', letterSpacing: -0.8, marginBottom: 8, lineHeight: 35, textShadowColor: 'rgba(0,0,0,0.85)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 }} numberOfLines={2}>{title}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
             {item.imdb_score != null && <Text style={{ color: '#ffd43b', fontWeight: '800', fontSize: 14 }}>★ {item.imdb_score.toFixed(1)}</Text>}
-            {item.year && <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{item.year}</Text>}
-            {item.type && <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{item.type === 'movie' ? 'Film' : 'Dizi'}</Text>}
+            {item.year && <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{item.year}</Text>}
+            {item.type && <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{item.type === 'movie' ? 'Film' : 'Dizi'}</Text>}
             {(item.availability || []).slice(0, 2).map(a => {
               const p = PLATFORMS.find(x => x.slug === a.platform_slug);
               if (!p) return null;
               return <View key={a.platform_slug} style={{ backgroundColor: p.color, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 10 }}>{p.name}</Text></View>;
             })}
           </View>
-          {item.synopsis_tr && <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 17, marginBottom: 14 }} numberOfLines={2}>{item.synopsis_tr}</Text>}
+          {item.synopsis_tr && <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, lineHeight: 17, marginBottom: 14, textShadowColor: 'rgba(0,0,0,0.7)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 }} numberOfLines={2}>{item.synopsis_tr}</Text>}
           <TouchableOpacity style={{ backgroundColor: '#fff', borderRadius: 12, paddingVertical: 13, paddingHorizontal: 22, alignSelf: 'flex-start' }} onPress={() => onPress(item)} activeOpacity={0.85}>
             <Text style={{ color: '#000', fontWeight: '800', fontSize: 14 }}>▶  Detayları Gör</Text>
           </TouchableOpacity>
