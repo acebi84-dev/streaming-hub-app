@@ -1620,25 +1620,25 @@ function PersonalizedHeroSection({ items, scrollY, onPress }) {
     extrapolate: 'clamp',
   });
 
+  const POSTER_H = HERO_H * 0.56;
   return (
     <View style={{ height: HERO_H, overflow: 'hidden' }} {...panResponder.panHandlers}>
       <ReAnimated.View style={[StyleSheet.absoluteFill, animStyle]}>
-        <Animated.View style={{ position: 'absolute', top: -40, left: 0, right: 0, height: HERO_H + 80, transform: [{ translateY: imgTranslate }] }}>
-          {item.poster_url
-            ? <Image source={{ uri: item.poster_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-            : <View style={{ flex: 1, backgroundColor: '#111' }} />}
-        </Animated.View>
-        {/* Two-layer gradient: soft transition + solid text backing */}
-        <View style={{ position: 'absolute', bottom: HERO_H * 0.4, left: 0, right: 0, height: HERO_H * 0.1, backgroundColor: 'rgba(0,0,0,0.2)' }} />
-        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HERO_H * 0.42, backgroundColor: 'rgba(0,0,0,0.72)' }} />
-        <Animated.View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: items.length > 1 ? 38 : 26, opacity: contentOpacity }}>
+        <View style={{ height: POSTER_H, overflow: 'hidden' }}>
+          <Animated.View style={{ position: 'absolute', top: -40, left: 0, right: 0, height: POSTER_H + 80, transform: [{ translateY: imgTranslate }] }}>
+            {item.poster_url
+              ? <Image source={{ uri: item.poster_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              : <View style={{ flex: 1, backgroundColor: '#111' }} />}
+          </Animated.View>
+        </View>
+        <Animated.View style={{ flex: 1, backgroundColor: '#0a0a0c', padding: 20, paddingBottom: items.length > 1 ? 38 : 26, opacity: contentOpacity }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
               <Text style={{ color: '#ffd43b', fontSize: 11 }}>✦</Text>
               <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 }}>SANA ÖZEL</Text>
             </View>
           </View>
-          <Text style={{ color: '#fff', fontSize: 35, fontWeight: '900', letterSpacing: -0.8, marginBottom: 8, lineHeight: 41, textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 }} numberOfLines={2}>{title}</Text>
+          <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900', letterSpacing: -0.8, marginBottom: 8, lineHeight: 31 }} numberOfLines={2}>{title}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
             {item.imdb_score != null && <Text style={{ color: '#ffd43b', fontWeight: '800', fontSize: 14 }}>★ {item.imdb_score.toFixed(1)}</Text>}
             {item.year && <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{item.year}</Text>}
@@ -1649,7 +1649,7 @@ function PersonalizedHeroSection({ items, scrollY, onPress }) {
               return <View key={a.platform_slug} style={{ backgroundColor: p.color, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 }}><Text style={{ color: '#fff', fontWeight: '800', fontSize: 10 }}>{p.name}</Text></View>;
             })}
           </View>
-          {item.synopsis_tr && <Text style={{ color: 'rgba(255,255,255,0.58)', fontSize: 12, lineHeight: 17, marginBottom: 14 }} numberOfLines={2}>{item.synopsis_tr}</Text>}
+          {item.synopsis_tr && <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 17, marginBottom: 14 }} numberOfLines={2}>{item.synopsis_tr}</Text>}
           <TouchableOpacity style={{ backgroundColor: '#fff', borderRadius: 12, paddingVertical: 13, paddingHorizontal: 22, alignSelf: 'flex-start' }} onPress={() => onPress(item)} activeOpacity={0.85}>
             <Text style={{ color: '#000', fontWeight: '800', fontSize: 14 }}>▶  Detayları Gör</Text>
           </TouchableOpacity>
@@ -1726,7 +1726,7 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
         <Text style={{ color: '#555', fontSize: 13, marginRight: 8 }}>🔍</Text>
-        <TextInput style={{ flex: 1, color: '#fff', fontSize: 15 }} placeholder="Film, dizi, oyuncu ara..." placeholderTextColor="#444" value={searchInput} onChangeText={setSearchInput} onSubmitEditing={() => setActiveSearch(searchInput)} returnKeyType="search" maxFontSizeMultiplier={1} />
+        <TextInput style={{ flex: 1, color: '#fff', fontSize: 15 }} placeholder="Film, dizi, oyuncu, yönetmen ara..." placeholderTextColor="#444" value={searchInput} onChangeText={setSearchInput} onSubmitEditing={() => setActiveSearch(searchInput)} returnKeyType="search" maxFontSizeMultiplier={1} />
         {searchInput.length > 0 && <TouchableOpacity style={{ padding: 8 }} hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} onPress={() => { setSearchInput(''); setActiveSearch(''); }}><Text style={{ color: '#555', fontSize: 16, paddingLeft: 8 }}>✕</Text></TouchableOpacity>}
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingVertical: 8, alignItems: 'center' }}>
@@ -2094,7 +2094,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
           <Text style={{ color: '#555', fontSize: 13, marginRight: 8 }}>🔍</Text>
           <TextInput
             style={{ flex: 1, color: '#fff', fontSize: 15 }}
-            placeholder="Film, dizi, oyuncu ara..."
+            placeholder="Film, dizi, oyuncu, yönetmen ara..."
             placeholderTextColor="#444"
             value={searchInput}
             onChangeText={setSearchInput}
