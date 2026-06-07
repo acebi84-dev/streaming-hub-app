@@ -442,13 +442,32 @@ function calcAge(birthDateStr) {
   return age;
 }
 
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const diff = Math.max(0, Date.now() - d.getTime());
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'az önce';
+  if (min < 60) return min + ' dk önce';
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return hr + ' sa önce';
+  const day = Math.floor(hr / 24);
+  if (day < 7) return day + ' gün önce';
+  const week = Math.floor(day / 7);
+  if (week < 5) return week + ' hf önce';
+  const month = Math.floor(day / 30);
+  if (month < 12) return month + ' ay önce';
+  return Math.floor(day / 365) + ' yıl önce';
+}
+
 function PersonRow({ person, isFollowing, onToggleFollow }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 12 }}>
-      <Avatar seed={person.id} name={person.display_name || person.username} size={44} />
-      <View style={{ flex: 1 }}>
-        <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{person.display_name || person.username}</Text>
-        {person.username ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>@{person.username}</Text> : null}
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 }}>
+      <Avatar seed={person.id} name={person.display_name || person.username} size={46} />
+      <View style={{ flex: 1, gap: 1 }}>
+        <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }} numberOfLines={1}>{person.display_name || person.username}</Text>
+        {person.username ? <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: '500' }} numberOfLines={1}>@{person.username}</Text> : null}
       </View>
       <TouchableOpacity
         style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: isFollowing ? 'rgba(255,255,255,0.08)' : '#fff', borderWidth: 1, borderColor: isFollowing ? 'rgba(255,255,255,0.18)' : '#fff' }}
@@ -461,6 +480,12 @@ function PersonRow({ person, isFollowing, onToggleFollow }) {
 }
 
 function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
+  const { width: winWidth } = useWindowDimensions();
+  const isNarrow = winWidth < 360;
+  const GRID_COLS = winWidth >= 700 ? 4 : 3;
+  const GRID_GAP = 12;
+  const gridItemWidth = (winWidth - 32 - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
+  const gridItemHeight = gridItemWidth * 1.5;
   const [tab, setTab] = useState(initialTab || 'list');
   const [listSubTab, setListSubTab] = useState('watched');
   const [items, setItems] = useState([]);
@@ -617,12 +642,12 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
         {/* person card */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 18, padding: 16, marginBottom: 16 }}>
-          <Avatar seed={user?.id} name={profile?.display_name || profile?.username || 'Kullanıcı'} size={60} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }} numberOfLines={1}>{fullName}</Text>
-            {profile?.username ? <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>@{profile.username}</Text> : null}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+        <View style={{ flexDirection: isNarrow ? 'column' : 'row', alignItems: isNarrow ? 'center' : 'center', gap: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 18, padding: 16, marginBottom: 16 }}>
+          <Avatar seed={user?.id} name={profile?.display_name || profile?.username || 'Kullanıcı'} size={isNarrow ? 64 : 72} />
+          <View style={{ flex: isNarrow ? undefined : 1, alignItems: isNarrow ? 'center' : 'flex-start', gap: 3, width: isNarrow ? '100%' : undefined }}>
+            <Text style={{ color: '#fff', fontSize: 19, fontWeight: '800' }} numberOfLines={1}>{fullName}</Text>
+            {profile?.username ? <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontWeight: '600' }}>@{profile.username}</Text> : null}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2, justifyContent: isNarrow ? 'center' : 'flex-start' }}>
               {calcAge(profile?.birth_date) != null && (
                 <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
                   <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '600' }}>{calcAge(profile?.birth_date)} yaş</Text>
@@ -635,20 +660,22 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
               )}
             </View>
             {profile?.bio ? (
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 6, lineHeight: 18 }} numberOfLines={3}>{profile.bio}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 6, lineHeight: 18, textAlign: isNarrow ? 'center' : 'left' }} numberOfLines={3}>{profile.bio}</Text>
             ) : null}
-            <View style={{ flexDirection: 'row', gap: 18, marginTop: 8 }}>
-              <TouchableOpacity onPress={() => setTab('followers')}>
-                <Text style={{ color: '#fff', fontSize: 13 }}><Text style={{ fontWeight: '800' }}>{followerCount}</Text> <Text style={{ color: 'rgba(255,255,255,0.5)' }}>Takipçi</Text></Text>
+            <View style={{ flexDirection: 'row', gap: 22, marginTop: 10 }}>
+              <TouchableOpacity onPress={() => setTab('followers')} style={{ alignItems: isNarrow ? 'center' : 'flex-start' }}>
+                <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>{followerCount}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '600' }}>Takipçi</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setTab('following')}>
-                <Text style={{ color: '#fff', fontSize: 13 }}><Text style={{ fontWeight: '800' }}>{followingIds.length}</Text> <Text style={{ color: 'rgba(255,255,255,0.5)' }}>Takip</Text></Text>
+              <TouchableOpacity onPress={() => setTab('following')} style={{ alignItems: isNarrow ? 'center' : 'flex-start' }}>
+                <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>{followingIds.length}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '600' }}>Takip</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, alignItems: 'center' }}>
           {TOP_TABS.map(t => (
             <TouchableOpacity key={t.key}
               style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20, backgroundColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.12)' }}
@@ -659,7 +686,7 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
         </ScrollView>
 
         {tab === 'list' && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10, alignItems: 'center' }}>
             {SUB_TABS.map(t => (
               <TouchableOpacity key={t.key}
                 style={{ paddingHorizontal: 18, paddingVertical: 10, borderRadius: 18, backgroundColor: listSubTab === t.key ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: listSubTab === t.key ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.1)' }}
@@ -692,23 +719,26 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
           <FlatList
             data={items}
             keyExtractor={i => i.id}
-            contentContainerStyle={{ padding: 16, gap: 12 }}
+            numColumns={GRID_COLS}
+            key={'grid-' + GRID_COLS}
+            columnWrapperStyle={{ gap: GRID_GAP }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16, gap: GRID_GAP }}
             renderItem={({ item: row }) => {
               const c = row.content;
               if (!c) return null;
-              const p = PLATFORMS.find(x => x.slug === c.availability?.[0]?.platform_slug);
               return (
-                <TouchableOpacity style={{ flexDirection: 'row', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 10 }} onPress={() => onItemPress(c)}>
-                  {c.poster_url ? <Image source={{ uri: c.poster_url }} style={{ width: 60, height: 90, borderRadius: 8 }} resizeMode="cover" /> : <View style={{ width: 60, height: 90, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' }} />}
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }} numberOfLines={2}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
-                    <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>{c.type === 'movie' ? 'Film' : 'Dizi'}{c.year ? ` · ${c.year}` : ''}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      {c.imdb_score && <><View style={{ backgroundColor: '#f5c518', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 }}><Text style={{ color: '#000', fontSize: 10, fontWeight: '800' }}>IMDb</Text></View><Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{c.imdb_score.toFixed(1)}</Text></>}
-                      {row.rating && <><Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 12 }}>|</Text><Text style={{ color: '#ffd43b', fontSize: 13, fontWeight: '700' }}>★ {row.rating}/10</Text></>}
-                      {p && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: p.color }} />}
+                <TouchableOpacity style={{ width: gridItemWidth }} onPress={() => onItemPress(c)}>
+                  {c.poster_url ? (
+                    <Image source={{ uri: c.poster_url }} style={{ width: gridItemWidth, height: gridItemHeight, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)' }} resizeMode="cover" />
+                  ) : (
+                    <View style={{ width: gridItemWidth, height: gridItemHeight, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Film size={26} color="rgba(255,255,255,0.3)" />
                     </View>
-                    <WatchlistButton item={c} user={user} initialEntry={{ status: row.status, rating: row.rating }} onUpdate={fetchItems} compact />
+                  )}
+                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 8 }} numberOfLines={1}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>{c.year || (c.type === 'movie' ? 'Film' : 'Dizi')}</Text>
+                    {row.rating ? <Text style={{ color: '#ffd43b', fontSize: 12, fontWeight: '700' }}>· ★ {row.rating}</Text> : null}
                   </View>
                 </TouchableOpacity>
               );
@@ -744,14 +774,16 @@ function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
               const actor = actorMap[row.user_id];
               const actorName = actor?.display_name || (actor?.username ? '@' + actor.username : 'Bir kullanıcı');
               return (
-                <TouchableOpacity style={{ flexDirection: 'row', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 10 }} onPress={() => onItemPress(c)}>
-                  {c.poster_url ? <Image source={{ uri: c.poster_url }} style={{ width: 60, height: 90, borderRadius: 8 }} resizeMode="cover" /> : <View style={{ width: 60, height: 90, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' }} />}
-                  <View style={{ flex: 1, gap: 4, justifyContent: 'center' }}>
-                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }} numberOfLines={1}>
-                      <Text style={{ color: '#fff', fontWeight: '700' }}>{actorName}</Text> {ACTIVITY_ACTION_LABEL[row.action] || row.action}
+                <TouchableOpacity style={{ flexDirection: 'row', gap: 12, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 10 }} onPress={() => onItemPress(c)}>
+                  {c.poster_url ? <Image source={{ uri: c.poster_url }} style={{ width: 52, height: 78, borderRadius: 8 }} resizeMode="cover" /> : <View style={{ width: 52, height: 78, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' }} />}
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5 }} numberOfLines={2}>
+                      <Text style={{ color: '#fff', fontWeight: '700' }}>{actorName}</Text> {ACTIVITY_ACTION_LABEL[row.action] || row.action} <Text style={{ color: '#fff', fontWeight: '700' }}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
                     </Text>
-                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }} numberOfLines={2}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
-                    <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>{c.type === 'movie' ? 'Film' : 'Dizi'}{c.year ? ` · ${c.year}` : ''}{row.rating ? ` · ★ ${row.rating}/10` : ''}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>{c.type === 'movie' ? 'Film' : 'Dizi'}{c.year ? ` · ${c.year}` : ''}{row.rating ? ` · ★ ${row.rating}/10` : ''}</Text>
+                    </View>
+                    <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600', marginTop: 1 }}>{timeAgo(row.created_at)}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -3069,7 +3101,7 @@ function AccordionSection({ title, isOpen, onToggle, children }) {
   );
 }
 
-function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSignOut, isPremium, onUpgrade }) {
+function SettingsModal({ visible, user, selectedPlatforms, onClose, onSave, onSignOut, isPremium, onUpgrade }) {
   const [editName, setEditName] = useState('');
   const [editSurname, setEditSurname] = useState('');
   const [editUsername, setEditUsername] = useState('');
@@ -3176,7 +3208,7 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: '#111' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' }}>
-          <Text style={{ flex: 1, color: '#fff', fontSize: 20, fontWeight: '800' }}>Profil</Text>
+          <Text style={{ flex: 1, color: '#fff', fontSize: 20, fontWeight: '800' }}>Profil Ayarları</Text>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16 }}>Kapat</Text>
           </TouchableOpacity>
@@ -3829,7 +3861,7 @@ export default function App() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
       <StatusBar barStyle="light-content" />
-      <ProfileModal
+      <SettingsModal
         visible={showProfile}
         user={user}
         selectedPlatforms={selectedPlatforms}
