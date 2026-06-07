@@ -386,7 +386,7 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
     if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
-      const sel = 'select=*,content:hub_contents(id,title,title_tr,type,year,imdb_score,poster_url,imdb_id,original_language,availability:hub_availability(platform_slug,platform_url))';
+      const sel = 'select=*,content:hub_contents(id,title,title_tr,type,year,imdb_score,poster_url,imdb_id,original_language,synopsis_tr,director,cast_list,trailer_url,tagline,availability:hub_availability(platform_slug,platform_url))';
       const { data } = await dbXHR('watchlist?user_id=eq.' + user.id + '&status=eq.' + tab + '&order=updated_at.desc&' + sel);
       if (isMounted.current) setItems(Array.isArray(data) ? data : []);
     } finally {
@@ -2046,7 +2046,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
         <View>
           <Text style={{ color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: 3 }}>İZLİO</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v13</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v14</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
