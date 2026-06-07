@@ -2315,7 +2315,7 @@ function FloatingBackBtn({ onPress }) {
 // ── Onboarding Screen ─────────────────────────────────────────
 function OnboardingScreen({ user, onComplete }) {
   const [step, setStep] = useState(0); // 0=welcome 1=platforms 2=genres 3=languages 4=profile
-  const [selPlatforms, setSelPlatforms] = useState(['netflix','amazon','disney','hbo']);
+  const [selPlatforms, setSelPlatforms] = useState(PLATFORMS.map(p => p.slug));
   const [selGenres, setSelGenres] = useState([]);
   const [selLanguages, setSelLanguages] = useState([]);
   const [displayName, setDisplayName] = useState('');
