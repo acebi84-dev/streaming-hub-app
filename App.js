@@ -1609,27 +1609,20 @@ function PersonalizedHeroSection({ items, scrollY, onPress }) {
   if (!item) return null;
 
   const title = (item.original_language === 'tr' && item.title_tr) ? item.title_tr : (item.title || '');
-  const imgTranslate = scrollY.interpolate({
-    inputRange: [-HERO_H, 0, HERO_H],
-    outputRange: [-HERO_H * 0.25, 0, HERO_H * 0.35],
-    extrapolate: 'clamp',
-  });
   const contentOpacity = scrollY.interpolate({
     inputRange: [0, HERO_H * 0.55],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
 
-  const POSTER_H = HERO_H * 0.56;
+  const POSTER_H = HERO_H * 0.62;
   return (
     <View style={{ height: HERO_H, overflow: 'hidden' }} {...panResponder.panHandlers}>
       <ReAnimated.View style={[StyleSheet.absoluteFill, animStyle]}>
-        <View style={{ height: POSTER_H, overflow: 'hidden' }}>
-          <Animated.View style={{ position: 'absolute', top: -40, left: 0, right: 0, height: POSTER_H + 80, transform: [{ translateY: imgTranslate }] }}>
-            {item.poster_url
-              ? <Image source={{ uri: item.poster_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-              : <View style={{ flex: 1, backgroundColor: '#111' }} />}
-          </Animated.View>
+        <View style={{ height: POSTER_H, overflow: 'hidden', backgroundColor: '#0a0a0c', alignItems: 'center', justifyContent: 'center' }}>
+          {item.poster_url
+            ? <Image source={{ uri: item.poster_url }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
+            : <View style={{ flex: 1, width: '100%', backgroundColor: '#111' }} />}
         </View>
         <Animated.View style={{ flex: 1, backgroundColor: '#0a0a0c', padding: 20, paddingBottom: items.length > 1 ? 38 : 26, opacity: contentOpacity }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
