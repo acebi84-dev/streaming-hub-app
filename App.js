@@ -395,7 +395,7 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
               </TouchableOpacity>
               <TouchableOpacity style={wlStyles.menuItem} onPress={() => { setReviewDraft(entry.review || ''); setShowMenu(false); setShowReview(true); }}>
                 <MessageSquare size={20} color="#74c0fc" strokeWidth={2} />
-                <Text style={wlStyles.menuItemText}>{entry.review ? 'Yorumu Düzenle' : 'Yorum Yaz'}</Text>
+                <Text style={wlStyles.menuItemText}>{entry.review ? 'Değerlendirmeyi Düzenle' : 'Değerlendirme Bırak'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={wlStyles.menuItem} onPress={share}>
                 <Share2 size={20} color="rgba(255,255,255,0.7)" strokeWidth={2} />
@@ -437,7 +437,7 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <TouchableOpacity style={wlStyles.menuOverlay} activeOpacity={1} onPress={() => setShowReview(false)}>
             <TouchableOpacity activeOpacity={1} style={wlStyles.reviewBox}>
-              <Text style={wlStyles.menuTitle}>Yorumun</Text>
+              <Text style={wlStyles.menuTitle}>Değerlendirmen</Text>
               <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 16, textAlign: 'center' }}>{item.title_tr || item.title}</Text>
               <View style={{ backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 14, paddingVertical: 12, minHeight: 110 }}>
                 <TextInput
@@ -455,7 +455,7 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
               </TouchableOpacity>
               {entry?.review ? (
                 <TouchableOpacity style={{ marginTop: 8, alignItems: 'center', paddingVertical: 10 }} onPress={() => { setReviewDraft(''); saveReview(''); }}>
-                  <Text style={{ color: '#ff6b6b', fontSize: 13 }}>Yorumu Sil</Text>
+                  <Text style={{ color: '#ff6b6b', fontSize: 13 }}>Değerlendirmeyi Sil</Text>
                 </TouchableOpacity>
               ) : null}
             </TouchableOpacity>
@@ -823,7 +823,7 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
                   {c.poster_url ? <Image source={{ uri: c.poster_url }} style={{ width: 52, height: 78, borderRadius: 8 }} resizeMode="cover" /> : <View style={{ width: 52, height: 78, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' }} />}
                   <View style={{ flex: 1, gap: 3 }}>
                     <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5 }} numberOfLines={2}>
-                      <Text style={{ color: '#fff', fontWeight: '700' }}>{actorName}</Text> {row.review ? 'yorum yaptı' : (ACTIVITY_ACTION_LABEL[row.action] || row.action)} <Text style={{ color: '#fff', fontWeight: '700' }}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
+                      <Text style={{ color: '#fff', fontWeight: '700' }}>{actorName}</Text> {row.review ? 'değerlendirdi' : (ACTIVITY_ACTION_LABEL[row.action] || row.action)} <Text style={{ color: '#fff', fontWeight: '700' }}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
                     </Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>{c.type === 'movie' ? 'Film' : 'Dizi'}{c.year ? ` · ${c.year}` : ''}{row.rating ? ` · ★ ${row.rating}/10` : ''}</Text>
