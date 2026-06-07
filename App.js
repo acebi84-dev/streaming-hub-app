@@ -1626,7 +1626,7 @@ function PersonalizedHeroSection({ items, scrollY, onPress }) {
   return (
     <View style={{ height: HERO_H, overflow: 'hidden' }} {...panResponder.panHandlers}>
       <ReAnimated.View style={[StyleSheet.absoluteFill, animStyle]}>
-        <Animated.View style={{ position: 'absolute', top: -40, left: 0, right: 0, height: HERO_H + 80, transform: [{ translateY: imgTranslate }] }}>
+        <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: HERO_H + 80, transform: [{ translateY: imgTranslate }] }}>
           {item.poster_url
             ? <Image source={{ uri: item.poster_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
             : <View style={{ flex: 1, backgroundColor: '#111' }} />}
