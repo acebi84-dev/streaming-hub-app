@@ -313,7 +313,7 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
 
   function saveReview(override) {
     if (!user) return;
-    const text = (override !== undefined ? override : reviewDraft).trim();
+    const text = (typeof override === 'string' ? override : reviewDraft).trim();
     const status = entry?.status || 'watched';
     setEntry(prev => ({ ...(prev || { user_id: user.id, content_id: item.id }), status, review: text || null }));
     setShowReview(false);
@@ -450,7 +450,7 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
                 />
               </View>
               <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginTop: 4, textAlign: 'right' }}>{reviewDraft.length}/300</Text>
-              <TouchableOpacity style={[pmStyles.saveBtn, { marginTop: 12 }]} onPress={saveReview}>
+              <TouchableOpacity style={[pmStyles.saveBtn, { marginTop: 12 }]} onPress={() => saveReview()}>
                 <Text style={pmStyles.saveBtnText}>Kaydet</Text>
               </TouchableOpacity>
               {entry?.review ? (
