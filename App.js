@@ -32,7 +32,7 @@ import YoutubeIframe from 'react-native-youtube-iframe';
 import { Linking, Share, AppState } from 'react-native';
 import ReAnimated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
 import { supabase, supabasePublic, getStoredToken, setStoredToken } from './supabase';
-import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Check, Play, Star, Share2, Trash2, Users, Search, UserPlus, UserMinus, Settings, ChevronDown, MessageSquare, Pencil } from 'lucide-react-native';
+import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Check, Play, Star, Share2, Trash2, Users, Search, UserPlus, UserMinus, Settings, ChevronDown, ChevronRight, MessageSquare, Pencil } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 // import * as AppleAuthentication from 'expo-apple-authentication';
 // AdMob devre dışı
@@ -1067,6 +1067,9 @@ function DetailModal({ item, onClose, user, onOpenProfile }) {
   const [similarItems, setSimilarItems] = React.useState([]);
   const [reviews, setReviews] = React.useState([]);
   const [loadingReviews, setLoadingReviews] = React.useState(false);
+  const [myFollowing, setMyFollowing] = React.useState(null); // null = yüklenmedi
+  const [friendProof, setFriendProof] = React.useState([]);
+  const [showProof, setShowProof] = React.useState(false);
 
   // Feed gibi eksik alanlı içerikler açıldığında tam veriyi çek
   React.useEffect(() => {
@@ -1098,6 +1101,45 @@ function DetailModal({ item, onClose, user, onOpenProfile }) {
   React.useEffect(() => {
     fetchReviews();
   }, [cur.id]);
+
+  // Takip listesini bir kez yükle (içerik değişse de tekrar çekme)
+  React.useEffect(() => {
+    if (!user?.id) { setMyFollowing([]); return; }
+    dbXHR('follows?follower_id=eq.' + user.id + '&select=following_id')
+      .then(({ data }) => setMyFollowing(Array.isArray(data) ? data.map(r => r.following_id) : []))
+      .catch(() => setMyFollowing([]));
+  }, [user?.id]);
+
+  // Bu içeriği takip ettiklerinden izleyen/puanlayanlar — bağımsız (similar/hydrate'i geciktirmez)
+  React.useEffect(() => {
+    if (myFollowing == null) return;
+    if (!cur?.id || myFollowing.length === 0) { setFriendProof([]); return; }
+    fetchFriendProof(cur.id, myFollowing);
+  }, [cur.id, myFollowing]);
+
+  async function fetchFriendProof(contentId, ids) {
+    try {
+      const { data } = await dbXHR('watchlist?content_id=eq.' + contentId + '&user_id=in.(' + ids.join(',') + ')&select=user_id,status,rating');
+      const rows = Array.isArray(data) ? data : [];
+      if (rows.length === 0) { setFriendProof([]); return; }
+      const uids = [...new Set(rows.map(r => r.user_id))];
+      const { data: profs } = await dbXHR('public_profiles?id=in.(' + uids.join(',') + ')&select=id,username,display_name');
+      const pmap = {};
+      (Array.isArray(profs) ? profs : []).forEach(p => { pmap[p.id] = p; });
+      setFriendProof(rows.map(r => ({ ...r, profile: pmap[r.user_id] || null })));
+    } catch (_) {
+      setFriendProof([]);
+    }
+  }
+
+  // Sosyal kanıt özeti
+  const proofWatched = friendProof.filter(f => f.status === 'watched');
+  const proofWatching = friendProof.filter(f => f.status === 'watching');
+  const proofRatings = friendProof.filter(f => f.rating != null).map(f => f.rating);
+  const proofAvg = proofRatings.length > 0 ? (proofRatings.reduce((a, b) => a + b, 0) / proofRatings.length) : null;
+  const proofVerb = proofWatched.length > 0 ? 'izledi' : proofWatching.length > 0 ? 'izliyor' : 'listesine ekledi';
+  function proofName(f) { return f.profile?.display_name || (f.profile?.username ? '@' + f.profile.username : 'Bir arkadaşın'); }
+  const proofStatusLabel = (s) => s === 'watched' ? 'İzledi' : s === 'watching' ? 'İzliyor' : 'Listesinde';
 
   async function fetchReviews() {
     if (!cur?.id) return;
@@ -1297,6 +1339,26 @@ function DetailModal({ item, onClose, user, onOpenProfile }) {
             {/* Watchlist — primary full-width */}
             <WatchlistButton item={cur} user={user} modalVariant style={{ marginBottom: 12 }} onUpdate={fetchReviews} />
 
+            {/* Sosyal kanıt — takip ettiklerinden bu içeriği izleyenler */}
+            {friendProof.length > 0 && (
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setShowProof(true)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, marginBottom: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {friendProof.slice(0, 4).map((f, i) => (
+                    <View key={f.user_id} style={{ marginLeft: i === 0 ? 0 : -10, borderRadius: 15, borderWidth: 2, borderColor: '#000' }}>
+                      <Avatar seed={f.user_id} name={f.profile?.display_name || f.profile?.username || '?'} size={26} />
+                    </View>
+                  ))}
+                </View>
+                <Text style={{ flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: 13.5 }} numberOfLines={2}>
+                  {friendProof.length === 1
+                    ? <><Text style={{ color: 'rgba(255,255,255,0.85)', fontWeight: '700' }}>{proofName(friendProof[0])}</Text> {friendProof[0].status === 'watched' ? 'izledi' : friendProof[0].status === 'watching' ? 'izliyor' : 'listesine ekledi'}{friendProof[0].rating != null ? ` · ${friendProof[0].rating} verdi` : ''}</>
+                    : <><Text style={{ color: 'rgba(255,255,255,0.85)', fontWeight: '700' }}>{friendProof.length} arkadaşın</Text> {proofVerb}{proofAvg != null ? ` · ort. ${proofAvg.toFixed(1)}` : ''}</>}
+                </Text>
+                <ChevronRight size={16} color="rgba(255,255,255,0.35)" strokeWidth={2} />
+              </TouchableOpacity>
+            )}
+
             {/* Trailer open (when trailer_url is not YouTube) */}
             {cur.trailer_url && !youtubeId && (
               <TouchableOpacity
@@ -1414,6 +1476,34 @@ function DetailModal({ item, onClose, user, onOpenProfile }) {
           </View>
         </ScrollView>
       </SafeAreaView>
+
+      {/* Sosyal kanıt — arkadaş listesi sheet */}
+      <Modal visible={showProof} transparent animationType="fade" onRequestClose={() => setShowProof(false)}>
+        <TouchableOpacity style={wlStyles.menuOverlay} activeOpacity={1} onPress={() => setShowProof(false)}>
+          <TouchableOpacity activeOpacity={1} style={wlStyles.menuBox}>
+            <Text style={wlStyles.menuTitle}>Arkadaşların</Text>
+            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+              {friendProof.map(f => (
+                <TouchableOpacity key={f.user_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 }}
+                  activeOpacity={onOpenProfile ? 0.6 : 1} disabled={!onOpenProfile}
+                  onPress={() => { setShowProof(false); onOpenProfile?.({ id: f.user_id, username: f.profile?.username, display_name: f.profile?.display_name }); }}>
+                  <Avatar seed={f.user_id} name={f.profile?.display_name || f.profile?.username || '?'} size={40} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }} numberOfLines={1}>{proofName(f)}</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12.5, marginTop: 1 }}>{proofStatusLabel(f.status)}</Text>
+                  </View>
+                  {f.rating != null ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <Star size={14} color="#ffd43b" strokeWidth={2} fill="#ffd43b" />
+                      <Text style={{ color: '#ffd43b', fontSize: 14, fontWeight: '800' }}>{f.rating}</Text>
+                    </View>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </Modal>
   );
 }
