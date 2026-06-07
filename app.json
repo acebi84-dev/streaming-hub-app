@@ -37,7 +37,7 @@
       },
       "googleServicesFile": "./GoogleService-Info.plist",
       "usesAppleSignIn": true,
-      "buildNumber": "4"
+      "buildNumber": "5"
     },
     "android": {
       "jsEngine": "jsc",
@@ -69,7 +69,14 @@
         }
       ],
       "expo-secure-store",
-      "expo-updates"
+      "expo-updates",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/logo.png",
+          "color": "#000000"
+        }
+      ]
     ],
     "extra": {
       "router": {

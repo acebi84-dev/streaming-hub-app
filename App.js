@@ -312,6 +312,78 @@ async function fetchSuggestedUsers(userId, excludeIds) {
   return profiles.slice(0, 10);
 }
 
+// ── Push Notifications (NATIVE — production build ile aktifleşir) ─────────────
+// expo-notifications native modül. Eski binary'de modül yoksa lazy require + try/catch
+// sayesinde çökmez (yine de OTA gönderilmez; build ile gelir).
+const EXPO_PROJECT_ID = 'ef1ef5c3-44f2-470b-b27d-fd7bd66c95be';
+let _Notif = null;
+function getNotif() {
+  if (_Notif !== null) return _Notif || null;
+  try { _Notif = require('expo-notifications'); } catch (_) { _Notif = false; }
+  return _Notif || null;
+}
+
+async function _getExpoToken() {
+  const N = getNotif();
+  if (!N) return null;
+  try {
+    const resp = await N.getExpoPushTokenAsync({ projectId: EXPO_PROJECT_ID });
+    return resp && resp.data ? resp.data : null;
+  } catch (_) { return null; }
+}
+
+async function _upsertToken(userId, token) {
+  if (!userId || !token) return;
+  try {
+    await dbXHR('push_tokens?on_conflict=user_id,token', 'POST', {
+      user_id: userId, token, platform: Platform.OS, updated_at: new Date().toISOString(),
+    });
+  } catch (_) {}
+}
+
+// İzin zaten verilmişse sessizce token'ı tazele (PROMPT YOK)
+async function registerPushIfGranted(userId) {
+  const N = getNotif();
+  if (!N || !userId) return;
+  try {
+    const s = await N.getPermissionsAsync();
+    if (!(s && (s.granted || s.status === 'granted'))) return;
+    const token = await _getExpoToken();
+    await _upsertToken(userId, token);
+  } catch (_) {}
+}
+
+// İlk takip / ilk NewScreen tetiğinde — bir kez izin sor, reddederse bir daha sorma
+async function maybeAskPush(userId) {
+  const N = getNotif();
+  if (!N || !userId) return;
+  try {
+    const asked = await SecureStore.getItemAsync('izlio_push_asked').catch(() => null);
+    const s = await N.getPermissionsAsync();
+    if (s && (s.granted || s.status === 'granted')) {
+      const token = await _getExpoToken();
+      await _upsertToken(userId, token);
+      return;
+    }
+    if (asked) return; // daha önce sorduk/reddetti
+    await SecureStore.setItemAsync('izlio_push_asked', '1').catch(() => {});
+    const req = await N.requestPermissionsAsync();
+    if (req && (req.granted || req.status === 'granted')) {
+      const token = await _getExpoToken();
+      await _upsertToken(userId, token);
+    }
+  } catch (_) {}
+}
+
+async function deletePushToken(userId) {
+  const N = getNotif();
+  if (!N || !userId) return;
+  try {
+    const token = await _getExpoToken();
+    if (token) await dbXHR('push_tokens?user_id=eq.' + userId + '&token=eq.' + encodeURIComponent(token), 'DELETE');
+  } catch (_) {}
+}
+
 // ── Watchlist Button (içerik kartı için) ─────────────────────
 function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVariant, compact }) {
   const [entry, setEntry] = useState(initialEntry ?? null);
@@ -782,6 +854,7 @@ function WatchlistScreen({ user, onItemPress, onBack, targetUser, onOpenProfile 
       await dbXHR('follows?follower_id=eq.' + user.id + '&following_id=eq.' + targetId, 'DELETE');
     } else {
       await dbXHR('follows', 'POST', { follower_id: user.id, following_id: targetId });
+      maybeAskPush(user.id); // ilk takipte push izni iste (bir kez)
     }
     if (isOwn) {
       fetchFeed(newMy);
@@ -1888,6 +1961,7 @@ function NewScreen({ selectedPlatforms, onBack, user, onOpenProfile }) {
   const [selectedItem, setSelectedItem] = useState(null);
 
   useEffect(() => { fetchNew().catch(e => { console.error('fetchNew error:', e); setLoading(false); }); }, [selectedPlatforms, period]);
+  useEffect(() => { maybeAskPush(user?.id); }, []); // ilk NewScreen ziyaretinde push izni (bir kez)
 
   async function fetchNew() {
     if (!isMountedNew.current) return;
@@ -2777,7 +2851,7 @@ function DiscoverScreen({ selectedPlatforms, onBack, user, onOpenProfile }) {
 }
 
 // ── AppleTVMainScreen ──────────────────────────────────────────
-function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLanguages, isPremium, onWatchlist, onProfile, onOpenProfile }) {
+function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLanguages, isPremium, onWatchlist, onProfile, onOpenProfile, notifTarget, onNotifHandled }) {
   const [heroItems, setHeroItems] = useState([]);
   const [discoverItems, setDiscoverItems] = useState([]);
   const [popularItems, setPopularItems] = useState([]);
@@ -2808,6 +2882,11 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
   useEffect(() => { fetchDiscover().catch(() => {}); }, [activeSearch]);
 
   useEffect(() => { fetchFriendsActivity().catch(() => {}); }, [user?.id]);
+
+  // Push "yeni içerik" bildirimine tıklanınca NewScreen'i aç
+  useEffect(() => {
+    if (notifTarget === 'new') { setFullScreen('new'); onNotifHandled && onNotifHandled(); }
+  }, [notifTarget]);
 
   async function fetchFriendsActivity() {
     if (!user) { setFriendsActivity([]); setLoadingFriendsActivity(false); return; }
@@ -3349,7 +3428,7 @@ function OnboardingScreen({ user, onComplete }) {
     setFollowingSet(prev => isF ? prev.filter(x => x !== targetId) : [...prev, targetId]);
     try {
       if (isF) await dbXHR('follows?follower_id=eq.' + user.id + '&following_id=eq.' + targetId, 'DELETE');
-      else await dbXHR('follows', 'POST', { follower_id: user.id, following_id: targetId });
+      else { await dbXHR('follows', 'POST', { follower_id: user.id, following_id: targetId }); maybeAskPush(user.id); }
     } catch (_) {}
   }
 
@@ -4297,6 +4376,31 @@ export default function App() {
     if (!person?.id) return;
     setProfileStack(prev => (prev.length === 0 ? [person] : [...prev, person]));
   };
+  const [notifTarget, setNotifTarget] = useState(null); // push tıklama -> ana ekran rotası
+
+  // Push: izin verilmişse token tazele + bildirim tıklama yönlendirmesi
+  useEffect(() => {
+    if (!user?.id) return;
+    registerPushIfGranted(user.id);
+    const N = getNotif();
+    if (!N) return;
+    let sub;
+    try {
+      sub = N.addNotificationResponseReceivedListener((resp) => {
+        try {
+          const data = (resp && resp.notification && resp.notification.request && resp.notification.request.content && resp.notification.request.content.data) || {};
+          if (data.type === 'follow' && data.userId) {
+            setWatchlistItem(null);
+            setProfileStack([{ id: data.userId }]);
+          } else if (data.type === 'new_content') {
+            setProfileStack([]);
+            setNotifTarget('new');
+          }
+        } catch (_) {}
+      });
+    } catch (_) {}
+    return () => { try { sub && sub.remove(); } catch (_) {} };
+  }, [user?.id]);
 
   // Kullanıcı giriş yaptığında profil bilgilerini yükle
   useEffect(() => {
@@ -4448,7 +4552,7 @@ export default function App() {
         selectedPlatforms={selectedPlatforms}
         onClose={() => setShowProfile(false)}
         onSave={(platforms, genres, languages) => { setSelectedPlatforms(platforms); saveSelectedPlatforms(platforms); if (genres) setFavoriteGenres(genres); if (languages) setFavoriteLanguages(languages); }}
-        onSignOut={() => { _SUPA.token = null; setStoredToken(null); SecureStore.deleteItemAsync('izlio_access_token').catch(() => {}); SecureStore.deleteItemAsync('izlio_refresh_token').catch(() => {}); supabase.auth.signOut().catch(() => {}); setUser(null); setShowProfile(false); }}
+        onSignOut={() => { deletePushToken(user?.id); _SUPA.token = null; setStoredToken(null); SecureStore.deleteItemAsync('izlio_access_token').catch(() => {}); SecureStore.deleteItemAsync('izlio_refresh_token').catch(() => {}); supabase.auth.signOut().catch(() => {}); setUser(null); setShowProfile(false); }}
         isPremium={isPremium}
         onUpgrade={() => { setShowProfile(false); alert('Yakında! In-App Purchase entegrasyonu hazırlanıyor.'); }}
       />
@@ -4468,6 +4572,8 @@ export default function App() {
         onWatchlist={openOwnProfile}
         onProfile={() => setShowProfile(true)}
         onOpenProfile={openUserProfile}
+        notifTarget={notifTarget}
+        onNotifHandled={() => setNotifTarget(null)}
       />
     </SafeAreaView>
   );
