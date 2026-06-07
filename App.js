@@ -175,6 +175,8 @@ async function dbXHR(path, method, body) {
 
 // localStorage React Native'de yok — in-memory cache kullanıyoruz, Supabase profile ile senkronize
 const _platformCache = { slugs: null };
+// Kullanıcı tercihleri (değerlendirme görünürlüğü vb.) — profille senkron
+const _prefs = { reviewFilter: 'everyone' };
 function getSelectedPlatforms() {
   if (_platformCache.slugs) return _platformCache.slugs;
   return PLATFORMS.map(p => p.slug);
@@ -1051,12 +1053,26 @@ function DetailModal({ item, onClose, user }) {
     if (!cur?.id) return;
     setLoadingReviews(true);
     try {
-      const { data } = await dbXHR('activity_feed?content_id=eq.' + cur.id + '&review=not.is.null&order=created_at.desc&select=user_id,review,rating,created_at&limit=50');
+      const { data } = await dbXHR('activity_feed?content_id=eq.' + cur.id + '&review=not.is.null&order=created_at.desc&select=user_id,review,rating,created_at&limit=100');
       const rows = Array.isArray(data) ? data : [];
       // her kullanıcının yalnızca en yeni değerlendirmesini tut (desc sıralı, ilk görülen kazanır)
       const seen = new Set();
-      const latest = [];
+      let latest = [];
       for (const r of rows) { if (!seen.has(r.user_id)) { seen.add(r.user_id); latest.push(r); } }
+      // Görünürlük tercihi: everyone | following | both
+      const filter = _prefs.reviewFilter || 'everyone';
+      if (filter !== 'everyone' && user) {
+        const allowed = new Set([user.id]);
+        try {
+          const { data: fo } = await dbXHR('follows?follower_id=eq.' + user.id + '&select=following_id');
+          (Array.isArray(fo) ? fo : []).forEach(f => allowed.add(f.following_id));
+          if (filter === 'both') {
+            const { data: fr } = await dbXHR('follows?following_id=eq.' + user.id + '&select=follower_id');
+            (Array.isArray(fr) ? fr : []).forEach(f => allowed.add(f.follower_id));
+          }
+        } catch (_) {}
+        latest = latest.filter(r => allowed.has(r.user_id));
+      }
       const ids = latest.map(r => r.user_id);
       let profMap = {};
       if (ids.length > 0) {
@@ -3273,6 +3289,8 @@ function SettingsModal({ visible, user, selectedPlatforms, onClose, onSave, onSi
   const [openPlatforms, setOpenPlatforms] = useState(true);
   const [openGenres, setOpenGenres] = useState(false);
   const [openLanguages, setOpenLanguages] = useState(false);
+  const [openVisibility, setOpenVisibility] = useState(false);
+  const [editReviewFilter, setEditReviewFilter] = useState('everyone');
   const initialUsernameRef = useRef('');
 
   useEffect(() => {
@@ -3287,6 +3305,7 @@ function SettingsModal({ visible, user, selectedPlatforms, onClose, onSave, onSi
           setEditBirth(d.birth_date || '');
           setEditGender(d.gender || '');
           setEditBio(d.bio || '');
+          setEditReviewFilter(d.review_filter || 'everyone');
           setSelPlatforms(d.selected_platforms?.length > 0 ? d.selected_platforms : selectedPlatforms);
           setSelGenres(d.favorite_genres || []);
           setSelLanguages(d.favorite_languages || []);
@@ -3345,11 +3364,13 @@ function SettingsModal({ visible, user, selectedPlatforms, onClose, onSave, onSi
       selected_platforms: selPlatforms,
       favorite_genres: selGenres,
       favorite_languages: selLanguages,
+      review_filter: editReviewFilter,
       updated_at: new Date().toISOString(),
     });
     if (error && error.message !== 'timeout') {
       setSaveError(/duplicate|unique/i.test(error.message || '') ? 'Bu kullanıcı adı zaten alınmış.' : (error.message || 'Kayıt başarısız.'));
     } else {
+      _prefs.reviewFilter = editReviewFilter;
       initialUsernameRef.current = u;
       onSave(selPlatforms, selGenres, selLanguages);
       setSaved(true);
@@ -3485,6 +3506,28 @@ function SettingsModal({ visible, user, selectedPlatforms, onClose, onSave, onSi
                 );
               })}
             </View>
+          </AccordionSection>
+
+          {/* Değerlendirme Görünürlüğü — accordion */}
+          <AccordionSection title="Değerlendirme Görünürlüğü" isOpen={openVisibility} onToggle={() => setOpenVisibility(p => !p)}>
+            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, marginBottom: 4 }}>İçerik detayında kimlerin değerlendirmelerini göreceğini seç.</Text>
+            {[
+              ['everyone', 'Herkes', 'Tüm kullanıcıların değerlendirmeleri'],
+              ['following', 'Takip ettiklerim', 'Sadece sen ve takip ettiklerin'],
+              ['both', 'Çevrem', 'Sen, takipçilerin ve takip ettiklerin'],
+            ].map(([val, label, desc]) => {
+              const sel = editReviewFilter === val;
+              return (
+                <TouchableOpacity key={val} onPress={() => setEditReviewFilter(val)}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: sel ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: sel ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>{label}</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 2 }}>{desc}</Text>
+                  </View>
+                  {sel ? <CheckCircle size={20} color="#fff" strokeWidth={2} /> : <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)' }} />}
+                </TouchableOpacity>
+              );
+            })}
           </AccordionSection>
 
           {/* Kaydet */}
@@ -3882,6 +3925,10 @@ export default function App() {
   // Kullanıcı giriş yaptığında profil bilgilerini yükle
   useEffect(() => {
     if (!user) return;
+    // Değerlendirme görünürlüğü tercihi — izole sorgu (kolon yoksa ana akışı bozmasın)
+    dbXHR('profiles?id=eq.' + user.id + '&select=review_filter')
+      .then(({ data }) => { const d = Array.isArray(data) ? data[0] : null; if (d?.review_filter) _prefs.reviewFilter = d.review_filter; })
+      .catch(() => {});
     dbXHR('profiles?id=eq.' + user.id + '&select=selected_platforms,is_premium,favorite_genres,favorite_languages,username,display_name')
       .then(({ data }) => {
         const d = Array.isArray(data) ? data[0] : null;
