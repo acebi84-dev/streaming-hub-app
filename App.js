@@ -5,7 +5,6 @@ import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as ExpoLinking from 'expo-linking';
-import { LinearGradient } from 'expo-linear-gradient';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -1348,6 +1347,8 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
 const CARD_W = 112;
 const CARD_H = 168;
 const HERO_H = 500;
+// Üstten alta doğru artan opaklık değerleri — ince katmanlar üst üste binince yumuşak bir gradient hissi verir (native modül gerekmez)
+const HERO_GRADIENT_STEPS = [0, 0.04, 0.1, 0.18, 0.28, 0.4, 0.53, 0.66, 0.78, 0.88, 0.95];
 
 // ── ContentCard (Reanimated scale press) ──────────────────────
 function ContentCard({ item, onPress }) {
@@ -1630,13 +1631,12 @@ function PersonalizedHeroSection({ items, scrollY, onPress }) {
             ? <Image source={{ uri: item.poster_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
             : <View style={{ flex: 1, backgroundColor: '#111' }} />}
         </Animated.View>
-        {/* Tek parça yumuşak gradient — üstte şeffaf (poster net görünür), alta doğru kademeli kararır */}
-        <LinearGradient
-          colors={['transparent', 'rgba(8,8,11,0.5)', 'rgba(8,8,11,0.96)']}
-          locations={[0, 0.52, 1]}
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-        />
+        {/* Native gradient modülü olmadan kademeli karartma — ince katmanlar üst üste binerek yumuşak geçiş hissi verir */}
+        <View pointerEvents="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: HERO_H * 0.66, flexDirection: 'column' }}>
+          {HERO_GRADIENT_STEPS.map((op, i) => (
+            <View key={i} style={{ flex: 1, backgroundColor: `rgba(8,8,11,${op})` }} />
+          ))}
+        </View>
         <Animated.View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: items.length > 1 ? 38 : 26, opacity: contentOpacity }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
