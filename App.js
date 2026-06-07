@@ -276,6 +276,42 @@ function suggestUsername(input) {
   return s.slice(0, 16);
 }
 
+// Keşfedilecek kişiler — son 30 günün en aktif kullanıcıları (istemci sayımı), fallback: en yeni kayıtlar
+// NOT: ölçek büyüyünce bu sayım SQL view/RPC'ye taşınacak.
+async function fetchSuggestedUsers(userId, excludeIds) {
+  const exclude = new Set([userId, ...((excludeIds || []))]);
+  let ranked = [];
+  try {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data } = await dbXHR('activity_feed?created_at=gte.' + since + '&select=user_id&order=created_at.desc&limit=300');
+    const counts = {};
+    (Array.isArray(data) ? data : []).forEach(r => { if (!exclude.has(r.user_id)) counts[r.user_id] = (counts[r.user_id] || 0) + 1; });
+    ranked = Object.keys(counts).sort((a, b) => counts[b] - counts[a]).slice(0, 10);
+  } catch (_) {}
+  let profiles = [];
+  if (ranked.length > 0) {
+    try {
+      const { data } = await dbXHR('public_profiles?id=in.(' + ranked.join(',') + ')&select=id,username,display_name');
+      const pmap = {};
+      (Array.isArray(data) ? data : []).forEach(p => { pmap[p.id] = p; });
+      profiles = ranked.map(id => pmap[id]).filter(p => p && p.username);
+    } catch (_) {}
+  }
+  // Fallback: en yeni kayıtlı kullanıcılarla 10'a tamamla
+  if (profiles.length < 3) {
+    try {
+      const { data } = await dbXHR('public_profiles?order=created_at.desc&limit=30&select=id,username,display_name');
+      const have = new Set(profiles.map(p => p.id));
+      for (const p of (Array.isArray(data) ? data : [])) {
+        if (profiles.length >= 10) break;
+        if (!p.username || exclude.has(p.id) || have.has(p.id)) continue;
+        have.add(p.id); profiles.push(p);
+      }
+    } catch (_) {}
+  }
+  return profiles.slice(0, 10);
+}
+
 // ── Watchlist Button (içerik kartı için) ─────────────────────
 function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVariant, compact }) {
   const [entry, setEntry] = useState(initialEntry ?? null);
@@ -555,6 +591,7 @@ function WatchlistScreen({ user, onItemPress, onBack, targetUser, onOpenProfile 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [suggested, setSuggested] = useState([]);
   const isMounted = useRef(true);
   useEffect(() => { return () => { isMounted.current = false; }; }, []);
 
@@ -582,6 +619,7 @@ function WatchlistScreen({ user, onItemPress, onBack, targetUser, onOpenProfile 
     fetchFeed(ownerFollowing);
     fetchFollowers();
     fetchFollowing(ownerFollowing);
+    if (isOwn) fetchSuggestedUsers(user.id, ownerFollowing).then(list => { if (isMounted.current) setSuggested(list); }).catch(() => {});
   }
 
   async function fetchItems() {
@@ -1005,18 +1043,30 @@ function WatchlistScreen({ user, onItemPress, onBack, targetUser, onOpenProfile 
           </View>
           {searching ? (
             <View style={{ paddingTop: 30, alignItems: 'center' }}><ActivityIndicator color="#fff" /></View>
-          ) : searchQuery.trim() && searchResults.length === 0 ? (
-            <Text style={{ color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: 30, fontSize: 14 }}>Kullanıcı bulunamadı</Text>
-          ) : (
+          ) : searchQuery.trim() ? (
+            searchResults.length === 0 ? (
+              <Text style={{ color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: 30, fontSize: 14 }}>Kullanıcı bulunamadı</Text>
+            ) : (
+              <FlatList
+                data={searchResults}
+                keyExtractor={p => p.id}
+                contentContainerStyle={{ padding: 16, gap: 10 }}
+                renderItem={({ item: p }) => (
+                  <PersonRow person={p} isFollowing={myFollowingIds.includes(p.id)} onToggleFollow={() => toggleFollow(p.id)} onPress={() => p.id !== user.id && onOpenProfile?.(p)} />
+                )}
+              />
+            )
+          ) : suggested.length > 0 ? (
             <FlatList
-              data={searchResults}
+              data={suggested}
               keyExtractor={p => p.id}
               contentContainerStyle={{ padding: 16, gap: 10 }}
+              ListHeaderComponent={<Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 12 }}>Keşfedilecek kişiler</Text>}
               renderItem={({ item: p }) => (
                 <PersonRow person={p} isFollowing={myFollowingIds.includes(p.id)} onToggleFollow={() => toggleFollow(p.id)} onPress={() => p.id !== user.id && onOpenProfile?.(p)} />
               )}
             />
-          )}
+          ) : null}
         </View>
       )}
     </SafeAreaView>
@@ -3143,6 +3193,8 @@ function OnboardingScreen({ user, onComplete }) {
   const [gender, setGender] = useState('');
   const [bio, setBio] = useState('');
   const [loading, setLoading] = useState(false);
+  const [discoverList, setDiscoverList] = useState(null); // null = ara ekran kapalı
+  const [followingSet, setFollowingSet] = useState([]);
 
   useEffect(() => {
     const u = username.trim().toLowerCase();
@@ -3183,8 +3235,44 @@ function OnboardingScreen({ user, onComplete }) {
       bio: bio || null,
       updated_at: new Date().toISOString(),
     });
-    onComplete({ platforms: selPlatforms, genres: selGenres, languages: selLanguages });
+    const sugg = await fetchSuggestedUsers(user.id, []).catch(() => []);
     setLoading(false);
+    if (sugg.length > 0) setDiscoverList(sugg);
+    else onComplete({ platforms: selPlatforms, genres: selGenres, languages: selLanguages });
+  }
+
+  async function toggleFollowOnboard(targetId) {
+    const isF = followingSet.includes(targetId);
+    setFollowingSet(prev => isF ? prev.filter(x => x !== targetId) : [...prev, targetId]);
+    try {
+      if (isF) await dbXHR('follows?follower_id=eq.' + user.id + '&following_id=eq.' + targetId, 'DELETE');
+      else await dbXHR('follows', 'POST', { follower_id: user.id, following_id: targetId });
+    } catch (_) {}
+  }
+
+  if (discoverList) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+        <StatusBar barStyle="light-content" />
+        <View style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 12 }}>
+          <Text style={{ color: '#fff', fontSize: 28, fontWeight: '800', letterSpacing: -0.3, marginBottom: 8 }}>İzlio'da kişileri keşfet</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15 }}>Takip et, arkadaşlarının izlediklerini akışında gör.</Text>
+        </View>
+        <FlatList
+          data={discoverList}
+          keyExtractor={p => p.id}
+          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 16, gap: 10 }}
+          renderItem={({ item: p }) => (
+            <PersonRow person={p} isFollowing={followingSet.includes(p.id)} onToggleFollow={() => toggleFollowOnboard(p.id)} />
+          )}
+        />
+        <View style={{ paddingHorizontal: 24, paddingBottom: 32, paddingTop: 8 }}>
+          <TouchableOpacity style={obStyles.mainBtn} onPress={() => onComplete({ platforms: selPlatforms, genres: selGenres, languages: selLanguages })}>
+            <Text style={obStyles.mainBtnText}>Devam</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
