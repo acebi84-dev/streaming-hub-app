@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import * as ExpoLinking from 'expo-linking';
 
 SplashScreen.preventAutoHideAsync();
@@ -2075,7 +2076,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
         <View>
           <Text style={{ color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: 3 }}>İZLİO</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v23</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v24</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
@@ -2859,34 +2860,25 @@ function AuthScreen({ onAuth }) {
   }
 
   async function handleApple() {
-    if (Platform.OS === 'web') { setError('Apple giriş sadece mobilde çalışır'); return; }
+    if (Platform.OS !== 'ios') { setError('Apple girişi sadece iOS\'ta çalışır'); return; }
     setLoading(true); setError('');
     try {
-      const redirectTo = 'izlio://auth/callback';
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: { redirectTo, skipBrowserRedirect: true },
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
       });
-      if (error) { setError(error.message); setLoading(false); return; }
+      if (!credential.identityToken) { setError('Apple girişi tamamlanamadı'); setLoading(false); return; }
 
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-      if (result.type !== 'success' || !result.url) { setLoading(false); return; }
-
-      const params = new URLSearchParams(result.url.split('#')[1] || result.url.split('?')[1] || '');
-      const access_token = params.get('access_token');
-      const refresh_token = params.get('refresh_token');
-      if (!access_token || !refresh_token) {
-        const oauthError = params.get('error_description') || params.get('error');
-        console.warn('Apple OAuth redirect URL:', result.url);
-        setError(oauthError ? `Apple girişi: ${oauthError}` : 'Apple girişi tamamlanamadı');
-        setLoading(false);
-        return;
-      }
-
-      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({ access_token, refresh_token });
+      const { data: sessionData, error: sessionError } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+      });
       if (sessionError) setError(sessionError.message);
       else if (sessionData?.user) onAuth(sessionData.user);
     } catch(e) {
+      if (e.code === 'ERR_REQUEST_CANCELED') { setLoading(false); return; }
       setError(e.message || 'Apple giriş başarısız');
     }
     setLoading(false);
