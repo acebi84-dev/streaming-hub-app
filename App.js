@@ -32,7 +32,7 @@ import YoutubeIframe from 'react-native-youtube-iframe';
 import { Linking, Share, AppState } from 'react-native';
 import ReAnimated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
 import { supabase, supabasePublic, getStoredToken, setStoredToken } from './supabase';
-import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Play, Star, Share2, Trash2 } from 'lucide-react-native';
+import { Compass, TrendingUp, Film, Sparkles, ChevronLeft, Mail, Eye, EyeOff, Bookmark, User, SlidersHorizontal, CheckCircle, Play, Star, Share2, Trash2, Users, Search, UserPlus, UserMinus } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 // import * as AppleAuthentication from 'expo-apple-authentication';
 // AdMob devre dışı
@@ -220,7 +220,18 @@ async function upsertWatchlist(userId, contentId, status, rating) {
   });
   if (error) console.warn('upsertWatchlist error:', JSON.stringify(error), 'status:', status);
   const row = Array.isArray(data) ? (data[0] || null) : null;
+  if (!error && ['watched', 'watching', 'want'].includes(status)) {
+    logActivity(userId, status, contentId, rating);
+  }
   return { data: row, error };
+}
+async function logActivity(userId, action, contentId, rating) {
+  try {
+    await dbXHR('activity_feed', 'POST', {
+      user_id: userId, action, content_id: contentId,
+      rating: rating !== undefined && rating !== null ? rating : null,
+    });
+  } catch (_) {}
 }
 async function removeWatchlist(userId, contentId) {
   await dbXHR('watchlist?user_id=eq.' + userId + '&content_id=eq.' + contentId, 'DELETE');
@@ -478,6 +489,200 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
             );
           }}
         />
+      )}
+      <FloatingBackBtn onPress={onBack} />
+    </SafeAreaView>
+  );
+}
+
+const ACTIVITY_ACTION_LABEL = {
+  watched: 'izledi',
+  watching: 'izliyor',
+  want: 'izleme listesine ekledi',
+  rated: 'puanladı',
+};
+
+function FriendsScreen({ user, onItemPress, onBack }) {
+  const [tab, setTab] = useState('feed'); // 'feed' | 'search'
+  const [feed, setFeed] = useState([]);
+  const [loadingFeed, setLoadingFeed] = useState(true);
+  const [actorMap, setActorMap] = useState({});
+  const [followingIds, setFollowingIds] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const isMounted = useRef(true);
+  useEffect(() => { return () => { isMounted.current = false; }; }, []);
+
+  useEffect(() => { init(); }, []);
+
+  async function init() {
+    const ids = await loadFollowing();
+    fetchFeed(ids);
+  }
+
+  async function loadFollowing() {
+    const { data } = await dbXHR('follows?follower_id=eq.' + user.id + '&select=following_id');
+    const ids = Array.isArray(data) ? data.map(r => r.following_id) : [];
+    if (isMounted.current) setFollowingIds(ids);
+    return ids;
+  }
+
+  async function fetchFeed(ids) {
+    if (isMounted.current) setLoadingFeed(true);
+    try {
+      if (!ids || ids.length === 0) { if (isMounted.current) setFeed([]); return; }
+      const sel = 'select=*,content:hub_contents(id,title,title_tr,type,year,imdb_score,poster_url,original_language)';
+      const { data } = await dbXHR('activity_feed?user_id=in.(' + ids.join(',') + ')&order=created_at.desc&limit=50&' + sel);
+      const rows = Array.isArray(data) ? data : [];
+      const actorIds = [...new Set(rows.map(r => r.user_id))];
+      if (actorIds.length > 0) {
+        const { data: profs } = await dbXHR('profiles?id=in.(' + actorIds.join(',') + ')&select=id,username,display_name');
+        const map = {};
+        (Array.isArray(profs) ? profs : []).forEach(p => { map[p.id] = p; });
+        if (isMounted.current) setActorMap(map);
+      }
+      if (isMounted.current) setFeed(rows);
+    } finally {
+      if (isMounted.current) setLoadingFeed(false);
+    }
+  }
+
+  async function runSearch(q) {
+    const term = q.trim().toLowerCase();
+    if (!term) { setSearchResults([]); setSearching(false); return; }
+    setSearching(true);
+    try {
+      const { data } = await dbXHR('profiles?username=ilike.*' + term + '*&id=neq.' + user.id + '&select=id,username,display_name&limit=20');
+      if (isMounted.current) setSearchResults(Array.isArray(data) ? data : []);
+    } finally {
+      if (isMounted.current) setSearching(false);
+    }
+  }
+
+  useEffect(() => {
+    const t = setTimeout(() => runSearch(searchQuery), 400);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  async function toggleFollow(targetId) {
+    const isFollowing = followingIds.includes(targetId);
+    const newIds = isFollowing ? followingIds.filter(id => id !== targetId) : [...followingIds, targetId];
+    setFollowingIds(newIds);
+    if (isFollowing) {
+      await dbXHR('follows?follower_id=eq.' + user.id + '&following_id=eq.' + targetId, 'DELETE');
+    } else {
+      await dbXHR('follows', 'POST', { follower_id: user.id, following_id: targetId });
+    }
+    if (tab === 'feed') fetchFeed(newIds);
+  }
+
+  const tabs = [
+    { key: 'feed', label: 'Aktivite Akışı' },
+    { key: 'search', label: 'Kullanıcı Ara' },
+  ];
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+          <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', flex: 1 }}>Arkadaşlar</Text>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {tabs.map(t => (
+            <TouchableOpacity key={t.key}
+              style={{ flex: 1, paddingVertical: 12, borderRadius: 20, alignItems: 'center', backgroundColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.12)' }}
+              onPress={() => setTab(t.key)}>
+              <Text style={{ color: tab === t.key ? '#000' : 'rgba(255,255,255,0.75)', fontWeight: '700', fontSize: 14 }}>{t.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {tab === 'feed' ? (
+        loadingFeed ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color="#fff" size="large" />
+          </View>
+        ) : feed.length === 0 ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 40 }}>
+            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+              <Users size={30} color="rgba(255,255,255,0.35)" strokeWidth={1.5} />
+            </View>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz aktivite yok</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, textAlign: 'center' }}>
+              Arkadaşlarını takip et, izledikleri içerikleri burada gör
+            </Text>
+            <TouchableOpacity style={{ paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, backgroundColor: '#fff' }} onPress={() => setTab('search')}>
+              <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Kullanıcı Ara</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={feed}
+            keyExtractor={r => r.id}
+            contentContainerStyle={{ padding: 16, gap: 12 }}
+            renderItem={({ item: row }) => {
+              const c = row.content;
+              if (!c) return null;
+              const actor = actorMap[row.user_id];
+              const actorName = actor?.display_name || (actor?.username ? '@' + actor.username : 'Bir kullanıcı');
+              return (
+                <TouchableOpacity style={{ flexDirection: 'row', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 10 }} onPress={() => onItemPress(c)}>
+                  {c.poster_url ? <Image source={{ uri: c.poster_url }} style={{ width: 60, height: 90, borderRadius: 8 }} resizeMode="cover" /> : <View style={{ width: 60, height: 90, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' }} />}
+                  <View style={{ flex: 1, gap: 4, justifyContent: 'center' }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }} numberOfLines={1}>
+                      <Text style={{ color: '#fff', fontWeight: '700' }}>{actorName}</Text> {ACTIVITY_ACTION_LABEL[row.action] || row.action}
+                    </Text>
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }} numberOfLines={2}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>{c.type === 'movie' ? 'Film' : 'Dizi'}{c.year ? ` · ${c.year}` : ''}{row.rating ? ` · ★ ${row.rating}/10` : ''}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        )
+      ) : (
+        <View style={{ flex: 1 }}>
+          <View style={{ paddingHorizontal: 16, paddingTop: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+              <Search size={18} color="rgba(255,255,255,0.4)" />
+              <TextInput style={{ flex: 1, color: '#fff', fontSize: 15 }} placeholder="Kullanıcı adı ile ara..." placeholderTextColor="rgba(255,255,255,0.3)"
+                value={searchQuery} autoCapitalize="none" autoCorrect={false} onChangeText={setSearchQuery} />
+            </View>
+          </View>
+          {searching ? (
+            <View style={{ paddingTop: 30, alignItems: 'center' }}><ActivityIndicator color="#fff" /></View>
+          ) : searchQuery.trim() && searchResults.length === 0 ? (
+            <Text style={{ color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: 30, fontSize: 14 }}>Kullanıcı bulunamadı</Text>
+          ) : (
+            <FlatList
+              data={searchResults}
+              keyExtractor={p => p.id}
+              contentContainerStyle={{ padding: 16, gap: 10 }}
+              renderItem={({ item: p }) => {
+                const isFollowing = followingIds.includes(p.id);
+                return (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 12 }}>
+                    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#2C2C3A', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>{(p.display_name || p.username || '?').slice(0, 1).toUpperCase()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{p.display_name || p.username}</Text>
+                      {p.username ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>@{p.username}</Text> : null}
+                    </View>
+                    <TouchableOpacity
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: isFollowing ? 'rgba(255,255,255,0.08)' : '#fff', borderWidth: 1, borderColor: isFollowing ? 'rgba(255,255,255,0.18)' : '#fff' }}
+                      onPress={() => toggleFollow(p.id)}>
+                      {isFollowing ? <UserMinus size={15} color="rgba(255,255,255,0.7)" /> : <UserPlus size={15} color="#000" />}
+                      <Text style={{ color: isFollowing ? 'rgba(255,255,255,0.7)' : '#000', fontWeight: '700', fontSize: 13 }}>{isFollowing ? 'Takipten Çık' : 'Takip Et'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              }}
+            />
+          )}
+        </View>
       )}
       <FloatingBackBtn onPress={onBack} />
     </SafeAreaView>
@@ -1426,6 +1631,46 @@ function ContentRow({ title, items, onPress, loading, onSeeAll }) {
   );
 }
 
+// ── FriendsActivityRow ─────────────────────────────────────────
+function FriendsActivityRow({ items, onPress, loading }) {
+  const header = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12, gap: 8 }}>
+      <Users size={18} color="#fff" strokeWidth={2.2} />
+      <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800', letterSpacing: -0.4 }}>Arkadaşların Son İzledikleri</Text>
+    </View>
+  );
+  if (loading && (!items || items.length === 0)) {
+    return (
+      <View style={{ marginBottom: 28 }}>
+        {header}
+        <View style={{ height: CARD_H + 24, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color="rgba(255,255,255,0.3)" />
+        </View>
+      </View>
+    );
+  }
+  if (!items || items.length === 0) return null;
+  return (
+    <View style={{ marginBottom: 28 }}>
+      {header}
+      <FlatList
+        horizontal
+        data={items}
+        keyExtractor={(item, i) => String(item.id || i)}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+        removeClippedSubviews={false}
+        renderItem={({ item }) => (
+          <View style={{ width: CARD_W }}>
+            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10.5, fontWeight: '600', marginBottom: 5 }} numberOfLines={1}>{item._friendName} izledi</Text>
+            <ContentCard item={item} onPress={onPress} />
+          </View>
+        )}
+      />
+    </View>
+  );
+}
+
 // ── CollectionRow ──────────────────────────────────────────────
 const COLL_W = 128;
 const COLL_H = 185;
@@ -1839,7 +2084,7 @@ function DiscoverScreen({ selectedPlatforms, onBack, user }) {
 }
 
 // ── AppleTVMainScreen ──────────────────────────────────────────
-function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLanguages, isPremium, onWatchlist, onProfile }) {
+function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLanguages, isPremium, onWatchlist, onProfile, onFriends }) {
   const [heroItems, setHeroItems] = useState([]);
   const [discoverItems, setDiscoverItems] = useState([]);
   const [popularItems, setPopularItems] = useState([]);
@@ -1854,6 +2099,8 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
   const [loadingPopular, setLoadingPopular] = useState(true);
   const [loadingNew, setLoadingNew] = useState(true);
   const [loadingCollections, setLoadingCollections] = useState(true);
+  const [friendsActivity, setFriendsActivity] = useState([]);
+  const [loadingFriendsActivity, setLoadingFriendsActivity] = useState(true);
   const scrollY = useRef(new Animated.Value(0)).current;
   const isMounted = useRef(true);
   useEffect(() => { return () => { isMounted.current = false; }; }, []);
@@ -1866,6 +2113,42 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
   }, [selectedPlatforms]);
 
   useEffect(() => { fetchDiscover().catch(() => {}); }, [activeSearch]);
+
+  useEffect(() => { fetchFriendsActivity().catch(() => {}); }, [user?.id]);
+
+  async function fetchFriendsActivity() {
+    if (!user) { setFriendsActivity([]); setLoadingFriendsActivity(false); return; }
+    setLoadingFriendsActivity(true);
+    try {
+      const { data: followRows } = await dbXHR('follows?follower_id=eq.' + user.id + '&select=following_id');
+      const ids = Array.isArray(followRows) ? followRows.map(r => r.following_id) : [];
+      if (ids.length === 0) { if (isMounted.current) setFriendsActivity([]); return; }
+      const sel = 'select=*,content:hub_contents(id,title,title_tr,type,year,imdb_score,poster_url,original_language,availability:hub_availability(platform_slug,platform_url))';
+      const { data } = await dbXHR('activity_feed?user_id=in.(' + ids.join(',') + ')&action=in.(watched,watching)&order=created_at.desc&limit=20&' + sel);
+      const rows = Array.isArray(data) ? data : [];
+      const actorIds = [...new Set(rows.map(r => r.user_id))];
+      let actorMap = {};
+      if (actorIds.length > 0) {
+        const { data: profs } = await dbXHR('profiles?id=in.(' + actorIds.join(',') + ')&select=id,username,display_name');
+        (Array.isArray(profs) ? profs : []).forEach(p => { actorMap[p.id] = p; });
+      }
+      const seen = new Set();
+      const merged = [];
+      for (const row of rows) {
+        if (!row.content || seen.has(row.content.id)) continue;
+        seen.add(row.content.id);
+        const actor = actorMap[row.user_id];
+        merged.push({
+          ...row.content,
+          availability: (row.content.availability || []).filter(a => selectedPlatforms.includes(a.platform_slug)),
+          _friendName: actor?.display_name || (actor?.username ? '@' + actor.username : 'Bir arkadaşın'),
+        });
+      }
+      if (isMounted.current) setFriendsActivity(merged);
+    } finally {
+      if (isMounted.current) setLoadingFriendsActivity(false);
+    }
+  }
 
   useEffect(() => {
     fetchPersonalizedHero().catch(() => {});
@@ -2085,6 +2368,9 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
           <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v24</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
+          <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onFriends} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
+            <Users size={26} color="#fff" strokeWidth={2} />
+          </TouchableOpacity>
           <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
             <Bookmark size={26} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
@@ -2143,6 +2429,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
             </>
           ) : (
             <>
+              <FriendsActivityRow items={friendsActivity} onPress={handleItemPress} loading={loadingFriendsActivity} />
               <ContentRow title="En İyi Puanlılar" items={discoverItems} onPress={handleItemPress} loading={loadingDiscover} onSeeAll={() => setFullScreen('discover')} />
               <ContentRow title="Şu An Popüler" items={popularItems} onPress={handleItemPress} loading={loadingPopular} onSeeAll={() => setFullScreen('popular')} />
               <ContentRow title="Yeni Eklenenler" items={newItems} onPress={handleItemPress} loading={loadingNew} onSeeAll={() => setFullScreen('new')} />
@@ -2569,6 +2856,8 @@ function AccordionSection({ title, isOpen, onToggle, children }) {
 
 function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSignOut, isPremium, onUpgrade }) {
   const [editName, setEditName] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState(''); // '' | 'checking' | 'available' | 'taken' | 'invalid'
   const [editBirth, setEditBirth] = useState('');
   const [editGender, setEditGender] = useState('');
   const [selPlatforms, setSelPlatforms] = useState(selectedPlatforms);
@@ -2581,6 +2870,9 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
   const [openPlatforms, setOpenPlatforms] = useState(true);
   const [openGenres, setOpenGenres] = useState(false);
   const [openLanguages, setOpenLanguages] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const initialUsernameRef = useRef('');
 
   useEffect(() => {
     if (visible && user) {
@@ -2588,6 +2880,8 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
         const d = Array.isArray(data) ? data[0] : null;
         if (d) {
           setEditName(d.display_name || '');
+          setEditUsername(d.username || '');
+          initialUsernameRef.current = d.username || '';
           setEditBirth(d.birth_date || '');
           setEditGender(d.gender || '');
           setSelPlatforms(d.selected_platforms?.length > 0 ? d.selected_platforms : selectedPlatforms);
@@ -2595,8 +2889,28 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
           setSelLanguages(d.favorite_languages || []);
         }
       }).catch(() => {});
+      dbXHR('follows?following_id=eq.' + user.id + '&select=follower_id').then(({ data }) => {
+        setFollowerCount(Array.isArray(data) ? data.length : 0);
+      }).catch(() => {});
+      dbXHR('follows?follower_id=eq.' + user.id + '&select=following_id').then(({ data }) => {
+        setFollowingCount(Array.isArray(data) ? data.length : 0);
+      }).catch(() => {});
     }
   }, [visible]);
+
+  useEffect(() => {
+    const u = editUsername.trim().toLowerCase();
+    if (!u || u === initialUsernameRef.current) { setUsernameStatus(''); return; }
+    if (!/^[a-z0-9_]{3,20}$/.test(u)) { setUsernameStatus('invalid'); return; }
+    setUsernameStatus('checking');
+    const t = setTimeout(() => {
+      dbXHR('profiles?username=eq.' + u + '&select=id').then(({ data }) => {
+        const taken = Array.isArray(data) && data.length > 0;
+        setUsernameStatus(taken ? 'taken' : 'available');
+      }).catch(() => setUsernameStatus(''));
+    }, 500);
+    return () => clearTimeout(t);
+  }, [editUsername]);
 
   function togglePlatform(slug) {
     setSelPlatforms(prev => prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug]);
@@ -2609,10 +2923,24 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
   }
 
   async function save() {
+    const u = editUsername.trim().toLowerCase();
+    if (u && usernameStatus === 'invalid') {
+      setSaveError('Kullanıcı adı 3-20 karakter olmalı, sadece küçük harf, rakam ve _ içerebilir.');
+      return;
+    }
+    if (u && usernameStatus === 'taken') {
+      setSaveError('Bu kullanıcı adı zaten alınmış.');
+      return;
+    }
+    if (u && usernameStatus === 'checking') {
+      setSaveError('Kullanıcı adı kontrol ediliyor, lütfen bekleyin.');
+      return;
+    }
     setLoading(true); setSaveError('');
     const { error } = await dbXHR('profiles', 'POST', {
       id: user.id,
       display_name: editName || null,
+      username: u || null,
       birth_date: editBirth || null,
       gender: editGender || null,
       selected_platforms: selPlatforms,
@@ -2621,8 +2949,9 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
       updated_at: new Date().toISOString(),
     });
     if (error && error.message !== 'timeout') {
-      setSaveError(error.message || 'Kayıt başarısız.');
+      setSaveError(/duplicate|unique/i.test(error.message || '') ? 'Bu kullanıcı adı zaten alınmış.' : (error.message || 'Kayıt başarısız.'));
     } else {
+      initialUsernameRef.current = u;
       onSave(selPlatforms, selGenres, selLanguages);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -2648,12 +2977,41 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
             </View>
             <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{editName || user?.email}</Text>
             {editName ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 2 }}>{user?.email}</Text> : null}
+            {editUsername ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 2 }}>@{editUsername}</Text> : null}
+            <View style={{ flexDirection: 'row', gap: 28, marginTop: 12 }}>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>{followerCount}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>Takipçi</Text>
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>{followingCount}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>Takip</Text>
+              </View>
+            </View>
           </View>
 
           {/* Kişisel Bilgiler — accordion */}
           <AccordionSection title="Kişisel Bilgiler" isOpen={openPersonal} onToggle={() => setOpenPersonal(p => !p)}>
             <View style={pmStyles.inputRow}>
               <TextInput style={pmStyles.input} placeholder="İsim" placeholderTextColor="rgba(255,255,255,0.3)" value={editName} onChangeText={setEditName} />
+            </View>
+            <View>
+              <View style={pmStyles.inputRow}>
+                <TextInput style={pmStyles.input} placeholder="Kullanıcı adı (örn: ahmet_34)" placeholderTextColor="rgba(255,255,255,0.3)"
+                  value={editUsername} autoCapitalize="none" autoCorrect={false}
+                  onChangeText={t => setEditUsername(t.replace(/[^a-zA-Z0-9_]/g, ''))} />
+              </View>
+              {usernameStatus ? (
+                <Text style={{
+                  fontSize: 12, marginTop: 6, marginLeft: 4,
+                  color: usernameStatus === 'available' ? '#4cd964' : usernameStatus === 'checking' ? 'rgba(255,255,255,0.4)' : '#ff6b6b',
+                }}>
+                  {usernameStatus === 'available' && '✓ Kullanılabilir'}
+                  {usernameStatus === 'taken' && 'Bu kullanıcı adı alınmış'}
+                  {usernameStatus === 'checking' && 'Kontrol ediliyor...'}
+                  {usernameStatus === 'invalid' && '3-20 karakter, küçük harf/rakam/_ kullanın'}
+                </Text>
+              ) : null}
             </View>
             <BirthDatePicker value={editBirth} onChange={setEditBirth} />
             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -3044,6 +3402,8 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showWatchlist, setShowWatchlist] = useState(false);
   const [watchlistItem, setWatchlistItem] = useState(null);
+  const [showFriends, setShowFriends] = useState(false);
+  const [friendsItem, setFriendsItem] = useState(null);
 
   // Kullanıcı giriş yaptığında profil bilgilerini yükle
   useEffect(() => {
@@ -3163,6 +3523,17 @@ export default function App() {
     </>
   );
 
+  if (showFriends) return (
+    <>
+      <FriendsScreen
+        user={user}
+        onBack={() => { setShowFriends(false); setFriendsItem(null); }}
+        onItemPress={(item) => setFriendsItem(item)}
+      />
+      <DetailModal key={friendsItem?.id || 'fmodal'} item={friendsItem} onClose={() => setFriendsItem(null)} user={user} />
+    </>
+  );
+
   if (showOnboarding) return <OnboardingScreen user={user} onComplete={({ platforms, genres, languages }) => {
     setSelectedPlatforms(platforms);
     saveSelectedPlatforms(platforms);
@@ -3194,6 +3565,7 @@ export default function App() {
         isPremium={isPremium}
         onWatchlist={() => setShowWatchlist(true)}
         onProfile={() => setShowProfile(true)}
+        onFriends={() => setShowFriends(true)}
       />
     </SafeAreaView>
   );
