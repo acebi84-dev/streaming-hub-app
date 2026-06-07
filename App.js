@@ -577,6 +577,7 @@ function WatchlistScreen({ user, onItemPress, onBack, targetUser, onOpenProfile 
   const [listSubTab, setListSubTab] = useState('watched');
   const [items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
+  const [statusCounts, setStatusCounts] = useState({ watched: 0, watching: 0, want: 0 });
   const [profile, setProfile] = useState(targetUser || null);
   const [followingIds, setFollowingIds] = useState([]);
   const [myFollowingIds, setMyFollowingIds] = useState([]);
@@ -619,7 +620,18 @@ function WatchlistScreen({ user, onItemPress, onBack, targetUser, onOpenProfile 
     fetchFeed(ownerFollowing);
     fetchFollowers();
     fetchFollowing(ownerFollowing);
+    fetchStatusCounts();
     if (isOwn) fetchSuggestedUsers(user.id, ownerFollowing).then(list => { if (isMounted.current) setSuggested(list); }).catch(() => {});
+  }
+
+  async function fetchStatusCounts() {
+    if (!profileId) return;
+    try {
+      const { data } = await dbXHR('watchlist?user_id=eq.' + profileId + '&select=status');
+      const c = { watched: 0, watching: 0, want: 0 };
+      (Array.isArray(data) ? data : []).forEach(r => { if (c[r.status] != null) c[r.status]++; });
+      if (isMounted.current) setStatusCounts(c);
+    } catch (_) {}
   }
 
   async function fetchItems() {
@@ -843,7 +855,7 @@ function WatchlistScreen({ user, onItemPress, onBack, targetUser, onOpenProfile 
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 13, paddingVertical: 7, borderRadius: 14, backgroundColor: sel ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: sel ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)' }}
                   onPress={() => setListSubTab(t.key)}>
                   <Icon size={14} strokeWidth={1.8} color={sel ? '#fff' : 'rgba(255,255,255,0.5)'} />
-                  <Text style={{ color: sel ? '#fff' : 'rgba(255,255,255,0.5)', fontWeight: '600', fontSize: 12 }}>{t.label}</Text>
+                  <Text style={{ color: sel ? '#fff' : 'rgba(255,255,255,0.5)', fontWeight: '600', fontSize: 12 }}>{t.label} ({statusCounts[t.key] || 0})</Text>
                 </TouchableOpacity>
               );
             })}
