@@ -230,13 +230,11 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
 
   function setStatus(status) {
     if (!user) return;
-    // Optimistic update — UI responds instantly
     setEntry({ user_id: user.id, content_id: item.id, status, rating: entry?.rating || null });
     setShowMenu(false);
     if (status === 'watched') setShowRating(true);
-    onUpdate?.();
     upsertWatchlist(user.id, item.id, status, entry?.rating || null)
-      .then(({ data }) => { if (data && isMounted.current) setEntry(data); })
+      .then(({ data }) => { if (isMounted.current && data) setEntry(data); onUpdate?.(); })
       .catch(() => {});
   }
 
@@ -245,9 +243,8 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
     const prevStatus = entry.status;
     setEntry({ ...entry, rating });
     setShowRating(false);
-    onUpdate?.();
     upsertWatchlist(user.id, item.id, prevStatus, rating)
-      .then(({ data }) => { if (data && isMounted.current) setEntry(data); })
+      .then(({ data }) => { if (isMounted.current && data) setEntry(data); onUpdate?.(); })
       .catch(() => {});
   }
 
@@ -255,8 +252,7 @@ function WatchlistButton({ item, user, style, initialEntry, onUpdate, modalVaria
     if (!user) return;
     setEntry(null);
     setShowMenu(false);
-    onUpdate?.();
-    removeWatchlist(user.id, item.id);
+    removeWatchlist(user.id, item.id).then(() => onUpdate?.()).catch(() => {});
   }
 
   async function share() {
@@ -1162,10 +1158,41 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
       .in('platform', platforms)
       .order('rating', { ascending: false });
     if (error) { console.error(error); setLoading(false); return; }
+
+    // Tek sorguda tüm içerikleri zenginleştir
+    const imdbIds = [...new Set((data || []).map(i => i.imdb_id).filter(Boolean))];
+    const contentMap = {};
+    if (imdbIds.length > 0) {
+      const { data: contents } = await supabasePublic
+        .from('hub_contents')
+        .select('imdb_id, synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, type, year, title_tr, original_language')
+        .in('imdb_id', imdbIds)
+        .catch(() => ({ data: null }));
+      (contents || []).forEach(c => { contentMap[c.imdb_id] = c; });
+    }
+
     const grouped = {};
     (data || []).forEach(item => {
+      const e = item.imdb_id ? contentMap[item.imdb_id] : null;
+      const merged = {
+        ...item,
+        type: e?.type || item.show_type || null,
+        year: e?.year || item.release_year || null,
+        poster_url: e?.poster_url || item.poster_w480 || item.poster_w240,
+        imdb_score: item.rating ? item.rating / 10 : null,
+        availability: item.streaming_link ? [{ platform_slug: item.platform, platform_url: item.streaming_link }] : [],
+        ...(e && {
+          synopsis_tr: e.synopsis_tr,
+          director: e.director,
+          cast_list: e.cast_list,
+          trailer_url: e.trailer_url,
+          tagline: e.tagline,
+          title_tr: e.title_tr || item.title_tr,
+          original_language: e.original_language,
+        }),
+      };
       if (!grouped[item.platform]) grouped[item.platform] = [];
-      grouped[item.platform].push(item);
+      grouped[item.platform].push(merged);
     });
     setPopular(grouped);
     setLoading(false);
@@ -1180,40 +1207,8 @@ function PopularScreen({ selectedPlatforms, onBack, user }) {
 
   const selectedGenreLabel = POPULAR_GENRES.find(g => g.en === genreFilter)?.tr || 'Tür';
 
-  async function openPopularItem(item) {
-    setItemLoading(true);
-    const itemTitle = (item.title || '').trim();
-    const base = {
-      ...item,
-      title: itemTitle,
-      type: item.show_type || null,
-      year: item.release_year || null,
-      poster_url: item.poster_w480 || item.poster_w240,
-      imdb_score: item.rating ? item.rating / 10 : null,
-      availability: item.streaming_link ? [{ platform_slug: item.platform, platform_url: item.streaming_link }] : [],
-    };
-    const ENRICH_SELECT = 'synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, type, year, title_tr, original_language, imdb_id';
-    let enriched = null;
-    if (item.imdb_id) {
-      const { data } = await supabasePublic.from('hub_contents')
-        .select(ENRICH_SELECT).eq('imdb_id', item.imdb_id).single()
-        .catch(() => ({ data: null }));
-      enriched = data;
-    }
-    if (!enriched && itemTitle) {
-      const { data } = await supabasePublic.from('hub_contents')
-        .select(ENRICH_SELECT).ilike('title', itemTitle).limit(1)
-        .catch(() => ({ data: null }));
-      enriched = Array.isArray(data) ? data[0] : data;
-    }
-    if (!enriched && itemTitle) {
-      const { data } = await supabasePublic.from('hub_contents')
-        .select(ENRICH_SELECT).ilike('title', `%${itemTitle}%`).limit(1)
-        .catch(() => ({ data: null }));
-      enriched = Array.isArray(data) ? data[0] : data;
-    }
-    setItemLoading(false);
-    setSelectedItem(enriched ? { ...base, ...enriched, poster_url: enriched.poster_url || base.poster_url } : base);
+  function openPopularItem(item) {
+    setSelectedItem(item); // fetchPopular'da zaten zenginleştirildi
   }
 
   function renderPopularCard(item) {
@@ -1938,30 +1933,53 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
     if (!isMounted.current) return;
     if (selectedPlatforms.length === 0) { setPopularItems([]); setLoadingPopular(false); return; }
     setLoadingPopular(true);
-    const { data, error } = await supabasePublic
-      .from('hub_popular').select('*')
-      .in('platform', selectedPlatforms)
-      .order('rating', { ascending: false }).limit(25);
-    if (!isMounted.current) return;
-    if (error || !data) { setLoadingPopular(false); return; }
-    const seen = new Set();
-    const items = data.filter(item => {
-      const k = item.imdb_id || item.title || item.id;
-      if (!k || seen.has(k)) return false;
-      seen.add(k); return true;
-    }).map(item => ({
-      id: item.id,
-      title: item.title || item.show_name || '',
-      title_tr: null, original_language: null,
-      poster_url: item.poster_w480 || item.poster_w240,
-      imdb_score: item.rating ? item.rating / 10 : null,
-      year: item.release_year || null,
-      type: item.show_type,
-      availability: [{ platform_slug: item.platform, platform_url: item.streaming_link }],
-      imdb_id: item.imdb_id, _rawPopular: item,
-    }));
-    setPopularItems(items);
-    setLoadingPopular(false);
+    try {
+      const { data, error } = await supabasePublic
+        .from('hub_popular').select('*')
+        .in('platform', selectedPlatforms)
+        .order('rating', { ascending: false }).limit(25);
+      if (!isMounted.current || error || !data) return;
+
+      const imdbIds = [...new Set(data.map(i => i.imdb_id).filter(Boolean))];
+      const contentMap = {};
+      if (imdbIds.length > 0) {
+        const { data: contents } = await supabasePublic
+          .from('hub_contents')
+          .select('imdb_id, id, synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, type, year, title_tr, original_language')
+          .in('imdb_id', imdbIds);
+        (contents || []).forEach(c => { contentMap[c.imdb_id] = c; });
+      }
+      if (!isMounted.current) return;
+
+      const seen = new Set();
+      const items = data.filter(item => {
+        const k = item.imdb_id || item.title || item.id;
+        if (!k || seen.has(k)) return false;
+        seen.add(k); return true;
+      }).map(item => {
+        const e = item.imdb_id ? contentMap[item.imdb_id] : null;
+        return {
+          id: e?.id || item.id,
+          title: item.title || item.show_name || '',
+          title_tr: e?.title_tr || null,
+          original_language: e?.original_language || null,
+          poster_url: e?.poster_url || item.poster_w480 || item.poster_w240,
+          imdb_score: item.rating ? item.rating / 10 : null,
+          year: e?.year || item.release_year || null,
+          type: e?.type || item.show_type || null,
+          imdb_id: item.imdb_id,
+          synopsis_tr: e?.synopsis_tr || null,
+          director: e?.director || null,
+          cast_list: e?.cast_list || null,
+          trailer_url: e?.trailer_url || null,
+          tagline: e?.tagline || null,
+          availability: [{ platform_slug: item.platform, platform_url: item.streaming_link }],
+        };
+      });
+      if (isMounted.current) setPopularItems(items);
+    } finally {
+      if (isMounted.current) setLoadingPopular(false);
+    }
   }
 
   async function fetchNewItems() {
@@ -2004,37 +2022,8 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
     setLoadingCollections(false);
   }
 
-  async function handleItemPress(item) {
-    if (item._rawPopular) {
-      const raw = item._rawPopular;
-      const base = { ...item, poster_url: raw.poster_w480 || raw.poster_w240 || item.poster_url };
-      setSelectedItem(base); // Modal hemen açılır
-      const ENRICH_SEL = 'id, title_tr, synopsis_tr, director, cast_list, trailer_url, tagline, poster_url, genre, year, original_language, type, imdb_id';
-      const rawTitle = (item.title || item.show_name || '').trim();
-      let enriched = null;
-      if (item.imdb_id) {
-        const { data } = await supabasePublic.from('hub_contents')
-          .select(ENRICH_SEL).eq('imdb_id', item.imdb_id).single()
-          .catch(() => ({ data: null }));
-        enriched = data;
-      }
-      if (!enriched && rawTitle) {
-        const { data } = await supabasePublic.from('hub_contents')
-          .select(ENRICH_SEL).ilike('title', rawTitle).limit(1)
-          .catch(() => ({ data: null }));
-        enriched = Array.isArray(data) ? data[0] : data;
-      }
-      if (!enriched && rawTitle) {
-        const { data } = await supabasePublic.from('hub_contents')
-          .select(ENRICH_SEL).ilike('title', `%${rawTitle}%`).limit(1)
-          .catch(() => ({ data: null }));
-        enriched = Array.isArray(data) ? data[0] : data;
-      }
-      if (!isMounted.current) return;
-      if (enriched) setSelectedItem({ ...base, ...enriched, poster_url: enriched.poster_url || base.poster_url });
-    } else {
-      setSelectedItem(item);
-    }
+  function handleItemPress(item) {
+    setSelectedItem(item);
   }
 
   // Tam ekran yönlendirme
@@ -2049,7 +2038,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
         <View>
           <Text style={{ color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: 3 }}>İZLİO</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v8</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v12</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
