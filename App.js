@@ -1900,33 +1900,41 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
       items = data || [];
     }
 
-    // 2. Yeterli içerik yoksa: tüm katalog + dil + genre (puan eşiği kademeli düşürülerek)
-    if (items.length < 3 && langs.length > 0 && genreOr) {
-      for (const minScore of [7, 6, 5]) {
-        let q = baseQ(minScore).in('original_language', langs);
-        if (genreOr) q = q.or(genreOr);
-        const { data } = await q;
-        items = data || [];
-        if (items.length >= 3) break;
+    // Hedef: 10 içerik. Bir filtre katmanında yetersiz kalınırsa önce o katmanda
+    // imdb_score eşiğini kademeli düşürerek doldurmayı dene, hâlâ yetmezse bir sonraki
+    // (daha geniş) filtre katmanına geç.
+    const SCORE_STEPS = [7, 6, 5, 4, 3, 2, 1, 0];
+    async function fillByScore(buildQuery) {
+      let result = [];
+      for (const minScore of SCORE_STEPS) {
+        const { data } = await buildQuery(minScore);
+        result = data || [];
+        if (result.length >= 10) break;
       }
+      return result;
     }
 
-    // 3. Yeterli yoksa: tüm katalog + dil (genre filtresi yok)
-    if (items.length < 3 && langs.length > 0) {
-      const { data } = await baseQ().in('original_language', langs);
-      items = data || [];
+    // 2. Yeterli içerik yoksa: tüm katalog + dil + genre (puan eşiği kademeli düşürülerek)
+    if (items.length < 10 && langs.length > 0 && genreOr) {
+      items = await fillByScore(minScore => {
+        let q = baseQ(minScore).in('original_language', langs);
+        return q.or(genreOr);
+      });
     }
 
-    // 4. Yeterli içerik yoksa: tüm katalog + genre
-    if (items.length < 3 && genreOr) {
-      const { data } = await baseQ().or(genreOr);
-      items = data || [];
+    // 3. Yeterli yoksa: tüm katalog + dil (genre filtresi yok), puan kademeli
+    if (items.length < 10 && langs.length > 0) {
+      items = await fillByScore(minScore => baseQ(minScore).in('original_language', langs));
     }
 
-    // 5. Hâlâ yeterli yoksa: tüm katalog, hiç filtre yok
-    if (items.length === 0) {
-      const { data } = await baseQ();
-      items = data || [];
+    // 4. Yeterli içerik yoksa: tüm katalog + genre, puan kademeli
+    if (items.length < 10 && genreOr) {
+      items = await fillByScore(minScore => baseQ(minScore).or(genreOr));
+    }
+
+    // 5. Hâlâ yeterli yoksa: tüm katalog, hiç filtre yok, puan kademeli
+    if (items.length < 10) {
+      items = await fillByScore(minScore => baseQ(minScore));
     }
 
     if (!isMounted.current) return;
@@ -2067,7 +2075,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
         <View>
           <Text style={{ color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: 3 }}>İZLİO</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v20</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v21</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
