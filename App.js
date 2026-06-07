@@ -442,11 +442,42 @@ function calcAge(birthDateStr) {
   return age;
 }
 
-function WatchlistScreen({ user, onItemPress, onBack }) {
-  const [tab, setTab] = useState('watched');
+function PersonRow({ person, isFollowing, onToggleFollow }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 12 }}>
+      <Avatar seed={person.id} name={person.display_name || person.username} size={44} />
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{person.display_name || person.username}</Text>
+        {person.username ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>@{person.username}</Text> : null}
+      </View>
+      <TouchableOpacity
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: isFollowing ? 'rgba(255,255,255,0.08)' : '#fff', borderWidth: 1, borderColor: isFollowing ? 'rgba(255,255,255,0.18)' : '#fff' }}
+        onPress={onToggleFollow}>
+        {isFollowing ? <UserMinus size={15} color="rgba(255,255,255,0.7)" /> : <UserPlus size={15} color="#000" />}
+        <Text style={{ color: isFollowing ? 'rgba(255,255,255,0.7)' : '#000', fontWeight: '700', fontSize: 13 }}>{isFollowing ? 'Takipten Çık' : 'Takip Et'}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function WatchlistScreen({ user, onItemPress, onBack, initialTab }) {
+  const [tab, setTab] = useState(initialTab || 'list');
+  const [listSubTab, setListSubTab] = useState('watched');
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingItems, setLoadingItems] = useState(true);
   const [profile, setProfile] = useState(null);
+  const [followingIds, setFollowingIds] = useState([]);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [feed, setFeed] = useState([]);
+  const [loadingFeed, setLoadingFeed] = useState(true);
+  const [actorMap, setActorMap] = useState({});
+  const [followers, setFollowers] = useState([]);
+  const [loadingFollowers, setLoadingFollowers] = useState(true);
+  const [following, setFollowing] = useState([]);
+  const [loadingFollowing, setLoadingFollowing] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
   const isMounted = useRef(true);
   useEffect(() => { return () => { isMounted.current = false; }; }, []);
 
@@ -457,142 +488,30 @@ function WatchlistScreen({ user, onItemPress, onBack }) {
       .catch(() => {});
   }, [user?.id]);
 
-  useEffect(() => { fetchList().catch(() => {}); }, [tab]);
+  useEffect(() => { fetchItems().catch(() => {}); }, [listSubTab]);
 
-  async function fetchList() {
-    if (!user) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const sel = 'select=*,content:hub_contents(id,title,title_tr,type,year,imdb_score,poster_url,imdb_id,original_language,synopsis_tr,director,cast_list,trailer_url,tagline,availability:hub_availability(platform_slug,platform_url))';
-      const { data } = await dbXHR('watchlist?user_id=eq.' + user.id + '&status=eq.' + tab + '&order=updated_at.desc&' + sel);
-      if (isMounted.current) setItems(Array.isArray(data) ? data : []);
-    } finally {
-      if (isMounted.current) setLoading(false);
-    }
-  }
-
-  const tabs = [
-    { key: 'watched',  label: 'İzledim',          emoji: '✅' },
-    { key: 'watching', label: 'İzliyorum',         emoji: '▶️' },
-    { key: 'want',     label: 'İzleyeceğim',       emoji: '🔖' },
-  ];
-
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 18, padding: 16, marginBottom: 16 }}>
-          <Avatar seed={user?.id} name={profile?.display_name || profile?.username || user?.email} size={60} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }} numberOfLines={1}>
-              {[profile?.display_name, profile?.surname].filter(Boolean).join(' ') || user?.email}
-            </Text>
-            {profile?.username ? <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>@{profile.username}</Text> : null}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
-              {calcAge(profile?.birth_date) != null && (
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '600' }}>{calcAge(profile?.birth_date)} yaş</Text>
-                </View>
-              )}
-              {profile?.gender && GENDER_LABEL[profile.gender] && (
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '600' }}>{GENDER_LABEL[profile.gender]}</Text>
-                </View>
-              )}
-            </View>
-            {profile?.bio ? (
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 6, lineHeight: 18 }} numberOfLines={3}>{profile.bio}</Text>
-            ) : null}
-          </View>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
-          <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', flex: 1 }}>İzleme Listem</Text>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-          {tabs.map(t => (
-            <TouchableOpacity key={t.key}
-              style={{ paddingHorizontal: 18, paddingVertical: 12, borderRadius: 20, backgroundColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.12)' }}
-              onPress={() => setTab(t.key)}>
-              <Text style={{ color: tab === t.key ? '#000' : 'rgba(255,255,255,0.75)', fontWeight: '700', fontSize: 14 }}>{t.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {loading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color="#fff" size="large" />
-        </View>
-      ) : items.length === 0 ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 }}>
-          <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
-            {tab === 'watched' && <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 30 }}>✓</Text>}
-            {tab === 'watching' && <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 28, fontWeight: '300' }}>▷</Text>}
-            {tab === 'want' && <Bookmark size={30} color="rgba(255,255,255,0.35)" strokeWidth={1.5} />}
-          </View>
-          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz içerik yok</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, textAlign: 'center', paddingHorizontal: 40 }}>
-            {tab === 'watched' ? 'İzlediğin içerikleri burada göreceksin' : tab === 'watching' ? 'Şu an izlediğin dizileri buraya ekle' : 'İzlemek istediğin içerikleri buraya kaydet'}
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={i => i.id}
-          contentContainerStyle={{ padding: 16, gap: 12 }}
-          renderItem={({ item: row }) => {
-            const c = row.content;
-            if (!c) return null;
-            const p = PLATFORMS.find(x => x.slug === c.availability?.[0]?.platform_slug);
-            return (
-              <TouchableOpacity style={{ flexDirection: 'row', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 10 }} onPress={() => onItemPress(c)}>
-                {c.poster_url ? <Image source={{ uri: c.poster_url }} style={{ width: 60, height: 90, borderRadius: 8 }} resizeMode="cover" /> : <View style={{ width: 60, height: 90, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' }} />}
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }} numberOfLines={2}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
-                  <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>{c.type === 'movie' ? 'Film' : 'Dizi'}{c.year ? ` · ${c.year}` : ''}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    {c.imdb_score && <><View style={{ backgroundColor: '#f5c518', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 }}><Text style={{ color: '#000', fontSize: 10, fontWeight: '800' }}>IMDb</Text></View><Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{c.imdb_score.toFixed(1)}</Text></>}
-                    {row.rating && <><Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 12 }}>|</Text><Text style={{ color: '#ffd43b', fontSize: 13, fontWeight: '700' }}>★ {row.rating}/10</Text></>}
-                    {p && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: p.color }} />}
-                  </View>
-                  <WatchlistButton item={c} user={user} initialEntry={{ status: row.status, rating: row.rating }} onUpdate={fetchList} compact />
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-        />
-      )}
-      <FloatingBackBtn onPress={onBack} />
-    </SafeAreaView>
-  );
-}
-
-const ACTIVITY_ACTION_LABEL = {
-  watched: 'izledi',
-  watching: 'izliyor',
-  want: 'izleme listesine ekledi',
-  rated: 'puanladı',
-};
-
-function FriendsScreen({ user, onItemPress, onBack }) {
-  const [tab, setTab] = useState('feed'); // 'feed' | 'friends' | 'search'
-  const [feed, setFeed] = useState([]);
-  const [loadingFeed, setLoadingFeed] = useState(true);
-  const [actorMap, setActorMap] = useState({});
-  const [followingIds, setFollowingIds] = useState([]);
-  const [friends, setFriends] = useState([]);
-  const [loadingFriends, setLoadingFriends] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const isMounted = useRef(true);
-  useEffect(() => { return () => { isMounted.current = false; }; }, []);
-
-  useEffect(() => { init(); }, []);
+  useEffect(() => {
+    if (!user) return;
+    init();
+  }, [user?.id]);
 
   async function init() {
     const ids = await loadFollowing();
     fetchFeed(ids);
-    fetchFriends(ids);
+    fetchFollowers();
+    fetchFollowing(ids);
+  }
+
+  async function fetchItems() {
+    if (!user) { setLoadingItems(false); return; }
+    setLoadingItems(true);
+    try {
+      const sel = 'select=*,content:hub_contents(id,title,title_tr,type,year,imdb_score,poster_url,imdb_id,original_language,synopsis_tr,director,cast_list,trailer_url,tagline,availability:hub_availability(platform_slug,platform_url))';
+      const { data } = await dbXHR('watchlist?user_id=eq.' + user.id + '&status=eq.' + listSubTab + '&order=updated_at.desc&' + sel);
+      if (isMounted.current) setItems(Array.isArray(data) ? data : []);
+    } finally {
+      if (isMounted.current) setLoadingItems(false);
+    }
   }
 
   async function loadFollowing() {
@@ -602,14 +521,28 @@ function FriendsScreen({ user, onItemPress, onBack }) {
     return ids;
   }
 
-  async function fetchFriends(ids) {
-    if (isMounted.current) setLoadingFriends(true);
+  async function fetchFollowers() {
+    if (isMounted.current) setLoadingFollowers(true);
     try {
-      if (!ids || ids.length === 0) { if (isMounted.current) setFriends([]); return; }
-      const { data } = await dbXHR('profiles?id=in.(' + ids.join(',') + ')&select=id,username,display_name&order=display_name.asc');
-      if (isMounted.current) setFriends(Array.isArray(data) ? data : []);
+      const { data } = await dbXHR('follows?following_id=eq.' + user.id + '&select=follower_id');
+      const ids = Array.isArray(data) ? data.map(r => r.follower_id) : [];
+      if (isMounted.current) setFollowerCount(ids.length);
+      if (!ids.length) { if (isMounted.current) setFollowers([]); return; }
+      const { data: profs } = await dbXHR('profiles?id=in.(' + ids.join(',') + ')&select=id,username,display_name&order=display_name.asc');
+      if (isMounted.current) setFollowers(Array.isArray(profs) ? profs : []);
     } finally {
-      if (isMounted.current) setLoadingFriends(false);
+      if (isMounted.current) setLoadingFollowers(false);
+    }
+  }
+
+  async function fetchFollowing(ids) {
+    if (isMounted.current) setLoadingFollowing(true);
+    try {
+      if (!ids || ids.length === 0) { if (isMounted.current) setFollowing([]); return; }
+      const { data } = await dbXHR('profiles?id=in.(' + ids.join(',') + ')&select=id,username,display_name&order=display_name.asc');
+      if (isMounted.current) setFollowing(Array.isArray(data) ? data : []);
+    } finally {
+      if (isMounted.current) setLoadingFollowing(false);
     }
   }
 
@@ -659,34 +592,130 @@ function FriendsScreen({ user, onItemPress, onBack }) {
     } else {
       await dbXHR('follows', 'POST', { follower_id: user.id, following_id: targetId });
     }
-    if (tab === 'feed') fetchFeed(newIds);
-    fetchFriends(newIds);
+    fetchFeed(newIds);
+    fetchFollowing(newIds);
+    fetchFollowers();
   }
 
-  const tabs = [
+  const TOP_TABS = [
+    { key: 'list', label: 'İzleme Listem' },
     { key: 'feed', label: 'Aktivite Akışı' },
-    { key: 'friends', label: 'Arkadaşlarım' },
-    { key: 'search', label: 'Arkadaş Ekle' },
+    { key: 'followers', label: 'Takipçi' },
+    { key: 'following', label: 'Takip' },
+    { key: 'search', label: 'Ara' },
   ];
+
+  const SUB_TABS = [
+    { key: 'watched',  label: 'İzledim',          emoji: '✅' },
+    { key: 'watching', label: 'İzliyorum',         emoji: '▶️' },
+    { key: 'want',     label: 'İzleyeceğim',       emoji: '🔖' },
+  ];
+
+  const fullName = [profile?.display_name, profile?.surname].filter(Boolean).join(' ') || profile?.username || 'Kullanıcı';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
-          <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', flex: 1 }}>Arkadaşlar</Text>
+        {/* person card */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 18, padding: 16, marginBottom: 16 }}>
+          <Avatar seed={user?.id} name={profile?.display_name || profile?.username || 'Kullanıcı'} size={60} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }} numberOfLines={1}>{fullName}</Text>
+            {profile?.username ? <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>@{profile.username}</Text> : null}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+              {calcAge(profile?.birth_date) != null && (
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '600' }}>{calcAge(profile?.birth_date)} yaş</Text>
+                </View>
+              )}
+              {profile?.gender && GENDER_LABEL[profile.gender] && (
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '600' }}>{GENDER_LABEL[profile.gender]}</Text>
+                </View>
+              )}
+            </View>
+            {profile?.bio ? (
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 6, lineHeight: 18 }} numberOfLines={3}>{profile.bio}</Text>
+            ) : null}
+            <View style={{ flexDirection: 'row', gap: 18, marginTop: 8 }}>
+              <TouchableOpacity onPress={() => setTab('followers')}>
+                <Text style={{ color: '#fff', fontSize: 13 }}><Text style={{ fontWeight: '800' }}>{followerCount}</Text> <Text style={{ color: 'rgba(255,255,255,0.5)' }}>Takipçi</Text></Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setTab('following')}>
+                <Text style={{ color: '#fff', fontSize: 13 }}><Text style={{ fontWeight: '800' }}>{followingIds.length}</Text> <Text style={{ color: 'rgba(255,255,255,0.5)' }}>Takip</Text></Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {tabs.map(t => (
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+          {TOP_TABS.map(t => (
             <TouchableOpacity key={t.key}
-              style={{ flex: 1, paddingVertical: 12, borderRadius: 20, alignItems: 'center', backgroundColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.12)' }}
+              style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20, backgroundColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: tab === t.key ? '#fff' : 'rgba(255,255,255,0.12)' }}
               onPress={() => setTab(t.key)}>
               <Text style={{ color: tab === t.key ? '#000' : 'rgba(255,255,255,0.75)', fontWeight: '700', fontSize: 14 }}>{t.label}</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
+
+        {tab === 'list' && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10 }}>
+            {SUB_TABS.map(t => (
+              <TouchableOpacity key={t.key}
+                style={{ paddingHorizontal: 18, paddingVertical: 10, borderRadius: 18, backgroundColor: listSubTab === t.key ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: listSubTab === t.key ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.1)' }}
+                onPress={() => setListSubTab(t.key)}>
+                <Text style={{ color: listSubTab === t.key ? '#fff' : 'rgba(255,255,255,0.6)', fontWeight: '700', fontSize: 13 }}>{t.emoji} {t.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
       </View>
 
-      {tab === 'feed' ? (
+      {tab === 'list' ? (
+        loadingItems ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color="#fff" size="large" />
+          </View>
+        ) : items.length === 0 ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+              {listSubTab === 'watched' && <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 30 }}>✓</Text>}
+              {listSubTab === 'watching' && <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 28, fontWeight: '300' }}>▷</Text>}
+              {listSubTab === 'want' && <Bookmark size={30} color="rgba(255,255,255,0.35)" strokeWidth={1.5} />}
+            </View>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz içerik yok</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, textAlign: 'center', paddingHorizontal: 40 }}>
+              {listSubTab === 'watched' ? 'İzlediğin içerikleri burada göreceksin' : listSubTab === 'watching' ? 'Şu an izlediğin dizileri buraya ekle' : 'İzlemek istediğin içerikleri buraya kaydet'}
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={items}
+            keyExtractor={i => i.id}
+            contentContainerStyle={{ padding: 16, gap: 12 }}
+            renderItem={({ item: row }) => {
+              const c = row.content;
+              if (!c) return null;
+              const p = PLATFORMS.find(x => x.slug === c.availability?.[0]?.platform_slug);
+              return (
+                <TouchableOpacity style={{ flexDirection: 'row', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 10 }} onPress={() => onItemPress(c)}>
+                  {c.poster_url ? <Image source={{ uri: c.poster_url }} style={{ width: 60, height: 90, borderRadius: 8 }} resizeMode="cover" /> : <View style={{ width: 60, height: 90, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' }} />}
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }} numberOfLines={2}>{c.original_language === 'tr' && c.title_tr ? c.title_tr : c.title}</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>{c.type === 'movie' ? 'Film' : 'Dizi'}{c.year ? ` · ${c.year}` : ''}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      {c.imdb_score && <><View style={{ backgroundColor: '#f5c518', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 }}><Text style={{ color: '#000', fontSize: 10, fontWeight: '800' }}>IMDb</Text></View><Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{c.imdb_score.toFixed(1)}</Text></>}
+                      {row.rating && <><Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 12 }}>|</Text><Text style={{ color: '#ffd43b', fontSize: 13, fontWeight: '700' }}>★ {row.rating}/10</Text></>}
+                      {p && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: p.color }} />}
+                    </View>
+                    <WatchlistButton item={c} user={user} initialEntry={{ status: row.status, rating: row.rating }} onUpdate={fetchItems} compact />
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        )
+      ) : tab === 'feed' ? (
         loadingFeed ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <ActivityIndicator color="#fff" size="large" />
@@ -698,10 +727,10 @@ function FriendsScreen({ user, onItemPress, onBack }) {
             </View>
             <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz aktivite yok</Text>
             <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, textAlign: 'center' }}>
-              Arkadaşlarını takip et, izledikleri içerikleri burada gör
+              Takip ettiklerinin izledikleri içerikleri burada gör
             </Text>
             <TouchableOpacity style={{ paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, backgroundColor: '#fff' }} onPress={() => setTab('search')}>
-              <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Arkadaş Ekle</Text>
+              <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Kullanıcı Ara</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -729,43 +758,51 @@ function FriendsScreen({ user, onItemPress, onBack }) {
             }}
           />
         )
-      ) : tab === 'friends' ? (
-        loadingFriends ? (
+      ) : tab === 'followers' ? (
+        loadingFollowers ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <ActivityIndicator color="#fff" size="large" />
           </View>
-        ) : friends.length === 0 ? (
+        ) : followers.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 40 }}>
             <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
               <Users size={30} color="rgba(255,255,255,0.35)" strokeWidth={1.5} />
             </View>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz arkadaşın yok</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, textAlign: 'center' }}>
-              Kullanıcı arayıp arkadaş ekleyebilirsin
-            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz takipçin yok</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={followers}
+            keyExtractor={p => p.id}
+            contentContainerStyle={{ padding: 16, gap: 10 }}
+            renderItem={({ item: p }) => (
+              <PersonRow person={p} isFollowing={followingIds.includes(p.id)} onToggleFollow={() => toggleFollow(p.id)} />
+            )}
+          />
+        )
+      ) : tab === 'following' ? (
+        loadingFollowing ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color="#fff" size="large" />
+          </View>
+        ) : following.length === 0 ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 40 }}>
+            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+              <Users size={30} color="rgba(255,255,255,0.35)" strokeWidth={1.5} />
+            </View>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16, fontWeight: '600' }}>Henüz kimseyi takip etmiyorsun</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, textAlign: 'center' }}>Kullanıcı arayıp takip edebilirsin</Text>
             <TouchableOpacity style={{ paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, backgroundColor: '#fff' }} onPress={() => setTab('search')}>
-              <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Arkadaş Ekle</Text>
+              <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Kullanıcı Ara</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <FlatList
-            data={friends}
+            data={following}
             keyExtractor={p => p.id}
             contentContainerStyle={{ padding: 16, gap: 10 }}
             renderItem={({ item: p }) => (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 12 }}>
-                <Avatar seed={p.id} name={p.display_name || p.username} size={44} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{p.display_name || p.username}</Text>
-                  {p.username ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>@{p.username}</Text> : null}
-                </View>
-                <TouchableOpacity
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' }}
-                  onPress={() => toggleFollow(p.id)}>
-                  <UserMinus size={15} color="rgba(255,255,255,0.7)" />
-                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: 13 }}>Arkadaşlıktan Çıkar</Text>
-                </TouchableOpacity>
-              </View>
+              <PersonRow person={p} isFollowing={followingIds.includes(p.id)} onToggleFollow={() => toggleFollow(p.id)} />
             )}
           />
         )
@@ -787,24 +824,9 @@ function FriendsScreen({ user, onItemPress, onBack }) {
               data={searchResults}
               keyExtractor={p => p.id}
               contentContainerStyle={{ padding: 16, gap: 10 }}
-              renderItem={({ item: p }) => {
-                const isFollowing = followingIds.includes(p.id);
-                return (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 12 }}>
-                    <Avatar seed={p.id} name={p.display_name || p.username} size={44} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{p.display_name || p.username}</Text>
-                      {p.username ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>@{p.username}</Text> : null}
-                    </View>
-                    <TouchableOpacity
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: isFollowing ? 'rgba(255,255,255,0.08)' : '#fff', borderWidth: 1, borderColor: isFollowing ? 'rgba(255,255,255,0.18)' : '#fff' }}
-                      onPress={() => toggleFollow(p.id)}>
-                      {isFollowing ? <UserMinus size={15} color="rgba(255,255,255,0.7)" /> : <UserPlus size={15} color="#000" />}
-                      <Text style={{ color: isFollowing ? 'rgba(255,255,255,0.7)' : '#000', fontWeight: '700', fontSize: 13 }}>{isFollowing ? 'Arkadaşlıktan Çıkar' : 'Arkadaş Ekle'}</Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              }}
+              renderItem={({ item: p }) => (
+                <PersonRow person={p} isFollowing={followingIds.includes(p.id)} onToggleFollow={() => toggleFollow(p.id)} />
+              )}
             />
           )}
         </View>
@@ -813,6 +835,13 @@ function FriendsScreen({ user, onItemPress, onBack }) {
     </SafeAreaView>
   );
 }
+
+const ACTIVITY_ACTION_LABEL = {
+  watched: 'izledi',
+  watching: 'izliyor',
+  want: 'izleme listesine ekledi',
+  rated: 'puanladı',
+};
 
 function PlatformModal({ visible, selected, onSave, onClose }) {
   const [local, setLocal] = useState(selected);
@@ -2778,7 +2807,7 @@ function OnboardingScreen({ user, onComplete }) {
       favorite_languages: selLanguages,
       display_name: displayName || null,
       surname: surname || null,
-      username: (u && usernameStatus === 'available') ? u : null,
+      username: u,
       birth_date: birthDate || null,
       gender: gender || null,
       bio: bio || null,
@@ -2871,7 +2900,7 @@ function OnboardingScreen({ user, onComplete }) {
         {step === 4 && (
           <View style={{ paddingTop: 32 }}>
             <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', marginBottom: 6 }}>Profilini Tamamla</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, marginBottom: 28 }}>İsteğe bağlı — dilersen atlayabilirsin.</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, marginBottom: 28 }}>Kullanıcı adı zorunludur, diğer alanlar isteğe bağlıdır.</Text>
 
             <View style={{ gap: 14 }}>
               <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -2943,7 +2972,10 @@ function OnboardingScreen({ user, onComplete }) {
             <Text style={obStyles.mainBtnText}>{step === 0 ? 'Başla' : 'Devam'} →</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={[obStyles.mainBtn, loading && { opacity: 0.6 }]} onPress={finish} disabled={loading}>
+          <TouchableOpacity
+            style={[obStyles.mainBtn, (loading || usernameStatus !== 'available') && { opacity: 0.4 }]}
+            onPress={finish}
+            disabled={loading || usernameStatus !== 'available'}>
             {loading ? <ActivityIndicator color="#000" /> : <Text style={obStyles.mainBtnText}>Tamamla 🎉</Text>}
           </TouchableOpacity>
         )}
@@ -3055,8 +3087,6 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
   const [openPlatforms, setOpenPlatforms] = useState(true);
   const [openGenres, setOpenGenres] = useState(false);
   const [openLanguages, setOpenLanguages] = useState(false);
-  const [followerCount, setFollowerCount] = useState(0);
-  const [followingCount, setFollowingCount] = useState(0);
   const initialUsernameRef = useRef('');
 
   useEffect(() => {
@@ -3075,12 +3105,6 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
           setSelGenres(d.favorite_genres || []);
           setSelLanguages(d.favorite_languages || []);
         }
-      }).catch(() => {});
-      dbXHR('follows?following_id=eq.' + user.id + '&select=follower_id').then(({ data }) => {
-        setFollowerCount(Array.isArray(data) ? data.length : 0);
-      }).catch(() => {});
-      dbXHR('follows?follower_id=eq.' + user.id + '&select=following_id').then(({ data }) => {
-        setFollowingCount(Array.isArray(data) ? data.length : 0);
       }).catch(() => {});
     }
   }, [visible]);
@@ -3167,16 +3191,6 @@ function ProfileModal({ visible, user, selectedPlatforms, onClose, onSave, onSig
             <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{[editName, editSurname].filter(Boolean).join(' ') || user?.email}</Text>
             {editName ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 2 }}>{user?.email}</Text> : null}
             {editUsername ? <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 2 }}>@{editUsername}</Text> : null}
-            <View style={{ flexDirection: 'row', gap: 28, marginTop: 12 }}>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>{followerCount}</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>Takipçi</Text>
-              </View>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>{followingCount}</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>Arkadaş</Text>
-              </View>
-            </View>
           </View>
 
           {/* Kişisel Bilgiler — accordion */}
@@ -3678,8 +3692,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showWatchlist, setShowWatchlist] = useState(false);
   const [watchlistItem, setWatchlistItem] = useState(null);
-  const [showFriends, setShowFriends] = useState(false);
-  const [friendsItem, setFriendsItem] = useState(null);
+  const [watchlistInitialTab, setWatchlistInitialTab] = useState('list');
 
   // Kullanıcı giriş yaptığında profil bilgilerini yükle
   useEffect(() => {
@@ -3796,21 +3809,11 @@ export default function App() {
     <>
       <WatchlistScreen
         user={user}
+        initialTab={watchlistInitialTab}
         onBack={() => { setShowWatchlist(false); setWatchlistItem(null); }}
         onItemPress={(item) => setWatchlistItem(item)}
       />
       <DetailModal key={watchlistItem?.id || 'wmodal'} item={watchlistItem} onClose={() => setWatchlistItem(null)} user={user} />
-    </>
-  );
-
-  if (showFriends) return (
-    <>
-      <FriendsScreen
-        user={user}
-        onBack={() => { setShowFriends(false); setFriendsItem(null); }}
-        onItemPress={(item) => setFriendsItem(item)}
-      />
-      <DetailModal key={friendsItem?.id || 'fmodal'} item={friendsItem} onClose={() => setFriendsItem(null)} user={user} />
     </>
   );
 
@@ -3849,9 +3852,9 @@ export default function App() {
         favoriteGenres={favoriteGenres}
         favoriteLanguages={favoriteLanguages}
         isPremium={isPremium}
-        onWatchlist={() => setShowWatchlist(true)}
+        onWatchlist={() => { setWatchlistInitialTab('list'); setShowWatchlist(true); }}
         onProfile={() => setShowProfile(true)}
-        onFriends={() => setShowFriends(true)}
+        onFriends={() => { setWatchlistInitialTab('feed'); setShowWatchlist(true); }}
       />
     </SafeAreaView>
   );
