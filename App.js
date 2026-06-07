@@ -128,30 +128,48 @@ const _SUPA = {
   key: 'sb_publishable_Q3JqA0F8fU7vE6fQMZ_ZcA_-x5qLhnk',
   token: null,
 };
-function dbXHR(path, method, body) {
+function _xhrOnce(path, method, body, token) {
   return new Promise((resolve) => {
     const xhr = new XMLHttpRequest();
     xhr.timeout = 6000;
-    const done = (data, error) => resolve({ data, error });
-    xhr.ontimeout = () => done(null, { message: 'timeout' });
-    xhr.onerror = () => done(null, { message: 'network' });
+    const done = (data, error) => resolve({ data, error, status: xhr.status });
+    xhr.ontimeout = () => resolve({ data: null, error: { message: 'timeout' }, status: 0 });
+    xhr.onerror = () => resolve({ data: null, error: { message: 'network' }, status: 0 });
     xhr.onload = () => {
       try {
         const json = xhr.responseText ? JSON.parse(xhr.responseText) : null;
         if (xhr.status >= 200 && xhr.status < 300) done(json, null);
-        else done(null, { message: (json && json.message) || 'hata' });
+        else done(null, { message: (json && json.message) || 'hata', code: json && json.code });
       } catch (e) { done(null, { message: e.message }); }
     };
     xhr.open(method || 'GET', _SUPA.url + '/rest/v1/' + path);
-    const tok = _SUPA.token || getStoredToken() || _SUPA.key;
     xhr.setRequestHeader('apikey', _SUPA.key);
-    xhr.setRequestHeader('Authorization', 'Bearer ' + tok);
+    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
     if (body) {
       xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.setRequestHeader('Prefer', 'resolution=merge-duplicates,return=representation');
     }
     xhr.send(body ? JSON.stringify(body) : null);
   });
+}
+
+async function dbXHR(path, method, body) {
+  const tok = _SUPA.token || getStoredToken() || _SUPA.key;
+  const result = await _xhrOnce(path, method, body, tok);
+  const isJwtError = result.status === 401 && result.error && /jwt/i.test(result.error.message || '');
+  if (isJwtError) {
+    try {
+      const { data } = await supabase.auth.refreshSession();
+      const newToken = data && data.session && data.session.access_token;
+      if (newToken) {
+        _SUPA.token = newToken;
+        setStoredToken(newToken);
+        const retry = await _xhrOnce(path, method, body, newToken);
+        return { data: retry.data, error: retry.error };
+      }
+    } catch (_) {}
+  }
+  return { data: result.data, error: result.error };
 }
 
 // localStorage React Native'de yok — in-memory cache kullanıyoruz, Supabase profile ile senkronize
@@ -2046,7 +2064,7 @@ function AppleTVMainScreen({ user, selectedPlatforms, favoriteGenres, favoriteLa
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8, justifyContent: 'space-between' }}>
         <View>
           <Text style={{ color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: 3 }}>İZLİO</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v14</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>OTA-v15</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }} onPress={onWatchlist} hitSlop={{ top: 24, bottom: 24, left: 24, right: 12 }}>
